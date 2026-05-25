@@ -1,9 +1,11 @@
 <?php
 
 namespace App\Http\Controllers\Admin;
+
 use Illuminate\Support\Facades\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
+use App\Models\Outlet;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use Inertia\Inertia;
@@ -11,78 +13,79 @@ use Inertia\Inertia;
 class UserController extends Controller
 {
     /**
-     * Menampilkan Dashboard beserta data kasir yang sudah ada
+     * Menampilkan Dashboard beserta seluruh data staf & outlet
      */
     public function index()
     {
-        // Ambil semua user dengan role cashier untuk ditampilkan di tabel dashboard
-        $cashiers = User::where('role', 'cashier')->orderBy('created_at', 'desc')->get();
+        $outlets = Outlet::all();
+        $users = User::with('outlet')->orderBy('created_at', 'desc')->get();
 
         return Inertia::render('Dashboard', [
-            'cashiers' => $cashiers
+            'users' => $users, 
+            'outlets' => $outlets,
         ]);
     }
 
     /**
-     * Memproses penyimpanan akun kasir baru
+     * Memproses penyimpanan akun baru (Admin/Kasir)
      */
     public function storeCashier(Request $request)
     {
-    // 1. Tambahkan validasi untuk role
-    $request->validate([
-        'name'     => 'required|string|max:255|unique:users,name',
-        'password' => 'required|string|min:4',
-        'role'     => 'required|in:admin,cashier', // Memastikan role valid
-    ]);
+        $request->validate([
+            'name'      => 'required|string|max:255|unique:users,name',
+            'password'  => 'required|string|min:4',
+            'role'      => 'required|in:admin,cashier',
+            // Jika role kasir, outlet_id WAJIB diisi. Jika admin, BOLEH dikosongkan (HQ)
+            'outlet_id' => $request->role === 'cashier' ? 'required|exists:outlets,id' : 'nullable|exists:outlets,id',
+        ]);
 
-    // 2. Simpan dengan role dinamis dari inputan
-    User::create([
-        'name'     => $request->name,
-        'email'    => strtolower(str_replace(' ', '', $request->name)) . '@kahita.team',
-        'password' => Hash::make($request->password),
-        'role'     => $request->role, // Menangkap pilihan role
-    ]);
+        User::create([
+            'name'      => $request->name,
+            'email'     => strtolower(str_replace(' ', '', $request->name)) . '@kahita.team',
+            'password'  => Hash::make($request->password),
+            'role'      => $request->role,
+            'outlet_id' => $request->role === 'cashier' ? $request->outlet_id : null,
+        ]);
 
-    return redirect()->back()->with('success', 'Akun berhasil didaftarkan!');
+        return redirect()->back()->with('success', 'Akun berhasil didaftarkan!');
     }
 
+    /**
+     * Memperbarui data akun staf
+     */
     public function updateUser(Request $request, User $user)
-{
-    $request->validate([
-        'name' => 'required|string|max:255|unique:users,name,' . $user->id,
-        'role' => 'required|in:admin,cashier',
-        'password' => 'nullable|string|min:4', // Nullable artinya password boleh dikosongkan jika tidak ingin diubah
-    ]);
+    {
+        $request->validate([
+            'name'      => 'required|string|max:255|unique:users,name,' . $user->id,
+            'role'      => 'required|in:admin,cashier',
+            'password'  => 'nullable|string|min:4',
+            'outlet_id' => $request->role === 'cashier' ? 'required|exists:outlets,id' : 'nullable|exists:outlets,id',
+        ]);
 
-    // Update nama dan role
-    $user->name = $request->name;
-    $user->role = $request->role;
-    
-    // Generate ulang email tiruan agar sinkron dengan nama baru
-    $user->email = strtolower(str_replace(' ', '', $request->name)) . '@kahita.local';
+        $user->name = $request->name;
+        $user->role = $request->role;
+        $user->outlet_id = $request->role === 'cashier' ? $request->outlet_id : null;
+        $user->email = strtolower(str_replace(' ', '', $request->name)) . '@kahita.team';
 
-    // Jika password diisi, enkripsi dan update password baru
-    if ($request->password) {
-        $user->password = Hash::make($request->password);
+        if ($request->password) {
+            $user->password = Hash::make($request->password);
+        }
+
+        $user->save();
+
+        return redirect()->back()->with('success', 'Data akun berhasil diperbarui!');
     }
 
-    $user->save();
+    /**
+     * Menghapus akun dari sistem
+     */
+    public function destroyUser(User $user)
+    {
+        if (Auth::id() === $user->id) {
+            return redirect()->back()->with('error', 'Anda tidak bisa menghapus akun Anda sendiri!');
+        }
 
-    return redirect()->back()->with('success', 'Data akun berhasil diperbarui!');
-}
-
-/**
- * Menghapus akun user dari database
- */
-public function destroyUser(User $user)
-{
-    // Mencegah admin menghapus dirinya sendiri saat sedang login
-if (Auth::id() === $user->id) {
-        return redirect()->back()->with('error', 'Anda tidak bisa menghapus akun Anda sendiri yang sedang digunakan!');
+        $user->delete();
+        return redirect()->back()->with('success', 'Akun berhasil dihapus secara permanen!');
     }
-
-    $user->delete();
-
-    return redirect()->back()->with('success', 'Akun berhasil dihapus secara permanen!');
-}
 }
