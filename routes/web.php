@@ -38,7 +38,7 @@ Route::get('/dashboard', function () {
 // 3. KELOMPOK RUTE KHUSUS USER YANG SUDAH LOGIN
 Route::middleware(['auth', 'verified'])->group(function () {
     
-    // AREA KASIR
+    // AREA KASIR (Mengarah ke Halaman POS Baru Anda di Pages/Pos/Index.jsx)
     Route::middleware(['role:cashier'])->group(function () {
         Route::get('/pos', [PosController::class, 'index'])->name('cashier.pos');
     });
@@ -51,7 +51,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
             return Inertia::render('Admin/Placeholder', ['title' => 'Dashboard Utama']); 
         })->name('admin.dashboard.index');
 
-        // --- MENU 2: KELOLA STAF & AKUN (Halaman Dashboard Lama Anda) ---
+        // --- MENU 2: KELOLA STAF & AKUN ---
         Route::get('/admin/staff', [UserController::class, 'index'])->name('admin.staff.index');
         Route::post('/admin/cashier', [UserController::class, 'storeCashier'])->name('admin.cashier.store');
         Route::patch('/admin/user/{user}', [UserController::class, 'updateUser'])->name('admin.user.update');
