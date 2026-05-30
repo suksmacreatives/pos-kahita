@@ -1,6 +1,6 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 
-export default function RingkasanPenjualan({ salesHistory = [], outlets = [], formatRupiah }) {
+export default function RingkasanPenjualan({ salesHistory = [], outlets = [], formatRupiah, analisis_produk = {} }) {
     // ----------------------------------------------------
     // STATE FILTER BARIS ATAS
     // ----------------------------------------------------
@@ -8,10 +8,50 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
     const [selectedOutlet, setSelectedOutlet] = useState('all');
     const [chartMode, setChartMode] = useState('hari'); // hari | minggu | bulan
 
-    const [rangeTanggal, setRangeTanggal] = useState({
-        start: '2026-05-25',
-        end: '2026-05-25'
-    });
+    const today = new Date().toISOString().split('T')[0];
+
+const [rangeTanggal, setRangeTanggal] = useState({
+    start: today,
+    end: today
+});
+useEffect(() => {
+    const today = new Date();
+
+    if (periodeMakro === 'hari') {
+        const tgl = today.toISOString().split('T')[0];
+
+        setRangeTanggal({
+            start: tgl,
+            end: tgl
+        });
+    }
+
+    if (periodeMakro === 'bulan') {
+        const awal = new Date(
+            today.getFullYear(),
+            today.getMonth(),
+            1
+        );
+
+        setRangeTanggal({
+            start: awal.toISOString().split('T')[0],
+            end: today.toISOString().split('T')[0]
+        });
+    }
+
+    if (periodeMakro === 'tahun') {
+        const awal = new Date(
+            today.getFullYear(),
+            0,
+            1
+        );
+
+        setRangeTanggal({
+            start: awal.toISOString().split('T')[0],
+            end: today.toISOString().split('T')[0]
+        });
+    }
+}, [periodeMakro]);
     
     const [isPilihanPertama, setIsPilihanPertama] = useState(true);
     const hiddenDateInputRef = useRef(null);
@@ -81,11 +121,16 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
     // PROSES ANALISIS & AKUMULASI DATA SMART DASHBOARD
     // ----------------------------------------------------
     const dataProses = useMemo(() => {
+         console.log('salesHistory:', salesHistory);
         const listAman = Array.isArray(salesHistory) ? salesHistory : [];
-
+console.log("Range Tanggal:", rangeTanggal);
+console.log("Data Pertama:", salesHistory[0]);
         const dataTersaring = listAman.filter(item => {
             if (!item) return false;
             const itemDate = item.tanggal || item.created_at?.split('T')[0];
+            console.log("Item Date:", itemDate);
+    console.log("Start:", rangeTanggal.start);
+    console.log("End:", rangeTanggal.end);
             if (!itemDate) return false;
             
             const cocokTanggal = itemDate >= rangeTanggal.start && itemDate <= rangeTanggal.end;
@@ -107,28 +152,54 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
         const mapMinggu = { 'Minggu 1': 0, 'Minggu 2': 0, 'Minggu 3': 0, 'Minggu 4': 0 };
         
         const mapProduk = {};
-        const mapBayar = { Cash: 0, QRIS: 0, Transfer: 0, Debit: 0 };
+        
+        // SELARAS DATABASE: Disesuaikan dengan pilihan metode mutasi kas JenisBayar
+        const jenisBayar = { 'Tunai': 0, 'QRIS': 0, 'Debit': 0, 'Kredit': 0 };
 
         const namaHariIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
         dataTersaring.forEach(nota => {
             if (!nota) return;
             
-            const totalNota = Number(nota.total) || 0;
+            // SINKRONISASI TOTAL OMSET (Mendukung properti 'jumlah' atau 'total')
+            const totalNota =
+    Number(
+        nota.grand_total ??
+        nota.total ??
+        nota.jumlah
+    ) || 0;
             omset += totalNota;
-            if (nota.pelanggan_id) pelangganUnik.add(nota.pelanggan_id);
+            
+            if (nota.customer_name)
+{
+    pelangganUnik.add(nota.customer_name);
+}
             if (nota.status === 'refund' || nota.status === 'void') refundVoidCount++;
 
-            if (nota.items && Array.isArray(nota.items)) {
-                nota.items.forEach(prod => {
-                    if (prod && prod.nama) {
-                        const qty = Number(prod.quantity) || 0;
-                        produkTerjual += qty;
-                        mapProduk[prod.nama] = (mapProduk[prod.nama] || 0) + qty;
+            // MENGAKOMODASI STRUKTUR ARRAY PRODUK POS
+            const items =
+    nota.transaction_items ||
+    nota.items ||
+    nota.produkTerjual ||
+    [];
+            if (Array.isArray(items)) {
+                items.forEach(prod => {
+                    if (prod) {
+                        const nameKey =
+    prod.product_name_snapshot ||
+    prod.nama ||
+    prod.name;
+                        const qty = Number(prod.qty || prod.quantity) || 0;
+                        
+                        if (nameKey) {
+                            produkTerjual += qty;
+                            mapProduk[nameKey] = (mapProduk[nameKey] || 0) + qty;
+                        }
                     }
                 });
             }
 
+            // AMBIL JAM TRANSAKSI
             let jamAngka = 9;
             if (nota.jam && typeof nota.jam === 'string') {
                 jamAngka = parseInt(nota.jam.split(':')[0], 10);
@@ -138,6 +209,7 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
             const labelJam = `${String(jamAngka).padStart(2, '0')}:00`;
             mapJam[labelJam] = (mapJam[labelJam] || 0) + totalNota;
 
+            // AMBIL HARI DAN MINGGUAN
             const tanggalObj = new Date(nota.tanggal || nota.created_at);
             if (!isNaN(tanggalObj)) {
                 const hariNama = namaHariIndo[tanggalObj.getDay()];
@@ -150,11 +222,18 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
                 else mapMinggu['Minggu 4'] += totalNota;
             }
 
-            if (nota.metode_pembayaran && mapBayar[nota.metode_pembayaran] !== undefined) {
-                mapBayar[nota.metode_pembayaran] += totalNota;
+            // SINKRONISASI METODE PEMBAYARAN KASIR (Mendukung metodeBayar / metode_pembayaran)
+            const metodeAmandemen =
+    nota.payment_method ||
+    nota.metodeBayar ||
+    nota.metode_pembayaran ||
+    nota.metode;
+            if (metodeAmandemen && jenisBayar[metodeAmandemen] !== undefined) {
+                jenisBayar[metodeAmandemen] += totalNota;
             }
         });
 
+        // KONTEN DATA UNTUK SUMBU GRAFIK BAR
         let SusunanChart = [];
         if (chartMode === 'hari') {
             const jamList = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00', '18:00', '19:00', '20:00', '21:00'];
@@ -170,16 +249,17 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
             SusunanChart = mingguList.map(m => ({ label: m, nilai: mapMinggu[m] || 0, percentage: ((mapMinggu[m] || 0) / maxVal) * 100 }));
         }
 
+        // AMBIL TOP 3 PRODUK TERLARIS
         const produkUrut = Object.keys(mapProduk)
             .map(nama => ({ nama, terjual: mapProduk[nama], stok: mapProduk[nama] > 10 ? 15 : 5 }))
             .sort((a, b) => b.terjual - a.terjual)
             .slice(0, 3);
 
         const totalBagiBayar = omset || 1;
-        const listMetodeBayar = Object.keys(mapBayar).map(key => ({
+        const listMetodeBayar = Object.keys(jenisBayar).map(key => ({
             metode: key,
-            nilai: mapBayar[key],
-            persentase: Math.round((mapBayar[key] / totalBagiBayar) * 100)
+            nilai: jenisBayar[key],
+            persentase: Math.round((jenisBayar[key] / totalBagiBayar) * 100)
         }));
 
         return {
@@ -199,11 +279,12 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
         if (formatRupiah) return formatRupiah(nilai);
         return `Rp ${(nilai || 0).toLocaleString('id-ID')}`;
     };
+    const listProduk = analisis_produk?.list_tabel || [];
 
     return (
         <div className="flex-1 flex flex-col h-full bg-[#f8fafc] overflow-hidden text-slate-600 font-sans tracking-tight">
             
-            {/* ====== AREA FILTER UTAMA (SINKRON DENGAN VOID TRANSAKSI) ====== */}
+            {/* ====== AREA FILTER UTAMA ====== */}
             <div className="bg-white p-4 border-b border-slate-100 flex-shrink-0 w-full">
                 <div className="flex flex-row items-center justify-between gap-4 w-full">
                     
@@ -212,7 +293,7 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
                         <select 
                             value={periodeMakro}
                             onChange={(e) => setPeriodeMakro(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
                         >
                             <option value="hari">Hari ini</option>
                             <option value="bulan">Bulan ini</option>
@@ -259,7 +340,7 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
                         <select 
                             value={selectedOutlet}
                             onChange={(e) => setSelectedOutlet(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
                         >
                             <option value="all">Semua Outlet</option>
                             {Array.isArray(outlets) && outlets.map((out, idx) => (
@@ -274,41 +355,42 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
 
             {/* ====== AREA KONTEN UTAMA DENGAN GRAFIK DINAMIS ========= */}
             <div className="flex-1 overflow-y-auto p-5 space-y-5">
+
                 
                 {/* 1. CARDS METRIK UTAMA */}
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
                     <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
-                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">Omset</span>
-                        <span className="text-sm font-semibold text-slate-800 mt-1 block">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Omset</span>
+                        <span className="text-sm font-bold text-slate-800 mt-1 block font-mono">
                             {renderRupiah(dataProses.omset)}
                         </span>
                     </div>
 
                     <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
-                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">Transaksi</span>
-                        <span className="text-sm font-semibold text-slate-800 mt-1 block">{dataProses.transaksi} Nota</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Transaksi</span>
+                        <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.transaksi} Nota</span>
                     </div>
 
                     <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
-                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">Produk Terjual</span>
-                        <span className="text-sm font-semibold text-slate-800 mt-1 block">{dataProses.produkTerjual} Item</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Produk Terjual</span>
+                        <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.produkTerjual} Item</span>
                     </div>
 
                     <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
-                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">Pelanggan</span>
-                        <span className="text-sm font-semibold text-slate-800 mt-1 block">{dataProses.pelanggan} Orang</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pelanggan</span>
+                        <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.pelanggan} Orang</span>
                     </div>
 
                     <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
-                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">Rata Belanja</span>
-                        <span className="text-sm font-semibold text-slate-800 mt-1 block">
-                            {renderRupiah(dataProses.rataBelanja)}
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rata Belanja</span>
+                        <span className="text-sm font-bold text-slate-800 mt-1 block font-mono">
+                            {renderRupiah(dataProses.rataBelanja || 0 )}
                         </span>
                     </div>
 
                     <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
-                        <span className="text-[10px] font-medium text-slate-400 uppercase tracking-wider block">Refund/Void</span>
-                        <span className="text-sm font-semibold text-rose-600 mt-1 block">{dataProses.refundVoid} Kasus</span>
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Refund/Void</span>
+                        <span className="text-sm font-bold text-rose-600 mt-1 block">{dataProses.refundVoid} Kasus</span>
                     </div>
                 </div>
 
@@ -319,14 +401,14 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
                     <div className="lg:col-span-2 bg-white border border-slate-200/60 rounded-xl p-5 flex flex-col justify-between min-h-[270px] shadow-2xs">
                         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                             <div>
-                                <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">
-                                    Grafik Analisis Performa ({chartMode === 'hari' ? 'Jam Kerja' : chartMode === 'minggu' ? 'Harian' : 'Mingguan'})
+                                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                    Grafik Performa ({chartMode === 'hari' ? 'Jam Kerja' : chartMode === 'minggu' ? 'Harian' : 'Mingguan'})
                                 </h4>
                                 <p className="text-[10px] text-slate-400">Gunakan filter disamping untuk merubah sumbu penyajian data</p>
                             </div>
                             
-                            <div className="bg-slate-100 p-0.5 rounded-lg flex text-[9px] font-medium">
-                                {[['hari', 'Hari'], ['minggu', 'Minggu'], ['bulan', 'Bulan']].map(([key, label]) => (
+                            <div className="bg-slate-100 p-0.5 rounded-lg flex text-[9px] font-bold">
+                                {[["hari", "Hari"], ["minggu", "Minggu"], ["bulan", "Bulan"]].map(([key, label]) => (
                                     <button 
                                         key={key}
                                         type="button"
@@ -343,14 +425,14 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
                             <div className="flex items-end justify-between px-2 h-36 space-x-6 min-w-[580px]">
                                 {dataProses.SusunanChart.map((item, idx) => (
                                     <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                                        <div className="absolute -top-6 bg-slate-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-10">
+                                        <div className="absolute -top-6 bg-slate-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-10 font-mono">
                                             {renderRupiah(item.nilai)}
                                         </div>
                                         <div 
                                             style={{ height: `${item.percentage || 4}%` }}
                                             className="w-full bg-slate-100 group-hover:bg-[#009664] rounded-t transition-colors duration-300"
                                         />
-                                        <span className="text-[10px] text-slate-400 font-medium mt-2 whitespace-nowrap">{item.label}</span>
+                                        <span className="text-[10px] text-slate-400 font-bold mt-2 whitespace-nowrap">{item.label}</span>
                                     </div>
                                 ))}
                             </div>
@@ -360,16 +442,16 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
                     {/* METODE PEMBAYARAN */}
                     <div className="bg-white border border-slate-200/60 rounded-xl p-5 flex flex-col justify-between shadow-2xs">
                         <div className="border-b border-slate-100 pb-2">
-                            <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Metode Pembayaran</h4>
+                            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Metode Pembayaran</h4>
                             <p className="text-[10px] text-slate-400">Distribusi jalur penyelesaian transaksi</p>
                         </div>
 
                         <div className="space-y-3.5 my-auto py-2">
                             {dataProses.listMetodeBayar.map((p, idx) => (
                                 <div key={idx} className="space-y-1">
-                                    <div className="flex justify-between text-[10px] font-medium">
+                                    <div className="flex justify-between text-[10px] font-bold">
                                         <span className="text-slate-600 uppercase tracking-wide">{p.metode}</span>
-                                        <span className="text-slate-400">{p.persentase}%</span>
+                                        <span className="text-slate-400 font-mono">{p.persentase}%</span>
                                     </div>
                                     <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                         <div 
@@ -386,26 +468,26 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
                 {/* 3. PRODUCT INSIGHTS */}
                 <div className="bg-white border border-slate-200/60 rounded-xl p-5 shadow-2xs">
                     <div className="border-b border-slate-100 pb-3 mb-4">
-                        <h4 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Produk Terlaris Hari Ini</h4>
+                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Produk Terlaris</h4>
                         <p className="text-[10px] text-slate-400">Daftar item dengan volume penjualan tertinggi</p>
                     </div>
 
-                    {dataProses.produkUrut.length === 0 ? (
+                    {listProduk.length === 0 ?  (
                         <p className="text-xs text-slate-400 py-2 text-center italic">Tidak ada data penjualan produk pada rentang ini.</p>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            {dataProses.produkUrut.map((item, idx) => (
+                            {(analisis_produk?.list_tabel || []).map((item, idx) => (
                                 <div key={idx} className="border border-slate-100 rounded-xl p-3.5 flex items-center justify-between bg-slate-50/40">
                                     <div className="flex items-center space-x-2.5">
-                                        <span className="text-xs font-medium text-slate-400">0{idx + 1}.</span>
+                                        <span className="text-xs font-bold text-slate-400">0{idx + 1}.</span>
                                         <div>
-                                            <span className="text-xs font-medium text-slate-800 block uppercase tracking-wide">{item.nama}</span>
-                                            <span className="text-[10px] text-slate-400 mt-0.5 block">Terjual: <strong className="text-slate-600 font-semibold">{item.terjual} Pcs</strong></span>
+                                            <span className="text-xs font-semibold text-slate-800 block uppercase tracking-wide">{item.nama_produk}</span>
+                                            <span className="text-[10px] text-slate-400 mt-0.5 block">Terjual: <strong className="text-slate-600 font-bold">{item.produkTerjual} Pcs</strong></span>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <span className={`text-[9px] px-2 py-0.5 rounded font-medium border ${
-                                            item.stok <= 7 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-slate-50 text-slate-500 border-slate-200'
+                                        <span className={`text-[9px] px-2 py-0.5 rounded font-bold border ${
+                                            (item.stok || 0) <= 7 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-slate-50 text-slate-500 border-slate-200'
                                         }`}>
                                             Sisa Stok: {item.stok}
                                         </span>

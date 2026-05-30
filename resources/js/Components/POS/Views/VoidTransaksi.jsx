@@ -6,10 +6,10 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
     const [selectedOutlet, setSelectedOutlet] = useState('all'); 
     const [searchTerm, setSearchTerm] = useState(''); 
 
-    // State Tanggal internal untuk sinkronisasi tombol navigasi panah kiri & kanan
-    const [rangeTanggal, setRangeTanggal] = useState({
-        start: '2026-05-25',
-        end: '2026-05-25'
+    // Diselaraskan: State Tanggal default otomatis mengambil tanggal hari ini secara dinamis
+    const [rangeTanggal, setRangeTanggal] = useState(() => {
+        const hariIni = new Date().toISOString().split('T')[0];
+        return { start: hariIni, end: hariIni };
     });
 
     const hiddenDateInputRef = useRef(null);
@@ -100,7 +100,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
     return (
         <div className="flex-1 flex flex-col h-full bg-[#f8fafc] overflow-hidden text-slate-600 font-sans tracking-tight">
             
-            {/* ====== AREA FILTER UTAMA (SAMA PERSIS GAYA POSISI & STYLE DENGAN RINGKASAN PENJUALAN) ====== */}
+            {/* ====== AREA FILTER UTAMA (SAMA PERSIS GAYA POSISI & STYLE) ====== */}
             <div className="bg-white p-4 border-b border-slate-100 flex-shrink-0 w-full">
                 <div className="flex flex-row items-center justify-between gap-4 w-full">
                     

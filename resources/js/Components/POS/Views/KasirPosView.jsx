@@ -4,7 +4,6 @@ export default function KasirPosView({
     filteredProducts,
     searchQuery,
     setSearchQuery,
-    addToCart,
     cart,
     setCart,
     savedBills,
@@ -18,7 +17,6 @@ export default function KasirPosView({
     inputUangDiterima,
     setInputUangDiterima,
     subtotal,
-    sisaTagihan,
     uangKembalian,
     handleProsesBayarFinal,
     formatRupiah
@@ -32,7 +30,6 @@ export default function KasirPosView({
     const [selectedProduct, setSelectedProduct] = useState(null);
     
     // Menyimpan kombinasi pesanan dalam pop-up. Struktur: { "Warna-Ukuran": quantity }
-    // Contoh: { "Putih-S": 2, "Hitam-M": 1 }
     const [variantSelection, setVariantSelection] = useState({});
 
     // --- STATE CUSTOM DIALOG SYSTEM ---
@@ -79,37 +76,53 @@ export default function KasirPosView({
         });
     };
 
-    // Konfirmasi Multi-Variasi ke Keranjang Aktif
+    // Konfirmasi Multi-Variasi ke Keranjang Aktif (LOGIKANYA SUDAH DISELARASKAN)
     const handleKonfirmasiMultiVarian = () => {
-        const keys = Object.keys(variantSelection);
-        if (keys.length === 0) {
-            showAlert('Silakan tentukan jumlah pada variasi warna & ukuran terlebih dahulu!');
-            return;
-        }
 
-        // Loop setiap kombinasi variasi yang dipilih untuk dimasukkan ke keranjang
-        keys.forEach(key => {
-            const [warna, ukuran] = key.split('-');
-            const qty = variantSelection[key];
+    const keys = Object.keys(variantSelection);
 
-            const produkDenganVariasi = {
-                ...selectedProduct,
-                // ID Unik kombinasi agar tidak bentrok jika diinput ulang
-                id: `${selectedProduct.id}-${warna}-${ukuran}-${Date.now()}-${Math.random()}`, 
-                customName: `${selectedProduct.name}`,
-                varianWarna: warna,
-                varianUkuran: ukuran,
-                quantity: qty // Menyuntikkan total qty dari modal
-            };
+    if (keys.length === 0) {
+        showAlert('Silakan tentukan jumlah pada variasi warna & ukuran terlebih dahulu!');
+        return;
+    }
 
-            // Karena addToCart bawaan mengasumsikan +1, kita bypass langsung modifikasi custom di sini atau inject berulang
-            for(let i = 0; i < qty; i++) {
-                addToCart({ ...produkDenganVariasi, id: `${selectedProduct.id}-${warna}-${ukuran}-${Date.now()}-${Math.random()}` });
-            }
-        });
+    const newItems = [];
 
-        setIsModalOpen(false);
-    };
+    keys.forEach(key => {
+
+        const [warna, ukuran] = key.split('-');
+
+        const qty = variantSelection[key];
+
+        newItems.push({
+    cart_id:
+        `${selectedProduct.id}-${warna}-${ukuran}-${Date.now()}-${Math.random()}`,
+
+    product_id: selectedProduct.id,
+
+    variant_color: warna,
+    variant_size: ukuran,
+
+    id: selectedProduct.id,
+
+    name: selectedProduct.name,
+
+    customName: selectedProduct.name,
+
+    price: selectedProduct.price,
+
+    varianWarna: warna,
+
+    varianUkuran: ukuran,
+
+    quantity: qty
+});
+    });
+
+    setCart(prev => [...prev, ...newItems]);
+
+    setIsModalOpen(false);
+};
 
     // FUNGSI SIMPAN BILL (Dipicu dari tombol Simpan Bill kanan)
     const handleSimpanBillAction = () => {
@@ -147,17 +160,17 @@ export default function KasirPosView({
                     } else {
                         setSavedBills(savedBills.filter(b => b.id !== bill.id));
                     }
-                    // Eksekusi pemulihan data setelah keputusan konfirmasi diambil
                     setCart(bill.items);
                     setCustomerName(bill.customerName);
                     setLeftContentView('grid');
+                    setCustomConfirm({ isOpen: false, message: '', onConfirm: null });
                 }
             });
         } else {
             setSavedBills(savedBills.filter(b => b.id !== bill.id));
             setCart(bill.items);
             setCustomerName(bill.customerName);
-            setLeftContentView('grid'); // Kembalikan layar kiri ke daftar produk
+            setLeftContentView('grid');
         }
     };
 
@@ -266,7 +279,7 @@ export default function KasirPosView({
             </div>
 
             {/* =========================================================================
-                AREA KANAN: BOX PEMBAYARAN UTAMA (TIDAK MERUSAK STRUKTUR BILA LAYAR KIRI BERUBAH)
+                AREA KANAN: BOX PEMBAYARAN UTAMA
                ========================================================================= */}
             <div className="w-96 bg-white border-l border-gray-200 h-full flex flex-col flex-shrink-0 shadow-xl z-10">
                 {!isCheckoutView ? (
@@ -313,19 +326,28 @@ export default function KasirPosView({
                                 </div>
                             ) : (
                                 cart.map((item) => (
-                                    <div key={item.id} className="flex justify-between items-center text-xs border-b border-gray-100 pb-3 group">
+                                    <div key={item.cart_id || item.id} className="flex justify-between items-center text-xs border-b border-gray-100 pb-3 group">
                                         <div className="flex-1 pr-2">
                                             <h4 className="font-bold text-gray-800 uppercase tracking-wide">{item.customName || item.name}</h4>
                                             <div className="flex flex-wrap gap-1 mt-1">
                                                 {item.varianWarna && <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[9px] font-bold">{item.varianWarna}</span>}
                                                 {item.varianUkuran && <span className="bg-emerald-50 text-[#009664] px-1.5 py-0.5 rounded text-[9px] font-bold">Size: {item.varianUkuran}</span>}
                                             </div>
-                                            <span className="text-gray-400 text-[10px] font-semibold block mt-1">1 x {formatRupiah(item.price)}</span>
-                                        </div>
+                                        <span className="text-gray-400 text-[10px] font-semibold block mt-1">{item.quantity} x {formatRupiah(item.price)}</span>                                        </div>
                                         <div className="text-right flex items-center gap-2">
-                                            <span className="font-black text-gray-700">{formatRupiah(item.price)}</span>
-                                            <button onClick={() => setCart(cart.filter(i => i.id !== item.id))} className="text-red-400 hover:text-red-600 font-bold p-1 opacity-0 group-hover:opacity-100 transition">✕</button>
-                                        </div>
+                                        <span className="font-black text-gray-700">
+                                            {formatRupiah(item.price * item.quantity)}
+                                        </span>
+
+                                        <button
+                                            onClick={() =>
+                                                setCart(cart.filter(i => i.cart_id !== item.cart_id))
+                                            }
+                                            className="text-red-400 hover:text-red-600 font-bold p-1 opacity-0 group-hover:opacity-100 transition"
+                                        >
+                                            ✕
+                                        </button>
+                                    </div>
                                     </div>
                                 ))
                             )}
@@ -359,7 +381,7 @@ export default function KasirPosView({
                         </div>
                     </>
                 ) : (
-                    /* KEEPAWAY: VIEW PROSES CHECKOUT TRANSAKSI */
+                    /* VIEW PROSES CHECKOUT TRANSAKSI */
                     <>
                         <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
                             <span className="text-xs font-black text-gray-800 uppercase">Metode Pembayaran</span>
@@ -403,7 +425,6 @@ export default function KasirPosView({
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
                     <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden text-xs font-medium animate-in fade-in zoom-in-95 duration-150 flex flex-col h-[85vh]">
                         
-                        {/* Header Modal */}
                         <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
                             <div>
                                 <span className="text-[10px] uppercase font-black tracking-wider text-gray-400">Pilih Banyak Variasi & Jumlah Sekaligus</span>
@@ -412,7 +433,6 @@ export default function KasirPosView({
                             <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-700 font-bold text-lg px-2">✕</button>
                         </div>
 
-                        {/* Isi Konten Matrix Variasi */}
                         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/50">
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                 {listWarna.map((warna) => (
@@ -464,7 +484,6 @@ export default function KasirPosView({
                             </div>
                         </div>
 
-                        {/* Footer Modal Konfirmasi */}
                         <div className="p-4 border-t border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
                             <div className="text-xs text-gray-400 font-bold">
                                 Total Varian Terpilih: <span className="text-gray-800 font-black">{Object.values(variantSelection).reduce((a, b) => a + b, 0)} Pcs</span>
@@ -480,66 +499,52 @@ export default function KasirPosView({
             )}
 
             {/* =========================================================================
-                CUSTOM SYSTEM COMPONENT: CHROMELESS MINIMALIST ALERT DIALOG
+                CUSTOM SYSTEM COMPONENT: CHROMELESS MINIMALIST DIALOGS (ALERT & CONFIRM)
                ========================================================================= */}
             {customAlert.isOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-100">
-                    <div className="bg-white border border-slate-200 max-w-md w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-xs font-sans tracking-tight animate-in zoom-in-95 duration-100">
+                    <div className="bg-white border border-slate-200 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-xs font-sans tracking-tight animate-in zoom-in-95 duration-100">
                         <div className="flex flex-col gap-1">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Notifikasi Sistem</span>
                             <p className="text-slate-700 font-semibold text-xs leading-relaxed">{customAlert.message}</p>
                         </div>
-                        <div className="flex justify-end pt-1">
-                            <button 
-                                type="button" 
-                                onClick={() => setCustomAlert({ isOpen: false, message: '' })} 
-                                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold uppercase text-[10px] tracking-wider transition"
-                            >
-                                Selesai
-                            </button>
-                        </div>
+                        <button 
+                            type="button" 
+                            onClick={() => setCustomAlert({ isOpen: false, message: '' })} 
+                            className="w-full bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-center uppercase tracking-wider"
+                        >
+                            Mengerti
+                        </button>
                     </div>
                 </div>
             )}
 
-            {/* =========================================================================
-                CUSTOM SYSTEM COMPONENT: CHROMELESS MINIMALIST CONFIRM DIALOG
-               ========================================================================= */}
             {customConfirm.isOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-100">
-                    <div className="bg-white border border-slate-200 max-w-md w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-xs font-sans tracking-tight animate-in zoom-in-95 duration-100">
+                    <div className="bg-white border border-slate-200 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-xs font-sans tracking-tight animate-in zoom-in-95 duration-100">
                         <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Konfirmasi Tindakan</span>
+                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Konfirmasi Antrean</span>
                             <p className="text-slate-700 font-semibold text-xs leading-relaxed">{customConfirm.message}</p>
                         </div>
-                        <div className="flex justify-end gap-2 pt-1">
+                        <div className="flex gap-2">
                             <button 
                                 type="button" 
-                                onClick={() => {
-                                    const callback = customConfirm.onConfirm;
-                                    setCustomConfirm({ isOpen: false, message: '', onConfirm: null });
-                                    if (callback) callback(false); // Batalkan, lewatkan nilai false
-                                }} 
-                                className="px-4 py-2 bg-white border border-slate-200 text-slate-500 rounded-xl font-bold uppercase text-[10px] tracking-wider hover:bg-slate-50 transition"
+                                onClick={() => customConfirm.onConfirm(false)} 
+                                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2 rounded-xl transition text-center uppercase tracking-wider"
                             >
                                 Abaikan
                             </button>
                             <button 
                                 type="button" 
-                                onClick={() => {
-                                    const callback = customConfirm.onConfirm;
-                                    setCustomConfirm({ isOpen: false, message: '', onConfirm: null });
-                                    if (callback) callback(true); // Konfirmasi, lewatkan nilai true
-                                }} 
-                                className="px-5 py-2 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold uppercase text-[10px] tracking-wider transition"
+                                onClick={() => customConfirm.onConfirm(true)} 
+                                className="flex-1 bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-center uppercase tracking-wider"
                             >
-                                Setujui
+                                Simpan Dulu
                             </button>
                         </div>
                     </div>
                 </div>
             )}
-
         </div>
     );
 }

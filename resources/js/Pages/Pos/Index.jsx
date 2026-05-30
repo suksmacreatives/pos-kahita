@@ -1,8 +1,8 @@
-import React, { useState, useMemo } from 'react';
-import { Head } from '@inertiajs/react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { Head, useForm } from '@inertiajs/react';
 import SidebarPos from '@/Components/POS/SidebarPos';
 
-// Import View Modular Terpisah - UTUH SESUAI FILE ASLI ANDA
+// Import View Modular
 import KasirPosView from '@/Components/POS/Views/KasirPosView';
 import DataPenjualan from '@/Components/POS/Views/DataPenjualan';
 import RingkasanPenjualan from '@/Components/POS/Views/RingkasanPenjualan';
@@ -16,18 +16,20 @@ import PengaturanNotaView from '@/Components/POS/Views/PengaturanNotaView';
 import PengaturanPrinterView from '@/Components/POS/Views/PengaturanPrinterView';
 import PengaturanTokoView from '@/Components/POS/Views/PengaturanTokoView';
 
-export default function Index({ auth, products = [] }) {
-    // --- STATE UTAMA NAVIGASI ---
+export default function Index({
+    auth,
+    products_from_db = [],
+    is_shift_open_db = false,
+    active_shift_details = null
+}) {
+
+    // =========================================================
+    // STATE
+    // =========================================================
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [activeMenu, setActiveMenu] = useState('kasir'); 
+    const [activeMenu, setActiveMenu] = useState('kasir');
 
-    // --- STATE MANAGEMENT SESI KASIR ---
-    const [isSessionOpen, setIsSessionOpen] = useState(true);
-    const [modalAwal] = useState(500000); 
-    const [kasirName] = useState('Agus Arismawan');
-
-    // --- STATE TRANSAKSI UTAMA (POS) ---
-    const [cart, setCart] = useState([]); 
+    const [cart, setCart] = useState([]);
     const [savedBills, setSavedBills] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [customerName, setCustomerName] = useState('');
@@ -35,320 +37,338 @@ export default function Index({ auth, products = [] }) {
     const [selectedPayment, setSelectedPayment] = useState('Tunai');
     const [inputUangDiterima, setInputUangDiterima] = useState('');
 
-    // --- DATA STATE RIWAYAT (MOCK DATA KAS KASIR & PENJUALAN) ---
-    const [salesHistory, setSalesHistory] = useState([
-        { 
-            id: 1, 
-            invoice: 'INV/2026/05001', 
-            waktu: '09:40', 
-            pelanggan: 'Umum', 
-            metode: 'Tunai', 
-            total: 175000, 
-            items: [{ name: 'WAJIK COKLAT MUDA', quantity: 1, price: 175000 }] 
-        }
-    ]);
-    const [kasHistory, setKasHistory] = useState([
-        { id: 1, nama: 'Modal Awal', tipe: 'Uang Masuk', kategori: 'Tunai', jumlah: 500000, waktu: '09:29, 25 Mei 2026' }
-    ]);
+    const [salesHistory, setSalesHistory] = useState([]);
+    const [kasHistory, setKasHistory] = useState([]);
+    const [voidHistory, setVoidHistory] = useState([]);
+    const [sessionHistory, setSessionHistory] = useState([]);
 
-    // ------------------------------------------------------------------
-    // PERBAIKAN 1: Menambahkan State voidHistory Agar Tidak Error/Blank
-    // ------------------------------------------------------------------
-    const [voidHistory, setVoidHistory] = useState([
-        { id: 1, tanggal: '2026-05-27', jam: '14:25', invoice: 'INV0021', kasir: 'Wayan', pelanggan: 'Umum', jumlah_item: 3, nominal: 120000, alasan_void: 'Salah input produk', catatan_void: '' },
-        { id: 2, tanggal: '2026-05-27', jam: '14:40', invoice: 'INV0022', kasir: 'Komang', pelanggan: 'Gede (Member)', jumlah_item: 2, nominal: 80000, alasan_void: 'Double scan', catatan_void: '' },
-        { id: 3, tanggal: '2026-05-27', jam: '15:10', invoice: 'INV0023', kasir: 'Wayan', pelanggan: 'Umum', jumlah_item: 1, nominal: 50000, alasan_void: 'Pelanggan batal', catatan_void: 'Mendadak buru-buru' }
-    ]);
+    const [loadingSidebar, setLoadingSidebar] = useState(false);
+    const [showModalTutup, setShowModalTutup] = useState(false);
 
-    // --- DEFAULT BACKUP DATA PRODUK ---
-    const displayProducts = products.length > 0 ? products : [
+    // STATE BARU UNTUK MODAL
+    const [appNotification, setAppNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+    const [successModal, setSuccessModal] = useState({ isOpen: false, data: null });
+
+    const isSessionOpen = is_shift_open_db;
+    const kasirName = auth.user.name;
+
+    const formBukaKasir = useForm({ starting_cash: '' });
+    const formTutupKasir = useForm({ physical_cash: '' });
+
+    const displayProducts = products_from_db.length > 0 ? products_from_db : [
         { id: 1, name: 'ALAS BIRU', price: 175000, code: 'E3' },
         { id: 2, name: 'Aruna biru', price: 175000, code: 'E3' },
-        { id: 3, name: 'CAKRA dasar pink', price: 175000, code: 'E3R' },
-        { id: 4, name: 'CENDANA BIRU', price: 175000, code: 'CDN-B' },
-        { id: 5, name: 'ENDEK 3D', price: 950000, code: 'E3' },
-        { id: 6, name: 'ENDEK 3D REBONG SONGKET', price: 1500000, code: 'E3R' },
     ];
 
-    // --- LOGIKA UTAMA PERHITUNGAN TRANSAKSI (MEMOIZED) ---
-    const filteredProducts = useMemo(() => {
-        return displayProducts.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()));
-    }, [searchQuery, displayProducts]);
+    const loadSidebarData = async () => {
+        try {
+            setLoadingSidebar(true);
+            const sidebarResponse = await fetch(route('pos.sidebar-data'));
+            const sidebarData = await sidebarResponse.json();
 
-    const subtotal = useMemo(() => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0), [cart]);
-    
-    const uangKembalian = useMemo(() => {
-        const cash = parseFloat(inputUangDiterima) || 0;
-        return cash > subtotal ? cash - subtotal : 0;
-    }, [inputUangDiterima, subtotal]);
+            setSalesHistory((sidebarData.semua_transaksi || []).map((trx) => ({
+                ...trx,
+                pelanggan: trx.customer_name || trx.nama_pelanggan || 'Umum',
+                metode: trx.payment_method || trx.metode_pembayaran || 'Tunai',
+                total: trx.grand_total || trx.total_harga || 0,
+                waktu: trx.created_at,
+                items: trx.items?.map((item) => ({
+                    id: item.id,
+                    name: item.product_name || item.name,
+                    customName: item.product_name,
+                    quantity: item.quantity || 1,
+                    price: item.price || 0,
+                    varianWarna: item.variant_color,
+                    varianUkuran: item.variant_size,
+                })) || [],
+            })));
 
-    const sisaTagihan = useMemo(() => {
-        const cash = parseFloat(inputUangDiterima) || 0;
-        return cash >= subtotal ? 0 : subtotal - cash;
-    }, [inputUangDiterima, subtotal]);
+            setVoidHistory((sidebarData.semua_transaksi || []).filter(t => t.status?.toLowerCase() === 'void'));
+            setKasHistory(sidebarData.riwayat_shift?.map((s) => ({
+                id: s.id, nama: `Modal Sesi #${s.id}`, tipe: 'Uang Masuk', kategori: 'Tunai', jumlah: s.starting_cash, waktu: s.created_at
+            })) || []);
 
-    // --- FUNGSI SILENT PRINT (CETAK LANGSUNG LEWAT IFRAME) ---
-    const cetakStrukLangsung = (transaksiData) => {
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'absolute';
-        iframe.style.width = '0px';
-        iframe.style.height = '0px';
-        iframe.style.border = 'none';
-        document.body.appendChild(iframe);
-
-        const doc = iframe.contentWindow.document;
-
-        const htmlStruk = `
-            <html>
-            <head>
-                <style>
-                    @page { size: auto; margin: 0mm; }
-                    body { 
-                        width: 210px; 
-                        font-family: 'Courier New', Courier, monospace; 
-                        font-size: 11px; 
-                        color: #000; 
-                        margin: 0; 
-                        padding: 10px;
-                        line-height: 1.2;
-                    }
-                    .text-center { text-align: center; }
-                    .text-right { text-align: right; }
-                    .bold { font-weight: bold; }
-                    .line { border-bottom: 1px dashed #000; margin: 5px 0; }
-                    .item-table { width: 100%; border-collapse: collapse; }
-                    .item-table td { vertical-align: top; }
-                </style>
-            </head>
-            <body>
-                <div class="text-center bold" style="font-size: 14px;">KAHITA BUSANA</div>
-                <div class="text-center">Jl. Kawasan Sentra Busana No. 1</div>
-                <div class="text-center">Telp: 08123456789</div>
-                <div class="line"></div>
-                
-                <table style="width: 100%; font-size: 11px;">
-                    <tr><td>Nota:</td><td class="text-right">${transaksiData.invoice}</td></tr>
-                    <tr><td>Kasir:</td><td class="text-right">${kasirName}</td></tr>
-                    <tr><td>Pelanggan:</td><td class="text-right">${transaksiData.pelanggan}</td></tr>
-                    <tr><td>Waktu:</td><td class="text-right">${transaksiData.waktu}</td></tr>
-                </table>
-                
-                <div class="line"></div>
-                
-                <table class="item-table">
-                    ${transaksiData.items.map(item => `
-                        <tr>
-                            <td colspan="2">${item.name}</td>
-                        </tr>
-                        <tr>
-                            <td>&nbsp;&nbsp;${item.quantity} x ${formatRupiah(item.price)}</td>
-                            <td class="text-right">${formatRupiah(item.price * item.quantity)}</td>
-                        </tr>
-                    `).join('')}
-                </table>
-                
-                <div class="line"></div>
-                
-                <table style="width: 100%; font-size: 11px;" class="bold">
-                    <tr><td>TOTAL:</td><td class="text-right">${formatRupiah(transaksiData.total)}</td></tr>
-                    <tr><td>BAYAR (${transaksiData.metode}):</td><td class="text-right">${formatRupiah(parseFloat(inputUangDiterima) || transaksiData.total)}</td></tr>
-                    <tr><td>KEMBALIAN:</td><td class="text-right">${formatRupiah(uangKembalian)}</td></tr>
-                </table>
-                
-                <div class="line"></div>
-                <div class="text-center bold" style="margin-top: 10px;">TERIMA KASIH</div>
-                <div class="text-center">Selamat Berbelanja Kembali</div>
-                <br/>
-            </body>
-            </html>
-        `;
-
-        doc.open();
-        doc.write(htmlStruk);
-        doc.close();
-
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-
-        setTimeout(() => {
-            document.body.removeChild(iframe);
-        }, 1000);
+            const shiftResponse = await fetch(route('pos.riwayat-shift'));
+            const shiftData = await shiftResponse.json();
+            setSessionHistory(shiftData.map((shift) => ({
+                id: shift.id, waktu_buka: shift.opened_at, waktu_tutup: shift.closed_at, saldo_awal: shift.starting_cash, saldo_akhir: shift.physical_cash, selisih: shift.discrepancy, status: shift.status, nama_kasir: shift.user?.name || 'Kasir', created_at: shift.created_at, total_transaksi: shift.transactions?.length || 0, omset: Number(shift.system_cash || 0) + Number(shift.starting_cash || 0),
+            })));
+        } catch (err) { console.error('Gagal load sidebar:', err); } finally { setLoadingSidebar(false); }
     };
 
-    // --- MANAJEMEN HANDLER TRANSAKSI ---
+    useEffect(() => { loadSidebarData(); }, []);
+
+    const filteredProducts = useMemo(() => displayProducts.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())), [searchQuery, displayProducts]);
+    const subtotal = useMemo(() => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0), [cart]);
+    const uangKembalian = useMemo(() => { const cash = parseFloat(inputUangDiterima) || 0; return cash > subtotal ? cash - subtotal : 0; }, [inputUangDiterima, subtotal]);
+    const sisaTagihan = useMemo(() => { const cash = parseFloat(inputUangDiterima) || 0; return cash >= subtotal ? 0 : subtotal - cash; }, [inputUangDiterima, subtotal]);
+    const formatRupiah = (num) => 'Rp ' + Number(num).toLocaleString('id-ID');
+
     const addToCart = (productWithVarian) => {
-        setCart(prev => {
-            const exist = prev.find(item => item.id === productWithVarian.id);
-            if (exist) {
-                return prev.map(i => i.id === productWithVarian.id ? { ...i, quantity: i.quantity + 1 } : i);
-            }
+        setCart((prev) => {
+            const exist = prev.find((item) => item.id === productWithVarian.id && item.varianWarna === productWithVarian.varianWarna && item.varianUkuran === productWithVarian.varianUkuran);
+            if (exist) { return prev.map((i) => i.id === productWithVarian.id && i.varianWarna === productWithVarian.varianWarna && i.varianUkuran === productWithVarian.varianUkuran ? { ...i, quantity: i.quantity + 1 } : i); }
             return [...prev, { ...productWithVarian, quantity: 1 }];
         });
     };
 
-    const handleProsesBayarFinal = () => {
-        if (selectedPayment === 'Tunai' && (parseFloat(inputUangDiterima) || 0) < subtotal) {
-            return alert("Uang pembayaran kurang!");
-        }
-        const invoiceNo = `INV/2026/${Math.floor(10000 + Math.random() * 90000)}`;
-        const newSale = { 
-            id: Date.now(), 
-            invoice: invoiceNo, 
-            waktu: new Date().toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }), 
-            pelanggan: customerName || 'Umum', 
-            metode: selectedPayment, 
-            total: subtotal, 
-            items: cart 
-        };
-        
-        cetakStrukLangsung(newSale);
-        
-        setSalesHistory([newSale, ...salesHistory]);
-        setKasHistory(prev => [
-            ...prev, 
-            { id: Date.now(), nama: `Penjualan ${invoiceNo}`, tipe: 'Uang Masuk', kategori: selectedPayment, jumlah: subtotal, waktu: '25 Mei 2026' }
-        ]);
-        
-        alert("Transaksi Sukses & Nota Dicetak!");
-        setCart([]);
-        setIsCheckoutView(false);
-        setInputUangDiterima('');
-        setCustomerName('');
+    const cetakStrukLangsung = (transaksiData) => {
+        const iframe = document.createElement('iframe');
+        iframe.style.position = 'absolute'; iframe.style.width = '0px'; iframe.style.height = '0px'; iframe.style.border = 'none';
+        document.body.appendChild(iframe);
+        const doc = iframe.contentWindow.document;
+        const htmlStruk = `<html><body style="font-family: Courier New; padding:10px; width:210px;"><h3 style="text-align:center;">KAHITA BUSANA</h3><hr />${(transaksiData.items || []).map(item => `<div>${item.name} ${item.varianWarna ? ` - ${item.varianWarna}` : ''} ${item.varianUkuran ? ` (${item.varianUkuran})` : ''}</div><div>${item.quantity} x ${formatRupiah(item.price)}</div>`).join('')}<hr /><div>TOTAL: ${formatRupiah(transaksiData.total)}</div></body></html>`;
+        doc.open(); doc.write(htmlStruk); doc.close();
+        iframe.contentWindow.focus(); iframe.contentWindow.print();
+        setTimeout(() => { document.body.removeChild(iframe); }, 1000);
     };
 
-    const handleTutupKasirAction = () => {
-        const konfirmasi = confirm("Apakah anda yakin ingin menutup sesi kasir saat ini?");
-        if (konfirmasi) {
-            setIsSessionOpen(false);
-            alert("Sesi Kasir Berhasil Ditutup.");
+    const handleProsesBayarFinal = async () => {
+        if (cart.length === 0) {
+            setAppNotification({ isOpen: true, type: 'error', title: 'Keranjang Kosong', message: 'Belum ada produk dipilih' });
+            return;
+        }
+
+        try {
+            const response = await fetch('/pos/transaksi', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
+                body: JSON.stringify({
+                    customer_name: customerName || 'Umum', payment_method: selectedPayment, subtotal, grand_total: subtotal,
+                    paid_amount: selectedPayment === 'Tunai' ? Number(inputUangDiterima) : subtotal,
+                    change_amount: selectedPayment === 'Tunai' ? uangKembalian : 0,
+                    items: cart.map((item) => ({ product_id: item.product_id || item.id, product_name: item.customName || item.name, variant_color: item.varianWarna || null, variant_size: item.varianUkuran || null, price: item.price, quantity: item.quantity, total_price: item.price * item.quantity })),
+                }),
+            });
+            const result = await response.json();
+            if (result.success) {
+                await loadSidebarData();
+                setSuccessModal({ isOpen: true, data: { total: subtotal, metode: selectedPayment, items: cart } });
+                setCart([]); setCustomerName(''); setInputUangDiterima(''); setSelectedPayment('Tunai'); setIsCheckoutView(false);
+            } else {
+                setAppNotification({ isOpen: true, type: 'error', title: 'Transaksi Gagal', message: result.message || 'Gagal transaksi' });
+            }
+        } catch (error) {
+            setAppNotification({ isOpen: true, type: 'error', title: 'Server Error', message: 'Terjadi kesalahan server' });
         }
     };
 
-    const formatRupiah = (num) => 'Rp ' + Number(num).toLocaleString('id-ID');
-
+    const handleTutupKasir = () => {
+    formTutupKasir.post(route('pos.tutup-kasir'), {
+        preserveScroll: true,
+        onSuccess: () => {
+            setShowModalTutup(false);
+        },
+        onError: (errors) => {
+            console.error(errors);
+        }
+    });
+};
+console.log(
+    salesHistory.map(trx => ({
+        nama: trx.pelanggan,
+        payment_method: trx.payment_method
+    }))
+);
     return (
         <div className="bg-[#f4f6f9] h-screen w-screen flex flex-col font-sans overflow-hidden select-none text-gray-700">
             <Head title="Kasa POS - Kahita Busana" />
 
-            <div className="flex-1 flex overflow-hidden relative w-full h-full">
-                
-                {/* COMPONENT SIDEBAR UTAMA */}
-                <SidebarPos 
-                    isOpen={isSidebarOpen}
-                    onClose={() => setIsSidebarOpen(false)}
-                    activeMenu={activeMenu}
-                    setActiveMenu={setActiveMenu}
-                    isSessionOpen={isSessionOpen}
-                    onTutupKasir={handleTutupKasirAction}
+            {/* MODAL NOTIFIKASI */}
+            {appNotification.isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-80 text-center">
+                        <div className={`text-4xl mb-2 ${appNotification.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+                            {appNotification.type === 'success' ? '✓' : '⚠'}
+                        </div>
+                        <h3 className="font-bold text-lg">{appNotification.title}</h3>
+                        <p className="text-sm text-gray-600 mb-4">{appNotification.message}</p>
+                        <button onClick={() => setAppNotification({ ...appNotification, isOpen: false })} className="bg-emerald-600 text-white w-full py-2 rounded">OK</button>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL SUKSES BAYAR */}
+            {successModal.isOpen && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+                    <div className="bg-white p-6 rounded-lg shadow-xl w-96">
+                        <h3 className="font-bold text-xl text-center mb-4">Pembayaran Berhasil!</h3>
+                        <div className="border-t border-b py-3 my-3">
+                            <div className="flex justify-between py-1"><span>Total Belanja:</span><span className="font-bold">{formatRupiah(successModal.data.total)}</span></div>
+                            <div className="flex justify-between py-1"><span>Metode:</span><span className="font-bold">{successModal.data.metode}</span></div>
+                        </div>
+                        <div className="flex gap-2">
+                            <button onClick={() => setSuccessModal({ isOpen: false, data: null })} className="flex-1 bg-gray-200 py-2 rounded">Kembali</button>
+                            <button onClick={() => { cetakStrukLangsung(successModal.data); setSuccessModal({ isOpen: false, data: null }); }} className="flex-1 bg-emerald-600 text-white py-2 rounded">Print Struk</button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL BUKA KASIR */}
+{!isSessionOpen && (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
+        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+
+            <div className="text-center mb-6">
+                <h2 className="text-2xl font-bold text-slate-800">
+                    Buka Sesi Kasir
+                </h2>
+
+                <p className="text-sm text-slate-500 mt-2">
+                    Masukkan modal awal kasir sebelum memulai transaksi
+                </p>
+            </div>
+
+            <form
+                onSubmit={(e) => {
+                    e.preventDefault();
+                    formBukaKasir.post(route('pos.buka-kasir'));
+                }}
+            >
+                <div className="mb-4">
+                    <label className="block text-sm font-medium text-slate-700 mb-2">
+                        Modal Awal Kasir
+                    </label>
+
+                    <input
+                        type="number"
+                        min="0"
+                        value={formBukaKasir.data.starting_cash}
+                        onChange={(e) =>
+                            formBukaKasir.setData(
+                                'starting_cash',
+                                e.target.value
+                            )
+                        }
+                        className="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
+                        placeholder="Contoh: 500000"
+                        required
+                    />
+                </div>
+
+                {formBukaKasir.errors.starting_cash && (
+                    <div className="text-red-500 text-sm mb-3">
+                        {formBukaKasir.errors.starting_cash}
+                    </div>
+                )}
+
+                <button
+                    type="submit"
+                    disabled={formBukaKasir.processing}
+                    className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 rounded-lg transition"
+                >
+                    {formBukaKasir.processing
+                        ? 'Membuka Kasir...'
+                        : 'Buka Kasir'}
+                </button>
+            </form>
+
+        </div>
+    </div>
+)}
+
+            {showModalTutup && (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+        <div className="bg-white rounded-xl shadow-xl w-[420px] p-6">
+            
+            <h2 className="text-xl font-bold text-gray-800 mb-2">
+                Tutup Kasir
+            </h2>
+
+            <p className="text-sm text-gray-500 mb-4">
+                Masukkan jumlah uang fisik yang ada di laci kasir.
+            </p>
+
+            <div className="mb-4">
+                <label className="block text-sm font-medium mb-2">
+                    Uang Fisik
+                </label>
+
+                <input
+                    type="number"
+                    min="0"
+                    value={formTutupKasir.data.physical_cash}
+                    onChange={(e) =>
+                        formTutupKasir.setData(
+                            'physical_cash',
+                            e.target.value
+                        )
+                    }
+                    className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    placeholder="Masukkan uang fisik"
                 />
 
-                {/* AREA UTAMA (TOPBAR + VIEW AREA) */}
+                {formTutupKasir.errors.physical_cash && (
+                    <p className="text-red-500 text-xs mt-1">
+                        {formTutupKasir.errors.physical_cash}
+                    </p>
+                )}
+            </div>
+
+            <div className="flex gap-2">
+                <button
+                    onClick={() => setShowModalTutup(false)}
+                    className="flex-1 py-2 rounded-lg bg-gray-200 hover:bg-gray-300"
+                >
+                    Batal
+                </button>
+
+                <button
+                    onClick={handleTutupKasir}
+                    disabled={formTutupKasir.processing}
+                    className="flex-1 py-2 rounded-lg bg-orange-500 text-white hover:bg-orange-600"
+                >
+                    {formTutupKasir.processing
+                        ? 'Memproses...'
+                        : 'Tutup Kasir'}
+                </button>
+            </div>
+
+        </div>
+    </div>
+)}
+
+            <div className="flex-1 flex overflow-hidden relative w-full h-full">
+                <SidebarPos isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} activeMenu={activeMenu} setActiveMenu={setActiveMenu} isSessionOpen={isSessionOpen} onTutupKasir={() => setShowModalTutup(true)} />
                 <div className="flex-1 flex flex-col overflow-hidden">
-                    
-                    {/* TOPBAR HEAD BANNER KASIR */}
                     <header className="bg-[#009664] text-white h-[48px] px-4 flex items-center justify-between shadow-sm z-10 flex-shrink-0">
                         <div className="flex items-center space-x-3">
-                            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 rounded hover:bg-emerald-700 transition">
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M4 6h16M4 12h16M4 18h16"/>
-                                </svg>
-                            </button>
+                            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 rounded hover:bg-emerald-700 transition">☰</button>
                             <span className="font-black text-sm tracking-wide uppercase">MAJOO</span>
-                            <div className="text-[11px] bg-emerald-800/40 px-2 py-0.5 rounded flex items-center space-x-2 font-medium">
-                                <span>{kasirName}</span>
-                                <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-pulse"></span>
-                            </div>
                         </div>
-                        <div className="text-xs font-bold tracking-wider opacity-90">Rabu, 27 Mei 2026</div>
+                        <div className="text-xs font-bold tracking-wider opacity-90">{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     </header>
-
-                    {/* INTERFACE SWITCHING VIEW AREA */}
                     <div className="flex-1 flex overflow-hidden w-full h-full">
-
-                        {/* 1. VIEW KASIR POS */}
-                        {activeMenu === 'kasir' && (
-                            <KasirPosView 
-                                filteredProducts={filteredProducts}
-                                searchQuery={searchQuery}
-                                setSearchQuery={setSearchQuery}
-                                addToCart={addToCart}
-                                cart={cart}
-                                setCart={setCart} 
-                                savedBills={savedBills}       
-                                setSavedBills={setSavedBills}
-                                customerName={customerName}
-                                setCustomerName={setCustomerName}
-                                isCheckoutView={isCheckoutView}
-                                setIsCheckoutView={setIsCheckoutView}
-                                selectedPayment={selectedPayment}
-                                setSelectedPayment={setSelectedPayment}
-                                inputUangDiterima={inputUangDiterima}
-                                setInputUangDiterima={setInputUangDiterima}
-                                subtotal={subtotal}
-                                sisaTagihan={sisaTagihan}
-                                uangKembalian={uangKembalian}
-                                handleProsesBayarFinal={handleProsesBayarFinal}
+                        {activeMenu === 'kasir' && (<KasirPosView filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} />)}
+                        {/* ... (Menu lainnya tetap sama) */}
+                        {activeMenu === 'penjualan' && (<DataPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} onPrint={cetakStrukLangsung} onVoid={(sale) => { console.log('VOID:', sale); }} />)}
+                        {activeMenu === 'laporan-ringkasan' && (<RingkasanPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'void' && (<VoidTransaksi voidHistory={voidHistory} formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'laporan-kasir-sesi' && (<KasirAktivitas sessionHistory={sessionHistory} formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'laporan-kas-kasir' && (
+                            <KasKasir
                                 formatRupiah={formatRupiah}
+                                initialCash={active_shift_details?.starting_cash || 0}
+                                kasHistory={salesHistory.map(trx => ({
+                                    id: trx.id,
+                                    nama: `Penjualan ${trx.pelanggan}`,
+                                    jenis: 'Uang Masuk',
+                                    kategori: 'Penjualan',
+                                    jumlah: Number(trx.total || 0),
+
+                                    payment_method: trx.payment_method,
+
+                                    deskripsi: `Via ${trx.payment_method}`
+                                }))}
                             />
                         )}
-
-                        {/* 2. VIEW DATA PENJUALAN */}
-                        {activeMenu === 'penjualan' && (
-                            <DataPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} />
-                        )}
-
-                        {/* 3. VIEW LAPORAN: RINGKASAN PENJUALAN */}
-                        {activeMenu === 'laporan-ringkasan' && (
-                            <RingkasanPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} />
-                        )}
-
-                        {/* ------------------------------------------------------------------ */}
-                        {/* PERBAIKAN 2: Mengubah activeTab Menjadi activeMenu === 'void'     */}
-                        {/* ------------------------------------------------------------------ */}
-                        {activeMenu === 'void' && (
-                            <VoidTransaksi voidHistory={voidHistory} formatRupiah={formatRupiah} />
-                        )}
-
-                        {/* 4. VIEW LAPORAN: KASIR AKTIVITAS SESI */}
-                        {activeMenu === 'laporan-kasir-sesi' && (
-                            <KasirAktivitas modalAwal={modalAwal} salesHistory={salesHistory} kasirName={kasirName} formatRupiah={formatRupiah} />
-                        )}
-
-                        {/* 5. VIEW LAPORAN: KAS KASIR (MUTASI JURNAL) */}
-                        {activeMenu === 'laporan-kas-kasir' && (
-                            <KasKasir kasHistory={kasHistory} salesHistory={salesHistory} formatRupiah={formatRupiah} />
-                        )}
-
-                        {/* 6. VIEW LAPORAN: LIST PRODUK TERJUAL */}
-                        {activeMenu === 'laporan-produk-terjual' && (
-                            <ProdukTerjual salesHistory={salesHistory} formatRupiah={formatRupiah} />
-                        )}
-
-                        {/* 7. VIEW LAPORAN: JENIS METODE BAYAR */}
-                        {activeMenu === 'laporan-jenis-bayar' && (
-                            <JenisBayar salesHistory={salesHistory} formatRupiah={formatRupiah} />
-                        )}
-
-                        {/* 8. VIEW FITUR ABSENSI */}
-                        {activeMenu === 'absensi' && (
-                            <Absensi kasirName={kasirName} />
-                        )}
-
-                        {/* 9. VIEW FITUR PENGATURAN NOTA */}
-                        {activeMenu === 'pengaturan-nota' && (
-                            <PengaturanNotaView formatRupiah={formatRupiah} />
-                        )}
-
-                        {/* 10. VIEW FITUR PENGATURAN PRINTER */}
-                        {activeMenu === 'pengaturan-printer' && (
-                            <PengaturanPrinterView />
-                        )}
-
-                        {/* 11. VIEW FITUR PENGATURAN TOKO */}
-                        {activeMenu === 'pengaturan-toko' && (
-                            <PengaturanTokoView />
-                        )}
-
+                        {activeMenu === 'laporan-produk-terjual' && (<ProdukTerjual salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'laporan-jenis-bayar' && (<JenisBayar salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'absensi' && (<Absensi kasirName={kasirName} />)}
+                        {activeMenu === 'pengaturan-nota' && (<PengaturanNotaView formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'pengaturan-printer' && (<PengaturanPrinterView />)}
+                        {activeMenu === 'pengaturan-toko' && (<PengaturanTokoView />)}
                     </div>
                 </div>
             </div>

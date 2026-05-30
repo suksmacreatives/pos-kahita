@@ -13,7 +13,7 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
     };
 
     // ----------------------------------------------------
-    // ENGINE ANALISIS DATA (KUAT & REKAP LENGKAP)
+    // ENGINE ANALISIS DATA (SELARAS DATABASE & KASIR POS)
     // ----------------------------------------------------
     const analisis = useMemo(() => {
         const map = {};
@@ -22,28 +22,35 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
 
         // 1. Pemrosesan Log Transaksi Penjualan
         salesHistory.forEach(sale => {
-            const items = sale.items || [];
+            // Mengakomodasi jika key-nya adalah 'items' atau 'produkTerjual'
+            const items = sale.items || sale.produkTerjual || [];
+            
             items.forEach(product => {
-                const nameKey = product.name;
-                
+                // SINKRONISASI FIELD DATABASE: Mendukung properti objek indonesia / inggris
+                const nameKey = product.nama || product.name;
+                const currentQty = product.qty || product.quantity || 0;
+                const currentPrice = product.harga || product.price || 0;
+
+                if (!nameKey) return; // Skip jika tidak ada nama produk yang valid
+
                 if (map[nameKey]) {
-                    map[nameKey].qty += product.quantity;
+                    map[nameKey].qty += currentQty;
                     // Ambil harga tertinggi/terupdate jika ada fluktuasi
-                    if (product.price > map[nameKey].price) {
-                        map[nameKey].price = product.price;
+                    if (currentPrice > map[nameKey].price) {
+                        map[nameKey].price = currentPrice;
                     }
                 } else {
                     map[nameKey] = {
-                        qty: product.quantity,
-                        price: product.price || 0
+                        qty: currentQty,
+                        price: currentPrice
                     };
                 }
-                grandQty += product.quantity;
-                grandOmset += (product.quantity * (product.price || 0));
+                grandQty += currentQty;
+                grandOmset += (currentQty * currentPrice);
             });
         });
 
-        // 2. Mengubah ke Array & Menyaring Berdasarkan Pencarian (Fitur Filter Kuat)
+        // 2. Mengubah ke Array & Menyaring Berdasarkan Pencarian
         const filteredProducts = Object.keys(map)
             .map(name => ({
                 name: name,
@@ -54,7 +61,7 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
                 kontribusiOmset: grandOmset > 0 ? ((map[name].qty * map[name].price) / grandOmset) * 100 : 0
             }))
             .filter(item => item.name.toLowerCase().includes(searchQuery.toLowerCase()))
-            // Urutkan otomatis dari omset atau volume tertinggi (Sistem Peringkat Logis)
+            // Urutkan otomatis dari omset tertinggi (Sistem Peringkat Terlaris)
             .sort((a, b) => b.subtotal - a.subtotal);
 
         return {
@@ -70,11 +77,10 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
         <div className="flex-1 flex flex-col h-full bg-[#f8fafc] text-slate-600 font-sans tracking-tight p-6 gap-6 overflow-hidden">
             
             {/* ======================================================== */}
-            {/* HEADER & FITUR PENCARIAN (MINIMALIS)                     */}
+            {/* HEADER & FITUR PENCARIAN (MINIMALIS)                      */}
             {/* ======================================================== */}
             <div className="flex flex-row justify-between items-center flex-shrink-0">
-                
-                {/* Fitur Kuat: Real-time Search Input */}
+                {/* Real-time Search Input */}
                 <div className="w-64">
                     <input 
                         type="text"
@@ -152,7 +158,7 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
                                             {item.qty} Pcs
                                         </td>
 
-                                        {/* Fitur Kuat: Persentase Beban Share Keuntungan Toko */}
+                                        {/* Persentase Kontribusi Omset */}
                                         <td className="py-3.5 px-5 text-right font-mono text-slate-400">
                                             {item.kontribusiOmset.toFixed(1)}%
                                         </td>
@@ -164,7 +170,6 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
                                     </tr>
                                 ))}
 
-                                {/* Fallback jika filter tidak menemukan data atau salesHistory kosong */}
                                 {analisis.products.length === 0 && (
                                     <tr>
                                         <td colSpan="6" className="py-16 text-center italic text-slate-400">

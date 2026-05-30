@@ -10,7 +10,7 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
     };
 
     // ----------------------------------------------------
-    // ENGINE ANALISIS METODE PEMBAYARAN (KUAT & MINIMALIS)
+    // ENGINE ANALISIS METODE PEMBAYARAN (SELARAS DATABASE)
     // ----------------------------------------------------
     const analisisPembayaran = useMemo(() => {
         const paymentMethods = ['Tunai', 'QRIS', 'Debit', 'Kredit'];
@@ -25,13 +25,18 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
             kontribusiPersen: 0
         }));
 
-        // Kalkulasi data riil dari salesHistory
+        // Kalkulasi data riil dari salesHistory (Diselaraskan dengan key DB)
         salesHistory.forEach(sale => {
-            const index = paymentMethods.indexOf(sale.metode);
+            // Ambil dari 'metodeBayar' (DB) atau fallback ke 'metode'
+            const metodeAmandemen = sale.metodeBayar || sale.metode; 
+            // Ambil dari 'jumlah' (DB) atau fallback ke 'total'
+            const nominalAmandemen = sale.jumlah || sale.total || 0;
+
+            const index = paymentMethods.indexOf(metodeAmandemen);
             if (index !== -1) {
-                rekap[index].nominal += (sale.total || 0);
+                rekap[index].nominal += nominalAmandemen;
                 rekap[index].jumlahTransaksi += 1;
-                grandTotalSemuaMetode += (sale.total || 0);
+                grandTotalSemuaMetode += nominalAmandemen;
             }
         });
 
@@ -39,7 +44,7 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
         const rekapMatang = rekap.map(item => ({
             ...item,
             kontribusiPersen: grandTotalSemuaMetode > 0 ? (item.nominal / grandTotalSemuaMetode) * 100 : 0
-        })).sort((a, b) => b.nominal - a.nominal); // Urutkan dari perputaran uang tertinggi
+        })).sort((a, b) => b.nominal - a.nominal); // Urutkan dari nominal tertinggi
 
         return {
             dataMetode: rekapMatang,
@@ -56,13 +61,13 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
             {/* ======================================================== */}
             <div className="grid grid-cols-2 gap-4 w-full flex-shrink-0">
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Kas Masuk (Sales)</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Penjualan Masuk (Sales)</p>
                     <p className="text-base font-bold text-slate-800 mt-1 font-mono">{renderRupiah(analisisPembayaran.grandTotal)}</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
-                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Frekuensi Transaksi</p>
-                    <p className="text-base font-bold text-slate-800 mt-1">{analisisPembayaran.totalTransaksi} Kali Log</p>
+                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aktivitas Transaksi</p>
+                    <p className="text-base font-bold text-slate-800 mt-1">{analisisPembayaran.totalTransaksi} Kali</p>
                 </div>
             </div>
 
@@ -113,7 +118,7 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
                                     </tr>
                                 ))}
 
-                                {analisisPembayaran.dataMetode.length === 0 && (
+                                {analisisPembayaran.totalTransaksi === 0 && (
                                     <tr>
                                         <td colSpan="5" className="py-16 text-center italic text-slate-400">
                                             Belum ada pencatatan riwayat metode pembayaran masuk.
