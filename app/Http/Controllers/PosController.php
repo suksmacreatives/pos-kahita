@@ -2,24 +2,32 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\Product;
+use App\Models\CashRegisterShift;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Inertia\Inertia;
 
 class PosController extends Controller
 {
     public function index()
     {
-        // Sementara kita pakai data tiruan (dummy data) langsung di sini
-        $products = [
-            ['id' => 1, 'name' => 'Kebaya Brokat Sofi Putih', 'category' => 'Kebaya', 'size' => 'M', 'price' => 250000, 'stock' => 12],
-            ['id' => 2, 'name' => 'Kebaya Semi Prancis Hitam', 'category' => 'Kebaya', 'size' => 'L', 'price' => 450000, 'stock' => 5],
-            ['id' => 3, 'name' => 'Kamen Songket Bali Mutiara', 'category' => 'Kamen', 'size' => 'All Size', 'price' => 350000, 'stock' => 8],
-            ['id' => 4, 'name' => 'Kamen Lembaran Tenun Ikat', 'category' => 'Kamen', 'size' => 'All Size', 'price' => 180000, 'stock' => 15],
-            ['id' => 5, 'name' => 'Selendang Sifon Ceruti Kuning', 'category' => 'Aksesoris', 'size' => 'Standard', 'price' => 450000, 'stock' => 20],
-        ];
+        $user = Auth::user();
+        $outletId = $user->outlet_id ?? 1;
 
+        // Ambil data produk asli dari database Anda untuk di-grid di POS
+        $products = Product::where('outlet_id', $outletId)->get();
+
+        // Cek apakah kasir ini punya shift yang masih 'open'
+        $activeShift = CashRegisterShift::where('user_id', $user->id)
+            ->where('status', 'open')
+            ->first();
+
+        // Kirim data langsung ke Pages/Pos/Index (atau folder penempatan view Anda)
         return Inertia::render('Pos/Index', [
-            'products' => $products
+            'products_from_db' => $products,
+            'is_shift_open_db' => $activeShift ? true : false,
+            'active_shift_details' => $activeShift
         ]);
     }
 }

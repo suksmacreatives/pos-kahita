@@ -3,7 +3,12 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\POS\DashboardPosController;
 use App\Http\Controllers\ProductController;
+// Menambahkan import Controller Baru yang kita buat
+use App\Http\Controllers\POS\ShiftController;
+use App\Http\Controllers\Api\TransactionController;
+use App\Http\Controllers\Api\CashTransactionController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -41,7 +46,20 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // AREA KASIR (Mengarah ke Halaman POS Baru Anda di Pages/Pos/Index.jsx)
     Route::middleware(['role:cashier'])->group(function () {
         Route::get('/pos', [PosController::class, 'index'])->name('cashier.pos');
-    });
+        Route::get('/pos/sidebar-data', [DashboardPosController::class, 'dapatkanDataSidebar'])->name('pos.sidebar-data');
+        
+        // --- TAMBAHAN ROUTE POS BARU (KASKASIR & TRANSAKSI) ---
+        // Logika Buka & Tutup Sesi Laci Kasir
+        Route::post('/pos/buka-kasir', [ShiftController::class, 'bukaKasir'])->name('pos.buka-kasir');
+        Route::post('/pos/tutup-kasir', [ShiftController::class, 'tutupKasir'])->name('pos.tutup-kasir');
+        
+        // SISIPAN AMAN: Rute untuk menampilkan data shift kasir hari ini di tabel bawah
+        Route::get('/pos/riwayat-shift', [ShiftController::class, 'riwayatShiftHariIni'])->name('pos.riwayat-shift');
+        
+        // Logika Simpan Pembayaran Belanja POS
+    Route::post('/pos/transaksi', [TransactionController::class, 'store'])->name('pos.transaksi');    });
+    Route::post('/cash-transactions', [CashTransactionController::class, 'store'])
+    ->name('cash-transactions.store');
 
     // AREA ADMIN
     Route::middleware(['role:admin'])->group(function () {
