@@ -48,7 +48,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // --- MENU 1: DASHBOARD UTAMA ---
         Route::get('/admin/dashboard', function () { 
-            return Inertia::render('Admin/Placeholder', ['title' => 'Dashboard Utama']); 
+            return Inertia::render('Admin/Dashboard'); 
         })->name('admin.dashboard.index');
 
         // --- MENU 2: KELOLA STAF & AKUN ---
@@ -69,22 +69,29 @@ Route::middleware(['auth', 'verified'])->group(function () {
         })->name('admin.promos.index');
 
         // --- SUB-MENU: LAPORAN PENJUALAN ---
-        Route::get('/admin/reports/summary', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Ringkasan Penjualan']); })->name('admin.reports.summary');
-        Route::get('/admin/reports/outlet', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Penjualan Outlet']); })->name('admin.reports.outlet');
-        Route::get('/admin/reports/payment', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Laporan Jenis Bayar']); })->name('admin.reports.payment');
-        Route::get('/admin/reports/void', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Laporan Void']); })->name('admin.reports.void');
-        Route::get('/admin/reports/refund', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Laporan Refund']); })->name('admin.reports.refund');
+        Route::get('/admin/reports/penjualan', function () { 
+            return Inertia::render('Admin/LaporanPenjualan'); 
+        })->name('admin.laporan');
 
         // --- SUB-MENU: INVENTORY / STOK ---
         Route::get('/admin/inventory/central', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Stok Barang Pusat']); })->name('admin.inventory.central');
         Route::get('/admin/inventory/branch', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Stok Cabang']); })->name('admin.inventory.branch');
         Route::get('/admin/inventory/mutation', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Mutasi Barang']); })->name('admin.inventory.mutation');
+Route::get('/admin/inventory/gudang', function () { return Inertia::render('Admin/Inventory/Gudang'); })->name('admin.inventory.gudang');
+        Route::get('/admin/inventory/outlet', function () { return Inertia::render('Admin/Inventory/Outlet'); })->name('admin.inventory.outlet');
+        
+        // --- SUB-MENU: SETTINGS ---
+        Route::get('/admin/settings', function () { return Inertia::render('Admin/Settings'); })->name('admin.settings');
     });
+
+    
 
     // Rute manajemen profil bersama
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
+
+
 
 require __DIR__.'/auth.php';

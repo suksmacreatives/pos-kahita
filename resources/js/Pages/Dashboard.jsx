@@ -1,4 +1,4 @@
-import AdminSidebar from '@/Components/AdminSidebar';
+import Sidebar from '@/Components/Admin/Sidebar';
 import { Head, useForm, router } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
@@ -68,12 +68,7 @@ export default function Dashboard({ auth, users, outlets }) {
             <Head title="Manajemen Staf & Akun" />
 
             {/* SIDEBAR KIRI - Desain Baru Putih Minimalis dengan Fitur Drawer Buka Tutup */}
-            <AdminSidebar 
-                auth={auth} 
-                outlets={outlets} 
-                currentOutlet={activeOutletFilter} 
-                onOutletChange={(id) => setActiveOutletFilter(id)} 
-            />
+            <Sidebar isOpen={true} onClose={() => {}} />
 
             {/* KONTEN KANAN */}
             <main className="flex-1 flex flex-col overflow-hidden">
