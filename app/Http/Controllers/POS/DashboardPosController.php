@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\CashRegisterShift;
+use App\Models\CashTransaction;
 use App\Models\Product;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -42,11 +43,20 @@ if ($shiftAktif) {
 
         $kasKasirMasaKini = [
             'modal_awal' => $shiftAktif ? $shiftAktif->starting_cash : 0,
-            'total_tunai_masuk' => $shiftAktif ? $shiftAktif->system_cash : 0,
-            'total_refund' => 0, // Bisa dikembangkan jika ada fitur refund khusus
-            'total_kas_di_laci_sistem' => $shiftAktif ? ($shiftAktif->starting_cash + $shiftAktif->system_cash) : 0,
-            'total_penjualan_semua_metode' => $shiftAktif ? Transaction::where('shift_id', $shiftAktif->id)->where('status', 'completed')->sum('grand_total') : 0
+            'system_cash' => $shiftAktif ? $shiftAktif->system_cash : 0,
+            'total_kas' => $shiftAktif
+                ? ($shiftAktif->starting_cash + $shiftAktif->system_cash)
+                : 0,
         ];
+
+        $cashTransactions = collect();
+        if ($shiftAktif) {
+            $cashTransactions = CashTransaction::where(
+                'shift_id',
+                $shiftAktif->id
+            )
+            ->get();
+        }
 
         // 4. LAPORAN PRODUK TERJUAL (Untuk ProdukTerjual.jsx)
         $totalOmset = Transaction::where('outlet_id', $outletId)->where('status', 'completed')->sum('grand_total');
@@ -90,6 +100,7 @@ if ($shiftAktif) {
         // Kumpulkan semua data untuk di-return
         return [
             'semua_transaksi' => $semuaTransaksi,
+            'cash_transactions' => $cashTransactions,
             'riwayat_shift' => $riwayatShift,
             'kas_kasir_aktif' => $kasKasirMasaKini,
             'analisis_produk' => [

@@ -11,44 +11,33 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
         if (formatRupiah) return formatRupiah(nilai);
         return `Rp ${(nilai || 0).toLocaleString('id-ID')}`;
     };
-
-    // ----------------------------------------------------
-    // ENGINE ANALISIS DATA (SELARAS DATABASE & KASIR POS)
-    // ----------------------------------------------------
+    
     const analisis = useMemo(() => {
-        const map = {};
-        let grandQty = 0;
-        let grandOmset = 0;
+    const map = {};
+    let grandQty = 0;
+    let grandOmset = 0;
 
-        // 1. Pemrosesan Log Transaksi Penjualan
-        salesHistory.forEach(sale => {
-            // Mengakomodasi jika key-nya adalah 'items' atau 'produkTerjual'
-            const items = sale.items || sale.produkTerjual || [];
+    salesHistory.forEach(sale => {
+        // Gunakan 'transaction_items' sesuai struktur database Anda
+        const items = sale.transaction_items || []; 
+        
+        items.forEach(product => {
+            // Mapping field database ke variabel lokal:
+            const nameKey = product.product_name || product.nama || product.product_name_snapshot || 'Produk Tanpa Nama';
+            const currentQty = parseInt(product.quantity || 0);
+            const currentPrice = parseFloat(product.price_at_sale || 0);
+
+            if (!map[nameKey]) {
+                map[nameKey] = { qty: 0, price: currentPrice };
+            }
             
-            items.forEach(product => {
-                // SINKRONISASI FIELD DATABASE: Mendukung properti objek indonesia / inggris
-                const nameKey = product.nama || product.name;
-                const currentQty = product.qty || product.quantity || 0;
-                const currentPrice = product.harga || product.price || 0;
-
-                if (!nameKey) return; // Skip jika tidak ada nama produk yang valid
-
-                if (map[nameKey]) {
-                    map[nameKey].qty += currentQty;
-                    // Ambil harga tertinggi/terupdate jika ada fluktuasi
-                    if (currentPrice > map[nameKey].price) {
-                        map[nameKey].price = currentPrice;
-                    }
-                } else {
-                    map[nameKey] = {
-                        qty: currentQty,
-                        price: currentPrice
-                    };
-                }
-                grandQty += currentQty;
-                grandOmset += (currentQty * currentPrice);
-            });
+            map[nameKey].qty += currentQty;
+            map[nameKey].price = currentPrice; 
+            
+            grandQty += currentQty;
+            grandOmset += (currentQty * currentPrice);
         });
+    });
 
         // 2. Mengubah ke Array & Menyaring Berdasarkan Pencarian
         const filteredProducts = Object.keys(map)

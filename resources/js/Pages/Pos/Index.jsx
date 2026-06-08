@@ -20,7 +20,8 @@ export default function Index({
     auth,
     products_from_db = [],
     is_shift_open_db = false,
-    active_shift_details = null
+    active_shift_details = null,
+    attendances = [],
 }) {
 
     // =========================================================
@@ -84,9 +85,7 @@ export default function Index({
             })));
 
             setVoidHistory((sidebarData.semua_transaksi || []).filter(t => t.status?.toLowerCase() === 'void'));
-            setKasHistory(sidebarData.riwayat_shift?.map((s) => ({
-                id: s.id, nama: `Modal Sesi #${s.id}`, tipe: 'Uang Masuk', kategori: 'Tunai', jumlah: s.starting_cash, waktu: s.created_at
-            })) || []);
+            setKasHistory(sidebarData.cash_transactions || []);
 
             const shiftResponse = await fetch(route('pos.riwayat-shift'));
             const shiftData = await shiftResponse.json();
@@ -113,15 +112,238 @@ export default function Index({
     };
 
     const cetakStrukLangsung = (transaksiData) => {
-        const iframe = document.createElement('iframe');
-        iframe.style.position = 'absolute'; iframe.style.width = '0px'; iframe.style.height = '0px'; iframe.style.border = 'none';
-        document.body.appendChild(iframe);
-        const doc = iframe.contentWindow.document;
-        const htmlStruk = `<html><body style="font-family: Courier New; padding:10px; width:210px;"><h3 style="text-align:center;">KAHITA BUSANA</h3><hr />${(transaksiData.items || []).map(item => `<div>${item.name} ${item.varianWarna ? ` - ${item.varianWarna}` : ''} ${item.varianUkuran ? ` (${item.varianUkuran})` : ''}</div><div>${item.quantity} x ${formatRupiah(item.price)}</div>`).join('')}<hr /><div>TOTAL: ${formatRupiah(transaksiData.total)}</div></body></html>`;
-        doc.open(); doc.write(htmlStruk); doc.close();
-        iframe.contentWindow.focus(); iframe.contentWindow.print();
-        setTimeout(() => { document.body.removeChild(iframe); }, 1000);
+
+    const notaConfig =
+        JSON.parse(
+            localStorage.getItem('master_nota_config')
+        ) || {};
+
+    const iframe = document.createElement('iframe');
+
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow.document;
+
+    const waktu = new Date().toLocaleString('id-ID');
+
+    const htmlStruk = `
+    <html>
+    <head>
+        <style>
+    @page{
+        margin:0;
+        size:58mm auto;
+    }
+
+    body{
+    width:58mm;
+    margin:0;
+    padding:10mm 4mm;
+    box-sizing:border-box;
+}
+    .header{
+    text-align:center;
+    line-height:1.3;
+    margin-bottom:2px;
+}
+
+    .center{
+        text-align:center;
+    }
+
+    .divider{
+        border-top:1px dashed #000;
+        margin:6px 0;
+    }
+
+    .item{
+        margin-bottom:6px;
+    }
+
+    .item-name{
+        font-weight:bold;
+        word-break:break-word;
+    }
+
+    .item-varian{
+    margin-left:4px;
+}
+    .row{
+    display:flex;
+    justify-content:space-between;
+    width:100%;
+}
+
+    .item-row{
+        display:flex;
+        justify-content:space-between;
+        width:100%;
+    }
+
+    .summary{
+        margin-top:6px;
+    }
+    .summary .row{
+    margin-bottom:3px;
+}
+
+    .footer{
+        text-align:center;
+        font-size:10px;
+        line-height:1.4;
+        margin-top:8px;
+        word-break:break-word;
+        white-space:normal;
+    }
+
+    .thanks{
+        text-align:center;
+        font-weight:bold;
+        margin:8px 0;
+    }
+</style>
+    </head>
+
+    <body>
+
+        ${
+    notaConfig.showNamaToko
+        ? `<div class="header"><b>${notaConfig.namaToko}</b></div>`
+        : ''
+}
+
+${
+    notaConfig.showAlamat
+        ? `<div class="header">${notaConfig.alamatToko}</div>`
+        : ''
+}
+
+${
+    notaConfig.showTelp
+        ? `<div class="header">${notaConfig.telpToko}</div>`
+        : ''
+}
+
+${
+    notaConfig.showNoStruk
+        ? `<div class="header">No Struk : ${transaksiData.kode || transaksiData.id || '-'}</div>`
+        : ''
+}
+
+${
+    notaConfig.showWaktu
+        ? `<div class="header">${waktu}</div>`
+        : ''
+}
+
+<div class="divider"></div>
+
+        ${(transaksiData.items || [])
+            .map(item => `
+<div class="item">
+
+    <div class="item-name">
+        ${item.name}
+    </div>
+
+    <div class="item-varian">
+        ${item.varianWarna || ''}
+        ${item.varianUkuran || ''}
+    </div>
+
+    <div class="item-row">
+        <span>
+            ${item.quantity} x ${item.price.toLocaleString('id-ID')}
+        </span>
+
+        <span>
+            ${(item.quantity * item.price).toLocaleString('id-ID')}
+        </span>
+    </div>
+
+</div>
+`)
+            .join('')}
+
+        <div class="divider"></div>
+
+<div class="summary">
+
+    <div class="row">
+        <span>TOTAL</span>
+        <span>
+            ${transaksiData.total.toLocaleString('id-ID')}
+        </span>
+    </div>
+
+    ${
+        transaksiData.metode === 'Tunai'
+        ? `
+            <div class="row">
+                <span>TUNAI</span>
+                <span>
+                    ${transaksiData.bayar.toLocaleString('id-ID')}
+                </span>
+            </div>
+
+            <div class="row">
+                <span>KEMBALI</span>
+                <span>
+                    ${transaksiData.kembalian.toLocaleString('id-ID')}
+                </span>
+            </div>
+        `
+        : ''
+    }
+
+</div>
+
+<div class="divider"></div>
+
+        ${
+    notaConfig.showHeaderTerimakasih
+    ? `
+        <div class="thanks">
+            ${notaConfig.teksTerimakasih}
+        </div>
+    `
+    : ''
+}
+
+${
+    notaConfig.showFooterNote
+    ? `
+        <div class="footer">
+            ${notaConfig.teksFooterNote}
+        </div>
+    `
+    : ''
+}
+
+    </body>
+    </html>
+    `;
+
+    doc.open();
+    doc.write(htmlStruk);
+    doc.close();
+
+    iframe.onload = () => {
+        iframe.contentWindow.focus();
+        iframe.contentWindow.print();
+
+        setTimeout(() => {
+            document.body.removeChild(iframe);
+        }, 1000);
     };
+};
 
     const handleProsesBayarFinal = async () => {
         if (cart.length === 0) {
@@ -143,7 +365,16 @@ export default function Index({
             const result = await response.json();
             if (result.success) {
                 await loadSidebarData();
-                setSuccessModal({ isOpen: true, data: { total: subtotal, metode: selectedPayment, items: cart } });
+                setSuccessModal({
+    isOpen: true,
+    data: {
+        total: subtotal,
+        metode: selectedPayment,
+        bayar: Number(inputUangDiterima || subtotal),
+        kembalian: uangKembalian,
+        items: cart
+    }
+});
                 setCart([]); setCustomerName(''); setInputUangDiterima(''); setSelectedPayment('Tunai'); setIsCheckoutView(false);
             } else {
                 setAppNotification({ isOpen: true, type: 'error', title: 'Transaksi Gagal', message: result.message || 'Gagal transaksi' });
@@ -335,7 +566,7 @@ console.log(
                     <header className="bg-[#009664] text-white h-[48px] px-4 flex items-center justify-between shadow-sm z-10 flex-shrink-0">
                         <div className="flex items-center space-x-3">
                             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 rounded hover:bg-emerald-700 transition">☰</button>
-                            <span className="font-black text-sm tracking-wide uppercase">MAJOO</span>
+                            <span className="font-black text-sm tracking-wide uppercase">Kahita Busana</span>
                         </div>
                         <div className="text-xs font-bold tracking-wider opacity-90">{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     </header>
@@ -350,22 +581,34 @@ console.log(
                             <KasKasir
                                 formatRupiah={formatRupiah}
                                 initialCash={active_shift_details?.starting_cash || 0}
-                                kasHistory={salesHistory.map(trx => ({
-                                    id: trx.id,
-                                    nama: `Penjualan ${trx.pelanggan}`,
-                                    jenis: 'Uang Masuk',
-                                    kategori: 'Penjualan',
-                                    jumlah: Number(trx.total || 0),
+                                kasHistory={[
+                                    ...salesHistory.map(trx => ({
+                                        id: trx.id,
+                                        nama: `Penjualan ${trx.pelanggan}`,
+                                        jenis: 'Uang Masuk',
+                                        kategori: 'Penjualan',
+                                        jumlah: Number(trx.total || 0),
+                                        payment_method: trx.payment_method,
+                                        deskripsi: `Via ${trx.payment_method}`
+                                    })),
 
-                                    payment_method: trx.payment_method,
-
-                                    deskripsi: `Via ${trx.payment_method}`
-                                }))}
+                                    ...kasHistory.map(item => ({
+                                        id: item.id,
+                                        nama: item.name,
+                                        jenis:
+                                            item.transaction_type === 'IN'
+                                                ? 'Uang Masuk'
+                                                : 'Uang Keluar',
+                                        kategori: item.category,
+                                        jumlah: item.amount,
+                                        deskripsi: item.description
+                                    }))
+                                ]}
                             />
                         )}
                         {activeMenu === 'laporan-produk-terjual' && (<ProdukTerjual salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
                         {activeMenu === 'laporan-jenis-bayar' && (<JenisBayar salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
-                        {activeMenu === 'absensi' && (<Absensi kasirName={kasirName} />)}
+                        {activeMenu === 'absensi' && (<Absensi attendances={attendances} />)}
                         {activeMenu === 'pengaturan-nota' && (<PengaturanNotaView formatRupiah={formatRupiah} />)}
                         {activeMenu === 'pengaturan-printer' && (<PengaturanPrinterView />)}
                         {activeMenu === 'pengaturan-toko' && (<PengaturanTokoView />)}

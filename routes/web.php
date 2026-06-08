@@ -9,6 +9,7 @@ use App\Http\Controllers\ProductController;
 use App\Http\Controllers\POS\ShiftController;
 use App\Http\Controllers\Api\TransactionController;
 use App\Http\Controllers\Api\CashTransactionController;
+use App\Http\Controllers\AbsensiController;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
@@ -60,6 +61,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/pos/transaksi', [TransactionController::class, 'store'])->name('pos.transaksi');    });
     Route::post('/cash-transactions', [CashTransactionController::class, 'store'])
     ->name('cash-transactions.store');
+    Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');
+    Route::post('/absensi/pulang/{attendance}', [AbsensiController::class, 'clockOut'])
+    ->name('absensi.pulang');
 
     // AREA ADMIN
     Route::middleware(['role:admin'])->group(function () {

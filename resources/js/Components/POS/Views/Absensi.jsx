@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
+import { router, usePage } from '@inertiajs/react';
 
-export default function Absensi({ kasirName }) {
+export default function Absensi({ kasirName, attendances }) {
     const namaKasirAktif = kasirName || 'Agus Arismawan';
-
-    const [dataAbsensi, setDataAbsensi] = useState([]);
+    const { auth } = usePage().props;
+    console.log(auth);
+    const [dataAbsensi, setDataAbsensi] = useState(attendances || []);
     const [selectedKasir, setSelectedKasir] = useState('');
     const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -17,9 +19,22 @@ export default function Absensi({ kasirName }) {
     });
 
     useEffect(() => {
-        const timer = setInterval(() => setCurrentTime(new Date()), 1000);
-        return () => clearInterval(timer);
-    }, []);
+    const timer = setInterval(() => setCurrentTime(new Date()), 1000);
+    return () => clearInterval(timer);
+}, []);
+
+    useEffect(() => {
+    setDataAbsensi(attendances || []);
+}, [attendances]);
+
+const dataTabel = dataAbsensi.map(item => ({
+    id: item.id,
+    nama: item.user?.name || '-',
+    role: item.user?.role || '-',
+    jamMasuk: item.clock_in,
+    jamPulang: item.clock_out,
+    status: item.status
+}));
 
     const formatTimeReal = (date) => {
         return date.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).replace(/\./g, ':');
@@ -38,50 +53,68 @@ export default function Absensi({ kasirName }) {
 
     // Handler Konfirmasi Hadir
     const handleAbsenMasuk = (e) => {
-        e.preventDefault();
-        if (!selectedKasir) return showAlert('Perhatian', 'Silakan pilih nama kasir terlebih dahulu!');
+    e.preventDefault();
 
-        const sudahAbsen = dataAbsensi.find(item => item.nama === selectedKasir && item.status === 'Aktif Bekerja');
-        if (sudahAbsen) {
-            return showAlert('Gagal Absen', `${selectedKasir} sudah melakukan absen masuk dan sedang aktif bekerja!`);
-        }
-
-        const jamSekarang = formatTimeReal(new Date());
-        const barisBaru = {
-            id: Date.now(),
-            nama: selectedKasir,
-            role: 'CASHIER',
-            jamMasuk: jamSekarang,
-            jamPulang: null,
-            status: 'Aktif Bekerja'
-        };
-
-        setDataAbsensi([barisBaru, ...dataAbsensi]);
-        setSelectedKasir(''); 
-        showAlert('Berhasil', `Absen masuk ${selectedKasir} berhasil dicatat pada jam ${jamSekarang}!`);
+    // Pastikan data ini ada dan tidak kosong
+    const dataAbsensi = {
+        user_id: auth.user.id, // Ambil dari props auth yang tersedia di response
+        outlet_id: auth.user.outlet_id,
+        date: new Date().toISOString().split('T')[0], // Format YYYY-MM-DD
+        clock_in: new Date().toLocaleTimeString('en-GB'), // Format HH:MM:SS
+        status: 'Aktif Bekerja'
     };
+
+    router.post('/absensi', dataAbsensi, {
+        onSuccess: () => {
+            showAlert('Berhasil', 'Absen masuk berhasil dicatat!');
+        },
+        onError: (errors) => {
+            console.error("Error dari server:", errors);
+            // Ini akan menampilkan pesan spesifik apa yang kurang
+            showAlert('Gagal', errors.user_id || errors.date || 'Terjadi kesalahan');
+        }
+    });
+};
 
     // Handler Tombol Pulang menggunakan Custom Modal
     const handleAbsenPulang = (id, nama) => {
-        setModalConfig({
-            isOpen: true,
-            type: 'confirm',
-            title: 'Konfirmasi Pulang',
-            message: `Apakah Anda yakin kasir "${nama}" ingin absen pulang?`,
-            onConfirm: () => {
-                const jamSekarang = formatTimeReal(new Date());
-                setDataAbsensi(prevData => 
-                    prevData.map(item => 
-                        item.id === id 
-                            ? { ...item, jamPulang: jamSekarang, status: 'Sudah Pulang' } 
-                            : item
-                    )
-                );
-                setModalConfig(prev => ({ ...prev, isOpen: false }));
-                showAlert('Selesai Shift', `Kasir ${nama} telah berhasil absen pulang.`);
-            }
-        });
-    };
+    setModalConfig({
+        isOpen: true,
+        type: 'confirm',
+        title: 'Konfirmasi Pulang',
+        message: `Apakah Anda yakin kasir "${nama}" ingin absen pulang?`,
+        onConfirm: () => {
+
+            router.post(`/absensi/pulang/${id}`, {}, {
+                onSuccess: () => {
+
+                    setDataAbsensi(prev =>
+                        prev.map(item =>
+                            item.id === id
+                                ? {
+                                    ...item,
+                                    clock_out: formatTimeReal(new Date()),
+                                    status: 'Sudah Pulang'
+                                }
+                                : item
+                        )
+                    );
+
+                    setModalConfig(prev => ({
+                        ...prev,
+                        isOpen: false
+                    }));
+
+                    showAlert(
+                        'Selesai Shift',
+                        `Kasir ${nama} telah berhasil absen pulang.`
+                    );
+                }
+            });
+
+        }
+    });
+};
 
     return (
         <div className="flex-1 flex flex-col h-full bg-[#f8fafc] overflow-hidden relative">
@@ -188,7 +221,7 @@ export default function Absensi({ kasirName }) {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-                                    {dataAbsensi.map((row) => (
+                                    {dataTabel.map((row) => (
                                         <tr key={row.id} className="hover:bg-slate-50/60 transition">
                                             <td className="py-3 px-4">
                                                 <div className="font-bold text-slate-800 uppercase tracking-wide">{row.nama}</div>

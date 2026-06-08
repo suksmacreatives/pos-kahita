@@ -53,17 +53,13 @@ export default function PengaturanNotaView({ formatRupiah }) {
 
     // 4. HANDLER SIMPAN & PRINT (DIPERBAIKI)
     const handleSimpanDanCetak = () => {
-        // Simpan konfigurasi ke localStorage agar permanen
-        localStorage.setItem('master_nota_config', JSON.stringify(notaConfig));
-        
-        // Perbarui waktu tepat sebelum cetak
-        setWaktuCetak(dapatkanWaktuSekarang());
-        
-        // Berikan jeda super singkat agar state waktu terbaru di-render oleh React, lalu trigger cetak
-        setTimeout(() => {
-            window.print();
-        }, 50);
-    };
+    localStorage.setItem(
+        'master_nota_config',
+        JSON.stringify(notaConfig)
+    );
+
+    alert('Template nota berhasil disimpan');
+};
 
     return (
         // Ditambahkan class 'print:p-0 print:bg-white' agar kertas thermal bersih dari padding luar saat dicetak
@@ -166,10 +162,13 @@ export default function PengaturanNotaView({ formatRupiah }) {
                 <span className="text-[10px] font-black text-gray-400 uppercase tracking-wider mb-2 print:hidden">Live Preview Kertas Nota</span>
                 
                 {/* Kontainer Utama Kertas Thermal (Akan dicetak presisi tanpa shadow/border) */}
-                <div id="print-area-nota" className="bg-white w-full shadow-sm p-4 text-black font-mono text-[11px] leading-tight flex flex-col border-t-2 border-dashed border-gray-300 print:shadow-none print:border-none print:p-2">
+                <div
+  id="print-area-nota"
+  className="bg-white w-full shadow-sm px-4 py-10 text-black font-mono text-[11px] leading-relaxed flex flex-col border-t-2 border-dashed border-gray-300"
+>
                     
                     {/* 1. SEKSI KOP NOTA ATAS */}
-                    <div className="text-center space-y-0.5 mb-3 text-[11px]">
+                    <div className="text-center mb-4 text-[11px] leading-6">
                         {notaConfig.showNamaToko && <h4 className="font-bold tracking-wide block uppercase w-full text-center">{notaConfig.namaToko}</h4>}
                         {notaConfig.showAlamat && <p className="block uppercase w-full text-center">{notaConfig.alamatToko}</p>}
                         {notaConfig.showTelp && <p className="block w-full text-center">TELP: {notaConfig.telpToko}</p>}
@@ -182,28 +181,33 @@ export default function PengaturanNotaView({ formatRupiah }) {
                         {mockItems.map((item, idx) => (
                             <div key={idx} className="w-full flex flex-col">
                                 <span className="font-bold block uppercase">{item.name}</span>
-                                <div className="w-full flex justify-between pl-4">
-                                    <span>{item.qty} PCS &nbsp;&nbsp; {item.price.toLocaleString()}</span>
-                                    <span>= &nbsp;&nbsp; {item.total.toLocaleString()}</span>
-                                </div>
+                                <div className="flex justify-between">
+    <span>
+        {item.qty} x {item.price.toLocaleString('id-ID')}
+    </span>
+
+    <span>
+        {item.total.toLocaleString('id-ID')}
+    </span>
+</div>
                             </div>
                         ))}
                     </div>
 
                     {/* 3. AKUMULASI TOTAL */}
                     <div className="py-1.5 space-y-1 border-b border-dashed border-black w-full">
-                        <div className="w-full flex justify-between pl-10">
+                        <div className="w-full flex justify-between">
                             <span>TOTAL RP. =</span>
                             <span className="font-bold">{formatRupiah ? formatRupiah(86000) : '86.000'}</span>
                         </div>
-                        <div className="w-full flex justify-between pl-10">
+                        <div className="w-full flex justify-between">
                             <span className="font-bold uppercase">TUNAI =</span>
                             <span>{formatRupiah ? formatRupiah(100000) : '100.000'}</span>
                         </div>
                     </div>
 
                     <div className="py-1.5 w-full border-b border-dashed border-black mb-3">
-                        <div className="w-full flex justify-between pl-10">
+                        <div className="w-full flex justify-between">
                             <span className="font-bold">KEMBALI RP. =</span>
                             <span className="font-bold">{formatRupiah ? formatRupiah(14000) : '14.000'}</span>
                         </div>
@@ -218,7 +222,7 @@ export default function PengaturanNotaView({ formatRupiah }) {
 
                     {/* 5. FOOTER SYARAT TOKO */}
                     {notaConfig.showFooterNote && (
-                        <div className="text-center text-[10px] leading-tight pt-0.5 block w-full break-words px-1">
+                        <div className="text-center text-[10px] leading-5 px-2 whitespace-pre-wrap">
                             {notaConfig.teksFooterNote}
                         </div>
                     )}

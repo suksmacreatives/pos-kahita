@@ -35,11 +35,8 @@ class SesiKasirController extends Controller
             'waktu_buka' => now(),
         ]);
 
-        return response()->json([
-            'status'  => 'success',
-            'message' => 'Sesi kasir berhasil dibuka.',
-            'data'    => $sesi
-        ]);
+        return redirect()->route('pos.index') // Redirect langsung ke rute POS Anda
+        ->with('message', 'Sesi kasir berhasil dibuka.');
     }
 
     /**

@@ -13,6 +13,7 @@ class CashTransaction extends Model
     protected $fillable = [
         'shift_id',
         'user_id',
+        'name',
         'transaction_type',
         'category',
         'amount',

@@ -40,33 +40,45 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
 
     const ringkasan = useMemo(() => {
 
-    let pemasukan = 0;
+    let pemasukan = Number(initialCash || 0);
+
     let pengeluaran = 0;
     let totalRefund = 0;
     let totalPenjualan = 0;
-    let totalKasKasir = 0;
+
+    let totalKasKasir = Number(initialCash || 0);
 
     listKas.forEach(item => {
 
         const jumlah = Number(item.jumlah || 0);
 
-        // Penjualan
-        if (item.kategori === 'Penjualan') {
-            totalPenjualan += jumlah;
-
-            if (item.payment_method === 'Tunai') {
-                totalKasKasir += jumlah;
-            }
+        // Abaikan modal awal dummy
+        if (item.nama === 'Modal Awal') {
+            return;
         }
 
-        // Tambahan modal
-        if (item.jenis === 'Uang Masuk' && item.kategori !== 'Penjualan') {
-            pemasukan += jumlah;
+        // Penjualan
+        if (item.kategori === 'Penjualan') {
+
+            totalPenjualan += jumlah;
+
+            if (
+                item.payment_method &&
+                item.payment_method.toLowerCase() === 'tunai'
+            ) {
+                totalKasKasir += jumlah;
+            }
+
+            return;
+        }
+
+        // Uang Masuk
+        if (item.jenis === 'Uang Masuk') {
             totalKasKasir += jumlah;
         }
 
-        // Pengeluaran
-        if (item.jenis?.toLowerCase() === 'uang keluar') {
+        // Uang Keluar
+        if (item.jenis === 'Uang Keluar') {
             pengeluaran += jumlah;
             totalKasKasir -= jumlah;
         }
@@ -74,7 +86,6 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
         // Refund
         if (item.kategori === 'Refund') {
             totalRefund += jumlah;
-            totalKasKasir -= jumlah;
         }
     });
 
@@ -82,8 +93,8 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
         pemasukan,
         pengeluaran,
         totalRefund,
-        totalKasKasir,
-        totalPenjualan
+        totalPenjualan,
+        totalKasKasir
     };
 
 }, [listKas, initialCash]);
@@ -116,31 +127,33 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
         const data = await response.json();
 
         if (response.ok) {
-    const newData = await response.json();
+            window.location.reload();
+            // Gunakan data dari respon backend jika perlu (misal: mengambil ID baru)
+            const newItem = {
+                id: data.id || Date.now(), // Ambil ID dari database
+                nama: formData.nama,
+                jenis: formData.jenis,
+                kategori: formData.kategoriDetail,
+                jumlah: Number(formData.jumlah),
+                deskripsi: formData.deskripsi
+            };
 
-    const newItem = {
-        id: Date.now(),
-        nama: formData.nama,
-        jenis: formData.jenis,
-        kategori: formData.kategoriDetail,
-        jumlah: Number(formData.jumlah),
-        deskripsi: formData.deskripsi
-    };
-
-    setListKas(prev => [newItem, ...prev]);
-
-    setIsOpenModal(false);
-
-    setFormData({
-        jenis: 'Uang Keluar',
-        kategoriDetail: 'Pengeluaran Umum',
-        nama: '',
-        jumlah: '',
-        deskripsi: ''
-    });
-}
+            // Update UI
+            setListKas(prev => [newItem, ...prev]);
+            setIsOpenModal(false);
+            setFormData({
+                jenis: 'Uang Keluar',
+                kategoriDetail: 'Pengeluaran Umum',
+                nama: '',
+                jumlah: '',
+                deskripsi: ''
+            });
+        } else {
+            alert(data.message || 'Gagal menyimpan transaksi.');
+        }
     } catch (err) {
-        alert('Gagal terhubung ke controller.');
+        console.error(err);
+        alert('Terjadi kesalahan koneksi ke server.');
     }
 };
 

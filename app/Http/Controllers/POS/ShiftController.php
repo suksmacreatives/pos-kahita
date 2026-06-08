@@ -34,6 +34,7 @@ class ShiftController extends Controller
             'opened_at' => Carbon::now(),
             'starting_cash' => $request->starting_cash,
             'system_cash' => 0,
+            'physical_cash' => $request->starting_cash,
             'status' => 'open'
         ]);
 

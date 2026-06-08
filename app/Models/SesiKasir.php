@@ -32,4 +32,10 @@ class SesiKasir extends Model
     {
         return $this->hasMany(Transaction::class);
     }
+
+    public function cashTransactions() // Nama relasi baru
+    {
+        return $this->hasMany(CashTransaction::class, 'shift_id', 'id'); // Pastikan FK-nya 'shift_id'
+    }
+    
 }
