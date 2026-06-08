@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Eye, CheckSquare, Printer } from 'lucide-react';
+import { Eye, CheckSquare, Printer, Send, XCircle } from 'lucide-react';
 
 function DetailPenerimaanModal({ data, onClose }) {
   if (!data) return null;
@@ -61,7 +61,7 @@ function DetailPenerimaanModal({ data, onClose }) {
   );
 }
 
-export default function PenerimaanBarangTable({ data = [], onTandaiTerima, onCetak }) {
+export default function PenerimaanBarangTable({ data = [], onTandaiTerima, onProsesPenerimaan, onCetak, onBatalPO }) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('semua');
   const [filterSupplier, setFilterSupplier] = useState('semua');
@@ -143,8 +143,14 @@ export default function PenerimaanBarangTable({ data = [], onTandaiTerima, onCet
                     <td className="p-2 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => setDetailItem(p)} className="p-1.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg cursor-pointer" title="Lihat Detail"><Eye className="w-3.5 h-3.5" /></button>
+                        {p.status === 'draft' && (
+                          <button onClick={() => onProsesPenerimaan?.(p)} className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg cursor-pointer" title="Proses PO"><Send className="w-3.5 h-3.5" /></button>
+                        )}
                         {p.status === 'menunggu' && (
                           <button onClick={() => onTandaiTerima?.(p)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer" title="Tandai Terima"><CheckSquare className="w-3.5 h-3.5" /></button>
+                        )}
+                        {['draft', 'menunggu'].includes(p.status) && (
+                          <button onClick={() => onBatalPO?.(p)} className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer" title="Batalkan"><XCircle className="w-3.5 h-3.5" /></button>
                         )}
                         <button onClick={() => onCetak?.(p)} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg cursor-pointer" title="Cetak"><Printer className="w-3.5 h-3.5" /></button>
                       </div>

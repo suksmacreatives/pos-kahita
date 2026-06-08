@@ -6,10 +6,10 @@ const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 export const roles = [
     {
-        id: 'super_admin',
-        label: 'Super Admin',
-        color: 'purple',
-        deskripsi: 'Akses penuh ke semua fitur dan outlet',
+        id: 'admin',
+        label: 'Admin',
+        color: 'blue',
+        deskripsi: 'Akses penuh ke semua fitur',
         permissions: {
             dashboard: { view: true, edit: true },
             products: { view: true, edit: true },
@@ -20,35 +20,7 @@ export const roles = [
         }
     },
     {
-        id: 'admin',
-        label: 'Admin',
-        color: 'blue',
-        deskripsi: 'Akses penuh kecuali pengaturan sistem',
-        permissions: {
-            dashboard: { view: true, edit: true },
-            products: { view: true, edit: true },
-            inventory: { view: true, edit: true },
-            transactions: { view: true, void: true, refund: true },
-            reports: { view: true, export: true },
-            settings: { view: false, edit: false }
-        }
-    },
-    {
-        id: 'manajer',
-        label: 'Manajer',
-        color: 'emerald',
-        deskripsi: 'Kelola outlet yang ditugaskan',
-        permissions: {
-            dashboard: { view: true, edit: false },
-            products: { view: true, edit: false },
-            inventory: { view: true, edit: true },
-            transactions: { view: true, void: true, refund: false },
-            reports: { view: true, export: false },
-            settings: { view: false, edit: false }
-        }
-    },
-    {
-        id: 'kasir',
+        id: 'cashier',
         label: 'Kasir',
         color: 'amber',
         deskripsi: 'Transaksi kasir saja',

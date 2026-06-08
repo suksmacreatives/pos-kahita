@@ -1,24 +1,14 @@
-// resources/js/Pages/Admin/Products.jsx
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useFilter } from '@/Context/FilterContext';
 import StatCard from '@/Components/Admin/StatCard';
-import { dummyProducts } from '@/data/productsData';
 import { 
-  Shirt, 
-  Plus, 
-  Upload, 
-  Download, 
-  AlertCircle, 
-  CheckCircle2, 
-  ChevronLeft, 
-  ChevronRight,
-  TrendingUp,
-  X
+  Shirt, Plus, Upload, Download, 
+  AlertCircle, CheckCircle2, 
+  ChevronLeft, ChevronRight, X
 } from 'lucide-react';
 
-// Subcomponents
 import ProductBadge from '@/Components/Admin/Products/ProductBadge';
 import ProductFilterBar from '@/Components/Admin/Products/ProductFilterBar';
 import ProductTable from '@/Components/Admin/Products/ProductTable';
@@ -26,71 +16,63 @@ import ProductCard from '@/Components/Admin/Products/ProductCard';
 import ProductDetailDrawer from '@/Components/Admin/Products/ProductDetailDrawer';
 import ProductFormModal from '@/Components/Admin/Products/ProductFormModal';
 
-export default function Products() {
+export default function Products({ products: initialProducts, outlets, categories }) {
   const { outlet } = useFilter();
+  const { props } = usePage();
+  const flash = props.flash;
 
-  // Core Products State
-  const [products, setProducts] = useState(dummyProducts);
-  
-  // Search & Filter States
+  const [products, setProducts] = useState(initialProducts || []);
   const [searchQuery, setSearchQuery] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [selectedKategori, setSelectedKategori] = useState('Semua Kategori');
   const [selectedStatus, setSelectedStatus] = useState('all');
-  const [viewMode, setViewMode] = useState('table'); // 'table' | 'grid'
-
-  // Pagination States
+  const [viewMode, setViewMode] = useState('table');
   const [currentPage, setCurrentPage] = useState(1);
   const [itemsPerPage, setItemsPerPage] = useState(10);
-
-  // Modal & Drawer States
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
-  
-  // Delete Confirmation State
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
-
-  // Toast Notification State
   const [toast, setToast] = useState(null);
 
-  // Search Debouncing
+  useEffect(() => {
+    setProducts(initialProducts || []);
+  }, [initialProducts]);
+
+  useEffect(() => {
+    if (flash?.success) {
+      showToast(flash.success);
+    }
+  }, [flash]);
+
   useEffect(() => {
     const handler = setTimeout(() => {
       setDebouncedSearch(searchQuery);
-      setCurrentPage(1); // reset to page 1 on new search
+      setCurrentPage(1);
     }, 300);
-
     return () => clearTimeout(handler);
   }, [searchQuery]);
 
-  // Reset pagination on filter change
   useEffect(() => {
     setCurrentPage(1);
   }, [selectedKategori, selectedStatus, outlet]);
 
-  // Toast helper
   const showToast = (message, type = 'success') => {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
   };
 
-  // Filtered Products Calculations
   const filteredProducts = useMemo(() => {
     return products.filter((prod) => {
-      // 1. Search filter
       const matchesSearch = 
-        prod.nama_produk.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        prod.kode_produk.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        prod.kategori.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
-        prod.sub_kategori.toLowerCase().includes(debouncedSearch.toLowerCase());
+        (prod.nama_produk || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (prod.kode_produk || '').toLowerCase().includes(debouncedSearch.toLowerCase()) ||
+        (prod.kategori || '').toLowerCase().includes(debouncedSearch.toLowerCase());
 
-      // 2. Category filter
       const matchesCategory = 
         selectedKategori === 'Semua Kategori' || 
         prod.kategori === selectedKategori;
 
-      // 3. Status filter
       let matchesStatus = true;
       if (selectedStatus === 'aktif') {
         matchesStatus = prod.status === 'aktif' && prod.total_stok > 0;
@@ -100,7 +82,6 @@ export default function Products() {
         matchesStatus = prod.total_stok === 0;
       }
 
-      // 4. Outlet filter (via global FilterContext)
       const matchesOutlet = 
         outlet === 'all' || 
         (prod.outlet_tersedia && prod.outlet_tersedia.includes(outlet));
@@ -109,56 +90,58 @@ export default function Products() {
     });
   }, [products, debouncedSearch, selectedKategori, selectedStatus, outlet]);
 
-  // Pagination calculations
   const totalPages = Math.ceil(filteredProducts.length / itemsPerPage) || 1;
   const paginatedProducts = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
     return filteredProducts.slice(startIndex, startIndex + itemsPerPage);
   }, [filteredProducts, currentPage, itemsPerPage]);
 
-  // Metrics (Statistics)
   const metrics = useMemo(() => {
-    // Filtered or all metrics based on outlet context
-    const scopeProducts = products.filter(p => outlet === 'all' || p.outlet_tersedia.includes(outlet));
+    const scopeProducts = products.filter(p => outlet === 'all' || (p.outlet_tersedia && p.outlet_tersedia.includes(outlet)));
     const total = scopeProducts.length;
     const active = scopeProducts.filter(p => p.status === 'aktif' && p.total_stok > 0).length;
     const thinStock = scopeProducts.filter(p => p.total_stok > 0 && p.total_stok < 5).length;
     const inactive = scopeProducts.filter(p => p.status === 'nonaktif' || p.total_stok === 0).length;
-
     return { total, active, thinStock, inactive };
   }, [products, outlet]);
 
-  // Action Handlers
-  const handleSaveProduct = (savedProduct, isEdit) => {
-    if (isEdit) {
-      setProducts(products.map(p => p.id === savedProduct.id ? savedProduct : p));
-      showToast('Produk berhasil diperbarui!');
-    } else {
-      setProducts([savedProduct, ...products]);
-      showToast('Produk baru berhasil ditambahkan!');
-    }
+  const handleSaveProduct = (formData, isEdit) => {
+    const url = isEdit ? `/admin/products/${formData.get('id')}` : '/admin/products';
+
+    router.post(url, formData, {
+      preserveScroll: true,
+      onSuccess: () => showToast(isEdit ? 'Produk berhasil diperbarui!' : 'Produk baru berhasil ditambahkan!'),
+      onError: (errors) => showToast('Gagal menyimpan: ' + Object.values(errors).join(', '), 'warning'),
+    });
   };
 
   const handleDeleteProduct = () => {
     if (deleteConfirmTarget) {
-      setProducts(products.filter(p => p.id !== deleteConfirmTarget.id));
-      showToast(`Produk "${deleteConfirmTarget.nama_produk}" berhasil dihapus.`, 'warning');
-      setDeleteConfirmTarget(null);
+      router.delete(`/admin/products/${deleteConfirmTarget.id}`, {
+        preserveScroll: true,
+        onSuccess: () => {
+          showToast(`Produk "${deleteConfirmTarget.nama_produk}" berhasil dihapus.`, 'warning');
+          setDeleteConfirmTarget(null);
+        },
+      });
     }
   };
 
   const handleToggleStatus = (productId) => {
-    setProducts(products.map(p => {
-      if (p.id === productId) {
-        const nextStatus = p.status === 'aktif' ? 'nonaktif' : 'aktif';
-        showToast(`Status produk dirubah menjadi ${nextStatus}`);
-        return { ...p, status: nextStatus };
-      }
-      return p;
-    }));
+    const prod = products.find(p => p.id === productId);
+    if (!prod) return;
+    const nextStatus = prod.status === 'aktif' ? 'nonaktif' : 'aktif';
+    router.patch(`/admin/products/${productId}`, { 
+      ...prod,
+      status: nextStatus,
+      varian: prod.varian,
+      outlet_tersedia: prod.outlet_tersedia,
+    }, {
+      preserveScroll: true,
+      onSuccess: () => showToast(`Status produk dirubah menjadi ${nextStatus}`),
+    });
   };
 
-  // Mock excel exports & imports
   const handleExport = () => {
     showToast('Data produk berhasil diekspor ke format XLSX (Mock)', 'success');
   };
@@ -171,10 +154,8 @@ export default function Products() {
     <div className="space-y-6 w-full min-h-screen pb-12 box-border">
       <Head title="Manajemen Produk" />
 
-      {/* 1. Header Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          {/* Breadcrumb */}
           <div className="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
             <span>Dashboard</span>
             <span>&rsaquo;</span>
@@ -215,45 +196,13 @@ export default function Products() {
         </div>
       </div>
 
-      {/* 2. Stats Bar Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          title="Total Produk"
-          value={`${metrics.total} item`}
-          trend="neutral"
-          comparisonText="Katalog Pusat"
-          icon={Shirt}
-          color="emerald"
-        />
-        <StatCard
-          title="Produk Aktif"
-          value={`${metrics.active} item`}
-          trend="up"
-          change={10}
-          comparisonText="Tersedia untuk dijual"
-          icon={CheckCircle2}
-          color="blue"
-        />
-        <StatCard
-          title="Stok Menipis"
-          value={`${metrics.thinStock} item`}
-          trend="down"
-          change={2}
-          comparisonText="Stok kritis < 5 pcs"
-          icon={AlertCircle}
-          color="amber"
-        />
-        <StatCard
-          title="Produk Nonaktif / Habis"
-          value={`${metrics.inactive} item`}
-          trend="neutral"
-          comparisonText="Arsip / Out of Stock"
-          icon={X}
-          color="indigo"
-        />
+        <StatCard title="Total Produk" value={`${metrics.total} item`} trend="neutral" comparisonText="Katalog Pusat" icon={Shirt} color="emerald" />
+        <StatCard title="Produk Aktif" value={`${metrics.active} item`} trend="up" change={10} comparisonText="Tersedia untuk dijual" icon={CheckCircle2} color="blue" />
+        <StatCard title="Stok Menipis" value={`${metrics.thinStock} item`} trend="down" change={2} comparisonText="Stok kritis < 5 pcs" icon={AlertCircle} color="amber" />
+        <StatCard title="Produk Nonaktif / Habis" value={`${metrics.inactive} item`} trend="neutral" comparisonText="Arsip / Out of Stock" icon={X} color="indigo" />
       </div>
 
-      {/* 3. Filter & Search Bar */}
       <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-xs">
         <ProductFilterBar
           searchQuery={searchQuery}
@@ -264,22 +213,17 @@ export default function Products() {
           setSelectedStatus={setSelectedStatus}
           viewMode={viewMode}
           setViewMode={setViewMode}
+          categories={categories?.map(c => c.name) || []}
+          allOutlets={outlets || []}
         />
       </div>
 
-      {/* 4. Main Products Display Area */}
       <div className="min-h-[400px]">
         {viewMode === 'table' ? (
           <ProductTable
             products={paginatedProducts}
-            onOpenDrawer={(prod) => {
-              setSelectedProduct(prod);
-              setIsDrawerOpen(true);
-            }}
-            onOpenEdit={(prod) => {
-              setSelectedProduct(prod);
-              setIsModalOpen(true);
-            }}
+            onOpenDrawer={(prod) => { setSelectedProduct(prod); setIsDrawerOpen(true); }}
+            onOpenEdit={(prod) => { setSelectedProduct(prod); setIsModalOpen(true); }}
             onDeleteProduct={(prod) => setDeleteConfirmTarget(prod)}
           />
         ) : (
@@ -288,14 +232,8 @@ export default function Products() {
               <ProductCard
                 key={product.id}
                 product={product}
-                onOpenDrawer={(prod) => {
-                  setSelectedProduct(prod);
-                  setIsDrawerOpen(true);
-                }}
-                onOpenEdit={(prod) => {
-                  setSelectedProduct(prod);
-                  setIsModalOpen(true);
-                }}
+                onOpenDrawer={(prod) => { setSelectedProduct(prod); setIsDrawerOpen(true); }}
+                onOpenEdit={(prod) => { setSelectedProduct(prod); setIsModalOpen(true); }}
                 onDeleteProduct={(prod) => setDeleteConfirmTarget(prod)}
               />
             ))}
@@ -308,16 +246,12 @@ export default function Products() {
         )}
       </div>
 
-      {/* 5. Pagination Bar */}
       <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white border border-gray-100 rounded-2xl px-5 py-3 shadow-xs">
         <div className="flex items-center gap-2.5 text-xs text-gray-500 font-semibold">
           <span>Tampilkan</span>
           <select
             value={itemsPerPage}
-            onChange={(e) => {
-              setItemsPerPage(Number(e.target.value));
-              setCurrentPage(1);
-            }}
+            onChange={(e) => { setItemsPerPage(Number(e.target.value)); setCurrentPage(1); }}
             className="p-1.5 border border-gray-200 rounded-lg text-xs font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500"
           >
             <option value="10">10</option>
@@ -331,60 +265,40 @@ export default function Products() {
         </div>
 
         <div className="flex items-center gap-1">
-          <button
-            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
-            disabled={currentPage === 1}
-            className="p-2 border border-gray-200 rounded-xl text-gray-500 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer"
-          >
+          <button onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))} disabled={currentPage === 1} className="p-2 border border-gray-200 rounded-xl text-gray-500 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          
           {[...Array(totalPages)].map((_, i) => (
-            <button
-              key={i + 1}
-              onClick={() => setCurrentPage(i + 1)}
-              className={`w-8 h-8 flex items-center justify-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
-                currentPage === i + 1
-                  ? 'bg-emerald-500 text-white shadow-md'
-                  : 'bg-white border border-gray-200 text-gray-600 hover:bg-slate-50'
-              }`}
-            >
+            <button key={i + 1} onClick={() => setCurrentPage(i + 1)} className={`w-8 h-8 flex items-center justify-center rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              currentPage === i + 1 ? 'bg-emerald-500 text-white shadow-md' : 'bg-white border border-gray-200 text-gray-600 hover:bg-slate-50'
+            }`}>
               {i + 1}
             </button>
           ))}
-
-          <button
-            onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
-            disabled={currentPage === totalPages}
-            className="p-2 border border-gray-200 rounded-xl text-gray-500 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer"
-          >
+          <button onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))} disabled={currentPage === totalPages} className="p-2 border border-gray-200 rounded-xl text-gray-500 hover:bg-slate-50 disabled:opacity-50 disabled:hover:bg-white transition-colors cursor-pointer">
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
       </div>
 
-      {/* 6. Form Modal Add / Edit */}
       <ProductFormModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         product={selectedProduct}
         onSave={handleSaveProduct}
-        existingProducts={products}
+        outlets={outlets}
+        categories={categories}
       />
 
-      {/* 7. Detailed Side Drawer */}
       <ProductDetailDrawer
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         product={selectedProduct}
-        onOpenEdit={(prod) => {
-          setSelectedProduct(prod);
-          setIsModalOpen(true);
-        }}
+        onOpenEdit={(prod) => { setSelectedProduct(prod); setIsModalOpen(true); }}
         onToggleStatus={handleToggleStatus}
+        allOutlets={outlets}
       />
 
-      {/* 8. Deletion Confirmation Dialog (Inline Confirmation) */}
       {deleteConfirmTarget && (
         <div className="fixed inset-0 z-55 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-2xl max-w-sm w-full space-y-4 animate-in zoom-in-95 duration-150">
@@ -396,38 +310,18 @@ export default function Products() {
               Apakah Anda yakin ingin menghapus produk <span className="font-bold text-gray-900">"{deleteConfirmTarget.nama_produk}"</span> ({deleteConfirmTarget.kode_produk})? Tindakan ini tidak dapat dibatalkan.
             </p>
             <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setDeleteConfirmTarget(null)}
-                className="px-3.5 py-2 border border-gray-200 text-gray-700 rounded-xl text-[11px] font-bold hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                Batal
-              </button>
-              <button
-                onClick={handleDeleteProduct}
-                className="px-3.5 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[11px] font-bold shadow-md transition-colors cursor-pointer"
-              >
-                Ya, Hapus
-              </button>
+              <button onClick={() => setDeleteConfirmTarget(null)} className="px-3.5 py-2 border border-gray-200 text-gray-700 rounded-xl text-[11px] font-bold hover:bg-slate-100 transition-colors cursor-pointer">Batal</button>
+              <button onClick={handleDeleteProduct} className="px-3.5 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[11px] font-bold shadow-md transition-colors cursor-pointer">Ya, Hapus</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 9. Floating Bottom-Right Toast Notifications */}
       {toast && (
         <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 px-4.5 py-3 rounded-2xl shadow-xl border bg-white animate-in slide-in-from-bottom-6 duration-200">
-          {toast.type === 'success' ? (
-            <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-          ) : (
-            <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-          )}
+          {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />}
           <span className="text-xs font-semibold text-gray-800">{toast.message}</span>
-          <button 
-            onClick={() => setToast(null)}
-            className="text-gray-400 hover:text-gray-600 ml-1.5 p-0.5 rounded"
-          >
-            <X className="w-3.5 h-3.5" />
-          </button>
+          <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600 ml-1.5 p-0.5 rounded"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
     </div>

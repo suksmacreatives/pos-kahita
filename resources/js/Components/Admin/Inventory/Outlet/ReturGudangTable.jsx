@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, FileSpreadsheet, Trash2 } from 'lucide-react';
-import { returKeGudang } from '@/data/inventoryOutletData';
 
-export default function ReturGudangTable({ selectedOutlet, onCancelRetur }) {
+export default function ReturGudangTable({ selectedOutlet, onCancelRetur, returList = {} }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [alasanFilter, setAlasanFilter] = useState('all');
@@ -15,12 +14,12 @@ export default function ReturGudangTable({ selectedOutlet, onCancelRetur }) {
   // Compile active list based on outlet mode
   const activeList = useMemo(() => {
     if (selectedOutlet === 'all') {
-      return Object.entries(returKeGudang).flatMap(([outletId, list]) => 
-        list.map(item => ({ ...item, outletId }))
+      return Object.entries(returList || {}).flatMap(([outletId, list]) => 
+        (list || []).map(item => ({ ...item, outletId }))
       );
     }
-    return returKeGudang[selectedOutlet] || [];
-  }, [selectedOutlet]);
+    return returList[selectedOutlet] || [];
+  }, [selectedOutlet, returList]);
 
   // Apply filters
   const filteredList = useMemo(() => {

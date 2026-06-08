@@ -1,106 +1,159 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
-import { Head, usePage } from '@inertiajs/react';
+import { Head, usePage, router } from '@inertiajs/react';
 import { Users, UserCheck, ShoppingBag, UserX, Plus, Tag, Zap, Clock, BarChart2, List, LayoutGrid, Activity, LogIn, AlertCircle, Download } from 'lucide-react';
 
-// Data
-import { accounts, promos, activityLogs, akunStats, promoStats, logStats } from '@/data/settingsData';
-
-// Kelola Akun Components
 import AkunTable from '@/Components/Admin/Settings/KelolAkun/AkunTable';
 import AkunFormModal from '@/Components/Admin/Settings/KelolAkun/AkunFormModal';
 import AkunDetailDrawer from '@/Components/Admin/Settings/KelolAkun/AkunDetailDrawer';
 
-// Promo Components
 import PromoTable from '@/Components/Admin/Settings/Promo/PromoTable';
 import PromoDetailCard from '@/Components/Admin/Settings/Promo/PromoDetailCard';
 import PromoFormModal from '@/Components/Admin/Settings/Promo/PromoFormModal';
 
-// Log Aktivitas Components
 import LogTable from '@/Components/Admin/Settings/LogAktivitas/LogTable';
 import LogDetailModal from '@/Components/Admin/Settings/LogAktivitas/LogDetailModal';
 
 export default function Settings() {
     const { url } = usePage();
-    // Top-level states
-    const [toast, setToast] = useState(null); // { message: string, type: 'success' | 'error' }
-    
-    // Get active tab from URL query params
+    const props = usePage().props;
+
+    const [toast, setToast] = useState(null);
+
     let activeMenu = 'kelola_akun';
     if (url.includes('tab=promo')) activeMenu = 'promo';
     else if (url.includes('tab=log_aktivitas')) activeMenu = 'log_aktivitas';
-    
-    // View modes
-    const [logViewMode, setLogViewMode] = useState('tabel'); // 'tabel' | 'timeline'
-    const [promoViewMode, setPromoViewMode] = useState('list'); // 'list' | 'card'
 
-    // Data states (in a real app this comes from props/api, here we use dummy data)
-    const [akunData, setAkunData] = useState(accounts);
-    const [promoData, setPromoData] = useState(promos);
-    const [logData, setLogData] = useState(activityLogs);
+    const [logViewMode, setLogViewMode] = useState('tabel');
+    const [promoViewMode, setPromoViewMode] = useState('list');
 
-    // Modal/Drawer states
+    const accounts = props.accounts || [];
+    const promos = props.promos || [];
+    const logs = props.logs || [];
+    const akunStats = props.akun_stats || { total: 0, aktif: 0, kasir: 0, nonaktif_suspended: 0 };
+    const promoStats = props.promo_stats || { total: 0, aktif: 0, hampir_habis: 0, total_terpakai: 0 };
+    const logStats = props.log_stats || { total_hari_ini: 0, login_hari_ini: 0, gagal_hari_ini: 0, user_teraktif: { nama: 'Tidak ada', count: 0 } };
+    const outletList = props.outlet_list || [];
+
     const [modalState, setModalState] = useState({ isOpen: false, type: null, mode: 'create', data: null });
     const [drawerState, setDrawerState] = useState({ isOpen: false, data: null });
 
-    // Toast helper
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 3000);
     };
 
-    // Sub Menu 1: Kelola Akun Handlers
-    const handleSaveAkun = (data) => {
-        // Mock save
-        setModalState({ ...modalState, isOpen: false });
-        showToast(modalState.mode === 'create' ? 'Akun berhasil ditambahkan' : 'Perubahan akun disimpan');
+    const handleSaveAkun = (formData) => {
+        const isEdit = modalState.mode === 'edit' && modalState.data?.id;
+        const url = isEdit
+            ? route('admin.settings.akun.update', modalState.data.id)
+            : route('admin.settings.akun.store');
+        const method = isEdit ? 'patch' : 'post';
+
+        const payload = {
+            name: formData.nama,
+            email: formData.email,
+            telp: formData.telp || null,
+            role: formData.role,
+            outlet_id: formData.outlet_id || null,
+            status: formData.status,
+        };
+
+        if (!isEdit) {
+            payload.password = formData.password || 'password';
+        }
+
+        router[method](url, payload, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setModalState({ ...modalState, isOpen: false });
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+            },
+        });
     };
-    
+
     const handleToggleStatusAkun = (akun) => {
-        showToast(`Status akun ${akun.nama} diubah`, 'success');
+        router.patch(route('admin.settings.akun.toggle-status', akun.id), {}, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
-    
+
     const handleSuspendAkun = (id) => {
-        showToast('Akun berhasil disuspend', 'success');
+        router.patch(route('admin.settings.akun.suspend', id), {}, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
-    
+
     const handleDeleteAkun = (id) => {
-        showToast('Akun berhasil dihapus', 'success');
+        router.delete(route('admin.settings.akun.destroy', id), {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
     const handleResetPassword = (akun) => {
-        showToast(`Password untuk ${akun.nama} berhasil direset`, 'success');
+        router.post(route('admin.settings.akun.reset-password', akun.id), {}, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
-    // Sub Menu 2: Promo Handlers
     const handleSavePromo = (data) => {
-        setModalState({ ...modalState, isOpen: false });
-        showToast(modalState.mode === 'create' ? 'Promo berhasil dibuat' : 'Perubahan promo disimpan');
+        const isEdit = modalState.mode === 'edit' && modalState.data?.id;
+        const url = isEdit
+            ? route('admin.settings.promo.update', modalState.data.id)
+            : route('admin.settings.promo.store');
+        const method = isEdit ? 'patch' : 'post';
+
+        router[method](url, data, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                setModalState({ ...modalState, isOpen: false });
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+            },
+        });
     };
 
     const handleToggleStatusPromo = (promo) => {
-        showToast(`Status promo ${promo.kode_promo} diubah`, 'success');
+        router.patch(route('admin.settings.promo.toggle-status', promo.id), {}, {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
     const handleDuplicatePromo = (promo) => {
-        setModalState({ isOpen: true, type: 'promoForm', mode: 'create', data: promo }); // Prefill with existing
-        showToast('Duplikat data promo disiapkan');
+        router.post(route('admin.settings.promo.duplicate', promo.id), {}, {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                showToast('Duplikat promo berhasil');
+            },
+        });
     };
 
     const handleDeletePromo = (id) => {
-        showToast('Promo berhasil dihapus', 'success');
+        router.delete(route('admin.settings.promo.destroy', id), {
+            preserveState: true,
+            preserveScroll: true,
+        });
     };
 
-    // Sub Menu 3: Log Aktivitas Handlers
     const handleExportLog = () => {
-        showToast('Mengekspor log aktivitas...', 'success');
+        window.open(route('admin.settings.log.export'), '_blank');
     };
 
     const handleDetailLog = (log) => {
         setModalState({ isOpen: true, type: 'logDetail', mode: 'view', data: log });
     };
 
-    // Render Stats Cards based on activeMenu
     const renderStatCards = () => {
         if (activeMenu === 'kelola_akun') {
             return (
@@ -180,8 +233,7 @@ export default function Settings() {
     return (
         <div className="min-h-screen bg-slate-50 pb-12">
             <Head title="Pengaturan" />
-            
-            {/* Header Global */}
+
             <div className="bg-white border-b border-gray-100 sticky top-0 z-40">
                 <div className="px-6 py-4 flex items-center justify-between">
                     <div>
@@ -194,7 +246,7 @@ export default function Settings() {
                     </div>
                     <div>
                         {activeMenu === 'kelola_akun' && (
-                            <button 
+                            <button
                                 onClick={() => setModalState({ isOpen: true, type: 'akunForm', mode: 'create', data: null })}
                                 className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/20"
                             >
@@ -202,7 +254,7 @@ export default function Settings() {
                             </button>
                         )}
                         {activeMenu === 'promo' && (
-                            <button 
+                            <button
                                 onClick={() => setModalState({ isOpen: true, type: 'promoForm', mode: 'create', data: null })}
                                 className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/20"
                             >
@@ -210,7 +262,7 @@ export default function Settings() {
                             </button>
                         )}
                         {activeMenu === 'log_aktivitas' && (
-                            <button 
+                            <button
                                 onClick={handleExportLog}
                                 className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl font-semibold hover:bg-gray-50 transition-colors shadow-sm"
                             >
@@ -222,143 +274,139 @@ export default function Settings() {
             </div>
 
             <div className="p-6">
-                {/* Area Konten Utama */}
                 <div className="w-full">
+                    {renderStatCards()}
 
-                        {renderStatCards()}
+                    {activeMenu === 'kelola_akun' && (
+                        <AkunTable
+                            data={accounts}
+                            onEdit={(row) => setModalState({ isOpen: true, type: 'akunForm', mode: 'edit', data: row })}
+                            onDetail={(row) => setDrawerState({ isOpen: true, data: row })}
+                            onToggleStatus={handleToggleStatusAkun}
+                            onSuspend={handleSuspendAkun}
+                            onDelete={handleDeleteAkun}
+                            onResetPassword={handleResetPassword}
+                        />
+                    )}
 
-                        {/* Konten Kelola Akun */}
-                        {activeMenu === 'kelola_akun' && (
-                            <AkunTable 
-                                data={akunData}
-                                onEdit={(row) => setModalState({ isOpen: true, type: 'akunForm', mode: 'edit', data: row })}
-                                onDetail={(row) => setDrawerState({ isOpen: true, data: row })}
-                                onToggleStatus={handleToggleStatusAkun}
-                                onSuspend={handleSuspendAkun}
-                                onDelete={handleDeleteAkun}
-                                onResetPassword={handleResetPassword}
-                            />
-                        )}
-
-                        {/* Konten Promo */}
-                        {activeMenu === 'promo' && (
-                            <>
-                                <div className="mb-4 flex items-center justify-end">
-                                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                                        <button 
-                                            onClick={() => setPromoViewMode('list')}
-                                            className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${promoViewMode === 'list' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
-                                            title="Tampilan Tabel"
-                                        >
-                                            <List size={18} />
-                                        </button>
-                                        <button 
-                                            onClick={() => setPromoViewMode('card')}
-                                            className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${promoViewMode === 'card' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
-                                            title="Tampilan Card Grid"
-                                        >
-                                            <LayoutGrid size={18} />
-                                        </button>
-                                    </div>
+                    {activeMenu === 'promo' && (
+                        <>
+                            <div className="mb-4 flex items-center justify-end">
+                                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setPromoViewMode('list')}
+                                        className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${promoViewMode === 'list' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
+                                        title="Tampilan Tabel"
+                                    >
+                                        <List size={18} />
+                                    </button>
+                                    <button
+                                        onClick={() => setPromoViewMode('card')}
+                                        className={`p-1.5 rounded-md flex items-center justify-center transition-colors ${promoViewMode === 'card' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
+                                        title="Tampilan Card Grid"
+                                    >
+                                        <LayoutGrid size={18} />
+                                    </button>
                                 </div>
-                                {promoViewMode === 'list' ? (
-                                    <PromoTable 
-                                        data={promoData}
-                                        onEdit={(row) => setModalState({ isOpen: true, type: 'promoForm', mode: 'edit', data: row })}
-                                        onDuplicate={handleDuplicatePromo}
-                                        onToggleStatus={handleToggleStatusPromo}
-                                        onDelete={handleDeletePromo}
-                                    />
-                                ) : (
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                                        {promoData.map(promo => (
-                                            <PromoDetailCard 
-                                                key={promo.id}
-                                                data={promo}
-                                                onEdit={(row) => setModalState({ isOpen: true, type: 'promoForm', mode: 'edit', data: row })}
-                                                onToggleStatus={handleToggleStatusPromo}
-                                            />
-                                        ))}
-                                    </div>
-                                )}
-                            </>
-                        )}
-
-                        {/* Konten Log Aktivitas */}
-                        {activeMenu === 'log_aktivitas' && (
-                            <>
-                                <div className="mb-4 flex items-center justify-end">
-                                    <div className="flex items-center bg-gray-100 rounded-lg p-1">
-                                        <button 
-                                            onClick={() => setLogViewMode('tabel')}
-                                            className={`p-1.5 rounded-md flex items-center justify-center transition-colors px-3 text-xs font-bold uppercase tracking-wider ${logViewMode === 'tabel' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
-                                        >
-                                            Tabel
-                                        </button>
-                                        <button 
-                                            onClick={() => setLogViewMode('timeline')}
-                                            className={`p-1.5 rounded-md flex items-center justify-center transition-colors px-3 text-xs font-bold uppercase tracking-wider ${logViewMode === 'timeline' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
-                                        >
-                                            Timeline
-                                        </button>
-                                    </div>
-                                </div>
-                                <LogTable 
-                                    data={logData} 
-                                    mode={logViewMode} 
-                                    onDetail={handleDetailLog}
+                            </div>
+                            {promoViewMode === 'list' ? (
+                                <PromoTable
+                                    data={promos}
+                                    onEdit={(row) => setModalState({ isOpen: true, type: 'promoForm', mode: 'edit', data: row })}
+                                    onDuplicate={handleDuplicatePromo}
+                                    onToggleStatus={handleToggleStatusPromo}
+                                    onDelete={handleDeletePromo}
                                 />
-                            </>
-                        )}
+                            ) : (
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {promos.map(promo => (
+                                        <PromoDetailCard
+                                            key={promo.id}
+                                            data={promo}
+                                            onEdit={(row) => setModalState({ isOpen: true, type: 'promoForm', mode: 'edit', data: row })}
+                                            onToggleStatus={handleToggleStatusPromo}
+                                        />
+                                    ))}
+                                </div>
+                            )}
+                        </>
+                    )}
 
-                    </div>
+                    {activeMenu === 'log_aktivitas' && (
+                        <>
+                            <div className="mb-4 flex items-center justify-end">
+                                <div className="flex items-center bg-gray-100 rounded-lg p-1">
+                                    <button
+                                        onClick={() => setLogViewMode('tabel')}
+                                        className={`p-1.5 rounded-md flex items-center justify-center transition-colors px-3 text-xs font-bold uppercase tracking-wider ${logViewMode === 'tabel' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
+                                    >
+                                        Tabel
+                                    </button>
+                                    <button
+                                        onClick={() => setLogViewMode('timeline')}
+                                        className={`p-1.5 rounded-md flex items-center justify-center transition-colors px-3 text-xs font-bold uppercase tracking-wider ${logViewMode === 'timeline' ? 'bg-white shadow-sm text-emerald-600' : 'text-gray-500 hover:text-gray-900'}`}
+                                    >
+                                        Timeline
+                                    </button>
+                                </div>
+                            </div>
+                            <LogTable
+                                data={logs}
+                                mode={logViewMode}
+                                onDetail={handleDetailLog}
+                            />
+                        </>
+                    )}
                 </div>
+            </div>
 
-            {/* Modals & Drawers */}
             {modalState.isOpen && modalState.type === 'akunForm' && (
-                <AkunFormModal 
-                    isOpen={true} 
-                    mode={modalState.mode} 
-                    data={modalState.data} 
-                    onClose={() => setModalState({ ...modalState, isOpen: false })} 
-                    onSave={handleSaveAkun} 
+                <AkunFormModal
+                    isOpen={true}
+                    mode={modalState.mode}
+                    data={modalState.data}
+                    roles={props.roles || []}
+                    outletList={outletList}
+                    onClose={() => setModalState({ ...modalState, isOpen: false })}
+                    onSave={handleSaveAkun}
                 />
             )}
 
             {modalState.isOpen && modalState.type === 'promoForm' && (
-                <PromoFormModal 
-                    isOpen={true} 
-                    mode={modalState.mode} 
-                    data={modalState.data} 
-                    onClose={() => setModalState({ ...modalState, isOpen: false })} 
-                    onSave={handleSavePromo} 
+                <PromoFormModal
+                    isOpen={true}
+                    mode={modalState.mode}
+                    data={modalState.data}
+                    onClose={() => setModalState({ ...modalState, isOpen: false })}
+                    onSave={handleSavePromo}
                 />
             )}
 
             {modalState.isOpen && modalState.type === 'logDetail' && (
-                <LogDetailModal 
-                    isOpen={true} 
-                    data={modalState.data} 
-                    onClose={() => setModalState({ ...modalState, isOpen: false })} 
+                <LogDetailModal
+                    isOpen={true}
+                    data={modalState.data}
+                    onClose={() => setModalState({ ...modalState, isOpen: false })}
                 />
             )}
 
-            <AkunDetailDrawer 
-                isOpen={drawerState.isOpen} 
-                data={drawerState.data} 
-                onClose={() => setDrawerState({ isOpen: false, data: null })} 
+            <AkunDetailDrawer
+                isOpen={drawerState.isOpen}
+                data={drawerState.data}
+                roles={props.roles}
+                userLogs={logs.filter(l => l.user_id == drawerState.data?.id).slice(0, 5)}
+                onClose={() => setDrawerState({ isOpen: false, data: null })}
                 onEdit={(row) => {
                     setDrawerState({ isOpen: false, data: null });
                     setModalState({ isOpen: true, type: 'akunForm', mode: 'edit', data: row });
                 }}
             />
 
-            {/* Toast System (Bottom Right) */}
             {toast && (
                 <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
                     <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium ${
-                        toast.type === 'success' 
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800' 
+                        toast.type === 'success'
+                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
                         : 'bg-red-50 border-red-200 text-red-800'
                     }`}>
                         <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
@@ -376,7 +424,6 @@ export default function Settings() {
 
 Settings.layout = (page) => <AdminLayout>{page}</AdminLayout>;
 
-// Dummy icon check circle because lucide-react doesn't have CheckCircle2 without it
 const CheckCircle2 = ({ size, className }) => (
     <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
 );

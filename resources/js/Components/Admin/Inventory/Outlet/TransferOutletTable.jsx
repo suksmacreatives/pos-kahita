@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, ArrowRightLeft, ShieldAlert } from 'lucide-react';
-import { transferAntar } from '@/data/inventoryOutletData';
 
-export default function TransferOutletTable({ selectedOutlet, onCancelTransfer, onConfirmReceive }) {
+export default function TransferOutletTable({ selectedOutlet, onCancelTransfer, onConfirmReceive, transferList = [] }) {
   const [subView, setSubView] = useState('keluar'); // 'keluar' | 'masuk'
   const [search, setSearch] = useState('');
   const [outletFilter, setOutletFilter] = useState('all');
@@ -16,20 +15,18 @@ export default function TransferOutletTable({ selectedOutlet, onCancelTransfer, 
 
   // Compile active list based on view mode (Keluar vs Masuk)
   const activeList = useMemo(() => {
-    let list = [...transferAntar];
+    let list = [...(transferList || [])];
 
     if (selectedOutlet !== 'all') {
       if (subView === 'keluar') {
-        // transfers sent FROM selectedOutlet
         list = list.filter(t => t.outlet_asal_id === selectedOutlet);
       } else {
-        // transfers received BY selectedOutlet
         list = list.filter(t => t.outlet_tujuan_id === selectedOutlet);
       }
     }
 
     return list;
-  }, [selectedOutlet, subView]);
+  }, [selectedOutlet, subView, transferList]);
 
   // Apply filters
   const filteredList = useMemo(() => {

@@ -1,14 +1,12 @@
 ﻿import React, { useState, useMemo } from "react";
 import { X, Search, CheckCircle2, AlertTriangle, ClipboardList, FileSpreadsheet } from "lucide-react";
-import { warehouseProducts } from "@/data/inventoryGudangData";
-
 const stepLabels = [
   { icon: FileSpreadsheet, label: "Pilih Produk" },
   { icon: ClipboardList, label: "Input Stok Aktual" },
   { icon: CheckCircle2, label: "Review & Simpan" },
 ];
 
-export default function FormOpnameModal({ open, onClose, onSubmit }) {
+export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProducts = [] }) {
   const [step, setStep] = useState(0);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);

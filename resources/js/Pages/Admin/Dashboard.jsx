@@ -219,7 +219,7 @@ export default function Dashboard() {
           title="Tren Pendapatan & Volume Transaksi" 
           subtitle={`Segmentasi ${period === 'daily' ? 'per jam' : period === 'weekly' ? 'harian' : 'mingguan'} cabang`}
         >
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={filteredSalesTrend} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <defs>
                 <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
@@ -238,7 +238,7 @@ export default function Dashboard() {
         </ChartCard>
 
         <ChartCard title="Pergerakan Stok Gudang" subtitle="Rasio Stock In vs Stock Out barang">
-          <ResponsiveContainer width="100%" height="100%">
+          <ResponsiveContainer width="100%" height={300}>
             <BarChart data={filteredStockMovement} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
               <XAxis dataKey="name" stroke="#94a3b8" fontSize={10} tickLine={false} axisLine={false} dy={10} />

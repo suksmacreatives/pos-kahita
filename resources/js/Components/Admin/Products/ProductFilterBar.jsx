@@ -1,8 +1,6 @@
-// resources/js/Components/Admin/Products/ProductFilterBar.jsx
 import React, { useState, useEffect, useRef } from 'react';
 import { Search, Grid, List, X, ChevronDown, RefreshCw } from 'lucide-react';
 import { useFilter } from '@/Context/FilterContext';
-import { categoriesData } from '@/data/productsData';
 
 export default function ProductFilterBar({
   searchQuery,
@@ -12,7 +10,9 @@ export default function ProductFilterBar({
   selectedStatus,
   setSelectedStatus,
   viewMode,
-  setViewMode
+  setViewMode,
+  categories = [],
+  allOutlets = [],
 }) {
   const { outlet, setOutlet } = useFilter();
   const [isCatOpen, setIsCatOpen] = useState(false);
@@ -23,7 +23,7 @@ export default function ProductFilterBar({
   const statusRef = useRef(null);
   const outletRef = useRef(null);
 
-  const categories = ['Semua Kategori', ...Object.keys(categoriesData)];
+  const categoryList = ['Semua Kategori', ...categories];
   const statuses = [
     { value: 'all', label: 'Semua Status' },
     { value: 'aktif', label: 'Aktif' },
@@ -33,10 +33,7 @@ export default function ProductFilterBar({
   
   const outlets = [
     { value: 'all', label: 'Semua Outlet' },
-    { value: 'denpasar', label: 'Outlet Denpasar' },
-    { value: 'jakarta', label: 'Outlet Jakarta' },
-    { value: 'bandung', label: 'Outlet Bandung' },
-    { value: 'surabaya', label: 'Outlet Surabaya' }
+    ...allOutlets.map(o => ({ value: String(o.id), label: o.name })),
   ];
 
   // Close dropdowns on click outside
@@ -112,7 +109,7 @@ export default function ProductFilterBar({
             </button>
             {isCatOpen && (
               <ul className="absolute left-0 mt-1.5 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-35 py-1 text-xs">
-                {categories.map((cat) => (
+                {categoryList.map((cat) => (
                   <li
                     key={cat}
                     onClick={() => {

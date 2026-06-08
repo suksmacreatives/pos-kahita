@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, ShieldAlert, AlertTriangle } from 'lucide-react';
-import { opnameOutlet } from '@/data/inventoryOutletData';
 
-export default function StockOpnameOutletTable({ selectedOutlet }) {
+export default function StockOpnameOutletTable({ selectedOutlet, opnameList = {} }) {
   const [search, setSearch] = useState('');
   const [expandedRows, setExpandedRows] = useState({});
 
@@ -25,7 +24,7 @@ export default function StockOpnameOutletTable({ selectedOutlet }) {
     );
   }
 
-  const activeList = opnameOutlet[selectedOutlet] || [];
+  const activeList = opnameList[selectedOutlet] || [];
 
   // Filter list
   const filteredList = useMemo(() => {

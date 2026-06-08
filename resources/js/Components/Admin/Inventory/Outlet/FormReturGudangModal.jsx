@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
-import { X, Plus, Trash2, AlertCircle, Info } from 'lucide-react';
-import { outlets, outletStok } from '@/data/inventoryOutletData';
+import { X, Plus, Trash2 } from 'lucide-react';
 
-export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, onSubmit }) {
+export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, onSubmit, outlets = [], outletStok = {} }) {
   if (!isOpen) return null;
 
   const originOutlet = outlets.find(o => o.id === selectedOutlet);

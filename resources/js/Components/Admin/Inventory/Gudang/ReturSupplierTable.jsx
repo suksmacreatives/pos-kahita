@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { Eye, Printer } from 'lucide-react';
+import { Eye, Printer, XCircle } from 'lucide-react';
 
 function DetailReturModal({ data, onClose }) {
   if (!data) return null;
@@ -54,7 +54,7 @@ function DetailReturModal({ data, onClose }) {
   );
 }
 
-export default function ReturSupplierTable({ data = [], onCetak }) {
+export default function ReturSupplierTable({ data = [], onCetak, onBatalReturSupplier }) {
   const [filterAlasan, setFilterAlasan] = useState('semua');
   const [filterStatus, setFilterStatus] = useState('semua');
   const [detailItem, setDetailItem] = useState(null);
@@ -144,6 +144,9 @@ export default function ReturSupplierTable({ data = [], onCetak }) {
                     <td className="px-4 py-2 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => setDetailItem(r)} className="p-1.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg cursor-pointer" title="Detail"><Eye className="w-3.5 h-3.5" /></button>
+                        {r.status === 'diajukan' && (
+                          <button onClick={() => onBatalReturSupplier?.(r)} className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer" title="Batalkan"><XCircle className="w-3.5 h-3.5" /></button>
+                        )}
                         <button onClick={() => onCetak?.(r)} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg cursor-pointer" title="Cetak"><Printer className="w-3.5 h-3.5" /></button>
                       </div>
                     </td>

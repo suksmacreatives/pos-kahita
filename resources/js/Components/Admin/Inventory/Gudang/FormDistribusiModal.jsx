@@ -1,8 +1,6 @@
 ﻿import React, { useState, useMemo } from "react";
 import { X, Plus, Trash2, Search, AlertTriangle } from "lucide-react";
-import { outlets, warehouseProducts } from "@/data/inventoryGudangData";
-
-export default function FormDistribusiModal({ open, onClose, onSubmit }) {
+export default function FormDistribusiModal({ open, onClose, onSubmit, outlets = [], warehouseProducts = [] }) {
   const [outletId, setOutletId] = useState("");
   const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0]);
   const [productSearch, setProductSearch] = useState("");

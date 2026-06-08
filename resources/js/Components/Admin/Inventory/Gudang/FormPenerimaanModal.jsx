@@ -1,9 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { X, Plus, Trash2, Search } from "lucide-react";
-import { suppliers, warehouseProducts } from "@/data/inventoryGudangData";
-
-export default function FormPenerimaanModal({ open, onClose, onSubmit }) {
-  const [supplierId, setSupplierId] = useState("");
+export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouseProducts = [] }) {
+  const [supplierNama, setSupplierNama] = useState("");
   const [tanggalPO, setTanggalPO] = useState(new Date().toISOString().split("T")[0]);
   const [tanggalEstimasi, setTanggalEstimasi] = useState("");
   const [productSearch, setProductSearch] = useState("");
@@ -40,10 +38,9 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit }) {
 
   const handleSubmit = (e, mode) => {
     e.preventDefault();
-    if (!supplierId || items.length === 0) return;
+    if (!supplierNama.trim() || items.length === 0) return;
     onSubmit({
-      supplier_id: parseInt(supplierId),
-      supplier_nama: suppliers.find(s => s.id === parseInt(supplierId))?.nama,
+      supplier_nama: supplierNama.trim(),
       tanggal_po: tanggalPO,
       tanggal_estimasi: tanggalEstimasi || null,
       items: items.map(it => ({
@@ -53,12 +50,10 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit }) {
         qty_pesan: parseInt(it.qty_pesan),
         harga_beli: parseInt(it.harga_beli),
       })),
-      total_qty: totalQty,
-      total_nilai: totalNilai,
       status: mode === 'draft' ? 'draft' : 'menunggu',
     });
     setItems([]);
-    setSupplierId("");
+    setSupplierNama("");
     onClose();
   };
 
@@ -77,10 +72,7 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit }) {
             <div className="grid grid-cols-3 gap-4">
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase block mb-1.5">Supplier *</label>
-                <select required className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-500 outline-none" value={supplierId} onChange={e => setSupplierId(e.target.value)}>
-                  <option value="">-- Pilih Supplier --</option>
-                  {suppliers.map(s => <option key={s.id} value={s.id}>{s.nama}</option>)}
-                </select>
+                <input type="text" required placeholder="Nama supplier..." className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-500 outline-none" value={supplierNama} onChange={e => setSupplierNama(e.target.value)} />
               </div>
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase block mb-1.5">Tgl. PO *</label>
@@ -139,7 +131,7 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit }) {
               <div className="flex gap-2">
                 <button type="button" onClick={() => setItems([])} className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer">Reset</button>
                 <button type="button" onClick={(e) => handleSubmit(e, 'draft')} className="px-4 py-2 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold hover:bg-emerald-50 cursor-pointer">Simpan Draft</button>
-                <button type="submit" disabled={!supplierId || items.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-50">Kirim PO</button>
+                <button type="submit" disabled={!supplierNama.trim() || items.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-50">Kirim PO</button>
               </div>
             </div>
           )}

@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp, Search, AlertCircle, RefreshCw, ArrowRightLeft, Eye, HelpCircle } from 'lucide-react';
-import { outletStok, outlets } from '@/data/inventoryOutletData';
 
-export default function StokOutletTable({ selectedOutlet, onAction }) {
+export default function StokOutletTable({ selectedOutlet, onAction, outletStok = {}, outlets = [] }) {
   // Local state for search, filters and sort
   const [search, setSearch] = useState('');
   const [kategori, setKategori] = useState('all');
@@ -75,26 +74,26 @@ export default function StokOutletTable({ selectedOutlet, onAction }) {
   const filteredAll = useMemo(() => {
     if (selectedOutlet !== 'all') return [];
 
-    // Combine products from Denpasar as baseline list since they have identical templates
-    const baseline = [...outletStok.denpasar];
-    
+    const outletSlugs = outlets.map(o => o.slug);
+    if (!outletSlugs.length) return [];
+
+    // Use the first outlet as baseline for product list
+    const firstSlug = outletSlugs[0];
+    const baseline = [...(outletStok[firstSlug] || [])];
+
     let items = baseline.map(base => {
-      const denpasarStok = base.total_stok;
-      const jakartaStok = outletStok.jakarta.find(p => p.kode_produk === base.kode_produk)?.total_stok || 0;
-      const bandungStok = outletStok.bandung.find(p => p.kode_produk === base.kode_produk)?.total_stok || 0;
-      const surabayaStok = outletStok.surabaya.find(p => p.kode_produk === base.kode_produk)?.total_stok || 0;
-      const total = denpasarStok + jakartaStok + bandungStok + surabayaStok;
+      const outletCols = {};
+      let total = 0;
+      outletSlugs.forEach(slug => {
+        const match = (outletStok[slug] || []).find(p => p.kode_produk === base.kode_produk);
+        outletCols[slug] = match?.total_stok || 0;
+        outletCols[`${slug}Status`] = match?.status || 'habis';
+        total += outletCols[slug];
+      });
 
       return {
         ...base,
-        denpasar: denpasarStok,
-        denpasarStatus: base.status,
-        jakarta: jakartaStok,
-        jakartaStatus: outletStok.jakarta.find(p => p.kode_produk === base.kode_produk)?.status || 'habis',
-        bandung: bandungStok,
-        bandungStatus: outletStok.bandung.find(p => p.kode_produk === base.kode_produk)?.status || 'habis',
-        surabaya: surabayaStok,
-        surabayaStatus: outletStok.surabaya.find(p => p.kode_produk === base.kode_produk)?.status || 'habis',
+        ...outletCols,
         total_stok: total
       };
     });
@@ -223,17 +222,16 @@ export default function StokOutletTable({ selectedOutlet, onAction }) {
               <tr className="bg-gray-50 border-b border-gray-100">
                 <th className="px-5 py-3 text-xs font-semibold text-gray-500">Produk</th>
                 <th className="px-5 py-3 text-xs font-semibold text-gray-500">Kategori</th>
-                <th className="px-5 py-3 text-xs font-semibold text-gray-500 text-center">Denpasar (Bali)</th>
-                <th className="px-5 py-3 text-xs font-semibold text-gray-500 text-center">Jakarta (Pusat)</th>
-                <th className="px-5 py-3 text-xs font-semibold text-gray-500 text-center">Bandung (Jabar)</th>
-                <th className="px-5 py-3 text-xs font-semibold text-gray-500 text-center">Surabaya (Jatim)</th>
+                {outlets.filter(o => o.slug).map(o => (
+                  <th key={o.slug} className="px-5 py-3 text-xs font-semibold text-gray-500 text-center">{o.nama}</th>
+                ))}
                 <th className="px-5 py-3 text-xs font-semibold text-gray-500 text-right">Stok Total</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredAll.length === 0 ? (
                 <tr>
-                  <td colSpan="7" className="text-center py-10 text-xs font-medium text-gray-400">Tidak ada produk ditemukan</td>
+                  <td colSpan={outlets.length + 3} className="text-center py-10 text-xs font-medium text-gray-400">Tidak ada produk ditemukan</td>
                 </tr>
               ) : (
                 filteredAll.map((item) => (
@@ -247,18 +245,11 @@ export default function StokOutletTable({ selectedOutlet, onAction }) {
                     <td className="px-5 py-3">
                       <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-[10px] font-semibold">{item.kategori}</span>
                     </td>
-                    <td className={`px-5 py-3 text-center text-xs font-bold ${getCellClass(item.denpasarStatus)}`}>
-                      {formatStok(item.denpasar)}
-                    </td>
-                    <td className={`px-5 py-3 text-center text-xs font-bold ${getCellClass(item.jakartaStatus)}`}>
-                      {formatStok(item.jakarta)}
-                    </td>
-                    <td className={`px-5 py-3 text-center text-xs font-bold ${getCellClass(item.bandungStatus)}`}>
-                      {formatStok(item.bandung)}
-                    </td>
-                    <td className={`px-5 py-3 text-center text-xs font-bold ${getCellClass(item.surabayaStatus)}`}>
-                      {formatStok(item.surabaya)}
-                    </td>
+                    {outlets.filter(o => o.slug).map(o => (
+                      <td key={o.slug} className={`px-5 py-3 text-center text-xs font-bold ${getCellClass(item[`${o.slug}Status`] || 'habis')}`}>
+                        {formatStok(item[o.slug] || 0)}
+                      </td>
+                    ))}
                     <td className="px-5 py-3 text-right text-xs font-bold text-gray-800 bg-gray-50/20">
                       {formatStok(item.total_stok)}
                     </td>

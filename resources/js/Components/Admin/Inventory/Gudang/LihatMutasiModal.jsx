@@ -1,20 +1,12 @@
 import React, { useMemo } from "react";
 import { X, ArrowUpDown } from "lucide-react";
-import { mutasiLog } from "@/data/inventoryGudangData";
 
-export default function LihatMutasiModal({ data, onClose }) {
+export default function LihatMutasiModal({ data, onClose, mutasiLog = [] }) {
   if (!data) return null;
 
   const filtered = useMemo(() =>
     mutasiLog.filter(m => m.produk_id === data.id || m.nama_produk === data.nama_produk),
-  [data]);
-
-  const statusIcon = {
-    masuk: { icon: "📥", class: "text-emerald-600 bg-emerald-50" },
-    keluar: { icon: "📤", class: "text-blue-600 bg-blue-50" },
-    retur: { icon: "📦", class: "text-rose-600 bg-rose-50" },
-    opname: { icon: "📋", class: "text-amber-600 bg-amber-50" },
-  };
+  [data, mutasiLog]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4" onClick={onClose}>
@@ -34,21 +26,17 @@ export default function LihatMutasiModal({ data, onClose }) {
             <p className="text-center py-10 text-xs text-gray-400 italic">Tidak ada mutasi untuk produk ini</p>
           ) : (
             <div className="space-y-2">
-              {filtered.map((m, i) => {
-                const sc = statusIcon[m.tipe] || { icon: "📄", class: "text-gray-600 bg-gray-50" };
-                return (
-                  <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                    <span className={`text-lg w-8 h-8 flex items-center justify-center rounded-lg ${sc.class}`}>{sc.icon}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800">{m.deskripsi || m.tipe}</p>
-                      <p className="text-[10px] text-gray-400">{m.tanggal} • {m.waktu || ""}</p>
-                    </div>
-                    <span className={`text-xs font-bold ${m.tipe === 'masuk' ? 'text-emerald-600' : m.tipe === 'keluar' ? 'text-blue-600' : 'text-gray-600'}`}>
-                      {m.tipe === 'masuk' ? '+' : '-'}{m.qty}
-                    </span>
+              {filtered.map((m, i) => (
+                <div key={i} className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl border border-gray-200">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-800">{m.keterangan || m.tipe}</p>
+                    <p className="text-[10px] text-gray-400">{m.timestamp ? new Date(m.timestamp).toLocaleDateString('id-ID') : ''}</p>
                   </div>
-                );
-              })}
+                  <span className={`text-xs font-bold ${m.tipe === 'MASUK' ? 'text-emerald-600' : m.tipe === 'KELUAR' ? 'text-blue-600' : 'text-gray-600'}`}>
+                    {m.tipe === 'MASUK' ? '+' : ''}{m.qty}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>

@@ -2,23 +2,33 @@ import React, { useState, useEffect } from 'react';
 import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 
 export default function KonfirmasiTerimaModal({ isOpen, onClose, data, onConfirm }) {
-  if (!isOpen || !data) return null;
+  // Initialize received quantities from items (stable seed via stringify)
+  const seed = data && data.items ? JSON.stringify(data.items.map(i => i.id || i.produk_id)) : '';
+  const [itemsState, setItemsState] = useState(() => {
+    if (!data || !data.items) return [];
+    return data.items.map(item => ({
+      ...item,
+      qty_terima: item.qty_kirim || item.qty || 0,
+      kondisi: 'baik',
+      catatan: ''
+    }));
+  });
 
-  // Initialize received quantities, conditions, and notes from item templates
-  const [itemsState, setItemsState] = useState([]);
-
+  // Sync itemsState when a new distribution order is opened
   useEffect(() => {
-    if (data && data.items) {
+    if (data && data.items && data.items.length) {
       setItemsState(
         data.items.map(item => ({
           ...item,
-          qty_terima: item.qty_kirim, // Default to qty sent
-          kondisi: 'baik', // 'baik' | 'rusak'
+          qty_terima: item.qty_kirim || item.qty || 0,
+          kondisi: 'baik',
           catatan: ''
         }))
       );
     }
-  }, [data]);
+  }, [seed]);
+
+  if (!isOpen || !data) return null;
 
   const handleQtyChange = (idx, val) => {
     const nextVal = Math.max(0, parseInt(val) || 0);
@@ -49,8 +59,8 @@ export default function KonfirmasiTerimaModal({ isOpen, onClose, data, onConfirm
   };
 
   // Calculations
-  const totalQtyKirim = data.items.reduce((acc, it) => acc + it.qty_kirim, 0);
-  const totalQtyTerima = itemsState.reduce((acc, it) => acc + it.qty_terima, 0);
+  const totalQtyKirim = (data?.items || []).reduce((acc, it) => acc + (it.qty_kirim || it.qty || 0), 0);
+  const totalQtyTerima = itemsState.reduce((acc, it) => acc + (it.qty_terima || 0), 0);
   const diffQty = totalQtyKirim - totalQtyTerima;
 
   const handleSubmit = (e) => {

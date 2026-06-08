@@ -2,15 +2,16 @@ import React from 'react';
 import { X, Mail, Phone, Calendar, AlertTriangle, KeyRound, Edit } from 'lucide-react';
 import AvatarInitials from './AvatarInitials';
 import RolePermissionMatrix from './RolePermissionMatrix';
-import { roles, activityLogs } from '@/data/settingsData';
+import { roles as fallbackRoles } from '@/data/settingsData';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 
-export default function AkunDetailDrawer({ isOpen, data, onClose, onEdit }) {
+export default function AkunDetailDrawer({ isOpen, data, onClose, onEdit, roles: propRoles, userLogs: propLogs }) {
     if (!isOpen || !data) return null;
 
+    const roles = propRoles || fallbackRoles;
     const roleData = roles.find(r => r.id === data.role);
-    const userLogs = activityLogs.filter(l => l.user_id === data.id).slice(0, 5);
+    const userLogs = propLogs || [];
 
     const getStatusBadge = (status) => {
         switch (status) {
@@ -22,7 +23,7 @@ export default function AkunDetailDrawer({ isOpen, data, onClose, onEdit }) {
     };
 
     const getRoleColor = (roleId) => {
-        const mapping = { super_admin: 'bg-purple-100 text-purple-800', admin: 'bg-blue-100 text-blue-800', manajer: 'bg-emerald-100 text-emerald-800', kasir: 'bg-amber-100 text-amber-800' };
+        const mapping = { admin: 'bg-blue-100 text-blue-800', cashier: 'bg-amber-100 text-amber-800' };
         return mapping[roleId] || 'bg-gray-100 text-gray-800';
     };
 

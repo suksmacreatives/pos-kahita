@@ -15,7 +15,19 @@ class CashTransaction extends Model
         'user_id',
         'transaction_type',
         'category',
+        'payment_method',
+        'name',
         'amount',
         'description'
     ];
+
+    public function user()
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    public function shift()
+    {
+        return $this->belongsTo(CashRegisterShift::class, 'shift_id');
+    }
 }

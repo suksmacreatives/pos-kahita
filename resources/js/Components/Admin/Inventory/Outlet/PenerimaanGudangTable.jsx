@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, CheckCircle, Clock, AlertTriangle, Eye, ArrowRight } from 'lucide-react';
-import { penerimaanDariGudang } from '@/data/inventoryOutletData';
 
-export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick }) {
+export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, penerimaanList = {} }) {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
@@ -14,13 +13,12 @@ export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick }
   // Compile list based on outlet mode
   const activeList = useMemo(() => {
     if (selectedOutlet === 'all') {
-      // Combine all outlets
-      return Object.entries(penerimaanDariGudang).flatMap(([outletId, list]) => 
-        list.map(item => ({ ...item, outletId }))
+      return Object.entries(penerimaanList || {}).flatMap(([outletId, list]) => 
+        (list || []).map(item => ({ ...item, outletId }))
       );
     }
-    return penerimaanDariGudang[selectedOutlet] || [];
-  }, [selectedOutlet]);
+    return penerimaanList[selectedOutlet] || [];
+  }, [selectedOutlet, penerimaanList]);
 
   // Filter items
   const filteredList = useMemo(() => {

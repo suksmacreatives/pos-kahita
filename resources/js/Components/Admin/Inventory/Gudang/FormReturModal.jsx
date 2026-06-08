@@ -1,7 +1,5 @@
 ﻿import React, { useState, useMemo } from "react";
 import { X, Plus, Trash2, Search, AlertTriangle } from "lucide-react";
-import { suppliers, warehouseProducts } from "@/data/inventoryGudangData";
-
 const alasanRetur = [
   { value: 'Produk cacat', label: 'Produk Cacat / Rusak' },
   { value: 'Stok berlebih', label: 'Stok Berlebih / Overstock' },
@@ -9,7 +7,7 @@ const alasanRetur = [
   { value: 'Salah kirim', label: 'Salah Kirim / Wrong Item' },
 ];
 
-export default function FormReturModal({ open, onClose, onSubmit }) {
+export default function FormReturModal({ open, onClose, onSubmit, suppliers = [], warehouseProducts = [] }) {
   const [supplierId, setSupplierId] = useState("");
   const [alasan, setAlasan] = useState("");
   const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0]);

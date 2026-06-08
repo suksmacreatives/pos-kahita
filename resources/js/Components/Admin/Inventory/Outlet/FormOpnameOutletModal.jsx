@@ -1,8 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { X, Play, AlertTriangle, Check, ShieldCheck, Search } from 'lucide-react';
-import { outlets, outletStok } from '@/data/inventoryOutletData';
 
-export default function FormOpnameOutletModal({ isOpen, onClose, selectedOutlet, onSubmit }) {
+export default function FormOpnameOutletModal({ isOpen, onClose, selectedOutlet, onSubmit, outlets = [], outletStok = {} }) {
   if (!isOpen) return null;
 
   const activeOutlet = outlets.find(o => o.id === selectedOutlet);

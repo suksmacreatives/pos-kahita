@@ -1,10 +1,10 @@
 // resources/js/Components/Admin/Products/ProductDetailDrawer.jsx
 import React, { useState, useEffect } from 'react';
-import { X, Edit, Power, Star, DollarSign, ShoppingBag, Store, MapPin } from 'lucide-react';
+import { X, Edit, Power, DollarSign, ShoppingBag, Store, Warehouse, MapPin } from 'lucide-react';
 import { categoryConfig, formatRupiah } from './ProductTable';
 import ProductBadge from './ProductBadge';
 
-export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEdit, onToggleStatus }) {
+export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEdit, onToggleStatus, allOutlets = [] }) {
   const [activeColorTab, setActiveColorTab] = useState('');
 
   // Auto-select first color tab when drawer opens/changes
@@ -21,11 +21,6 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
   const config = categoryConfig[product.kategori] || { bg: 'bg-gray-100 text-gray-500', icon: MapPin };
   const IconComponent = config.icon;
 
-  const isDiscounted = product.diskon > 0;
-  const finalPrice = isDiscounted 
-    ? product.harga_jual - (product.harga_jual * product.diskon) / 100 
-    : product.harga_jual;
-
   // Group variants by color
   const colorGroups = {};
   product.varian.forEach(v => {
@@ -41,10 +36,8 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
 
   const uniqueColors = Object.keys(colorGroups);
 
-  // Statistics Generator (Deterministic Dummy Data)
-  const dummySalesCount = (product.id * 14) + 22;
-  const dummyRevenue = dummySalesCount * finalPrice;
-  const dummyRatingVal = (4.3 + (product.id % 7) * 0.1).toFixed(1);
+  const totalTerjual = product.terjual ?? 0;
+  const totalOmset = product.omset ?? 0;
 
   return (
     <>
@@ -76,12 +69,11 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
           
           {/* Top Banner and Photo */}
           <div className="flex gap-4">
-            <div className={`w-28 h-36 rounded-2xl flex items-center justify-center border shadow-sm shrink-0 relative ${config.bg}`}>
-              <IconComponent className="w-10 h-10 opacity-70" />
-              {isDiscounted && (
-                <span className="absolute top-2 left-2 bg-red-500 text-white font-bold text-[9px] px-1.5 py-0.2 rounded-md">
-                  -{product.diskon}%
-                </span>
+            <div className={`w-28 h-36 rounded-2xl flex items-center justify-center border shadow-sm shrink-0 overflow-hidden ${!product.image ? config.bg : ''}`}>
+              {product.image ? (
+                <img src={product.image} alt={product.nama_produk} className="w-full h-full object-cover" />
+              ) : (
+                <IconComponent className="w-10 h-10 opacity-70" />
               )}
             </div>
             
@@ -98,20 +90,9 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
               </div>
               
               <div className="pt-1">
-                {isDiscounted ? (
-                  <div className="flex flex-col">
-                    <span className="text-xs text-gray-400 line-through">
-                      {formatRupiah(product.harga_jual)}
-                    </span>
-                    <span className="text-emerald-600 font-extrabold text-lg">
-                      {formatRupiah(finalPrice)}
-                    </span>
-                  </div>
-                ) : (
-                  <div className="text-gray-950 font-extrabold text-lg">
-                    {formatRupiah(product.harga_jual)}
-                  </div>
-                )}
+                <div className="text-gray-950 font-extrabold text-lg">
+                  {formatRupiah(product.harga_jual)}
+                </div>
                 <div className="text-[10px] text-gray-400 mt-0.5">
                   Harga Beli: {formatRupiah(product.harga_beli)}
                 </div>
@@ -199,52 +180,52 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
             </h4>
             <div className="flex flex-wrap gap-1.5">
               {product.outlet_tersedia && product.outlet_tersedia.length > 0 ? (
-                product.outlet_tersedia.map((out) => (
-                  <span 
-                    key={out}
-                    className="inline-flex items-center gap-1 px-3 py-1 bg-slate-50 border border-slate-100 rounded-xl text-xs font-medium text-slate-700 shadow-2xs"
-                  >
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                    Outlet {out.charAt(0).toUpperCase() + out.slice(1)}
-                  </span>
-                ))
+                product.outlet_tersedia.map((outId) => {
+                  const found = allOutlets.find(o => String(o.id) === String(outId));
+                  const label = found ? found.name : `Outlet #${outId}`;
+                  return (
+                    <span 
+                      key={outId}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-slate-50 border border-slate-100 rounded-xl text-xs font-medium text-slate-700 shadow-2xs"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                      {label}
+                    </span>
+                  );
+                })
               ) : (
                 <span className="text-xs text-gray-400 italic">Belum didistribusikan ke outlet manapun.</span>
               )}
             </div>
           </div>
 
-          {/* Section Statistik Mini */}
           <div className="space-y-3 pt-2">
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide">Analisis Performa</h4>
             
             <div className="grid grid-cols-3 gap-3">
-              {/* Terjual */}
               <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex flex-col justify-between">
                 <ShoppingBag className="w-4 h-4 text-emerald-500" />
                 <div className="mt-2">
                   <span className="text-[10px] text-gray-400 block font-medium">Terjual</span>
-                  <span className="text-sm font-extrabold text-gray-900">{dummySalesCount} pcs</span>
+                  <span className="text-sm font-extrabold text-gray-900">{totalTerjual} pcs</span>
                 </div>
               </div>
-              {/* Pendapatan */}
               <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex flex-col justify-between">
                 <DollarSign className="w-4 h-4 text-blue-500" />
                 <div className="mt-2">
                   <span className="text-[10px] text-gray-400 block font-medium">Omset</span>
-                  <span className="text-sm font-extrabold text-gray-900 truncate block" title={formatRupiah(dummyRevenue)}>
-                    {formatRupiah(dummyRevenue)}
+                  <span className="text-sm font-extrabold text-gray-900 truncate block" title={formatRupiah(totalOmset)}>
+                    {formatRupiah(totalOmset)}
                   </span>
                 </div>
               </div>
-              {/* Rating */}
               <div className="bg-slate-50 border border-slate-100 p-3 rounded-xl flex flex-col justify-between">
-                <div className="flex items-center gap-0.5 text-amber-500">
-                  <Star className="w-4 h-4 fill-current" />
+                <div className="flex items-center gap-0.5 text-gray-400">
+                  <Warehouse className="w-4 h-4" />
                 </div>
                 <div className="mt-2">
-                  <span className="text-[10px] text-gray-400 block font-medium">Rating</span>
-                  <span className="text-sm font-extrabold text-gray-900">{dummyRatingVal} / 5.0</span>
+                  <span className="text-[10px] text-gray-400 block font-medium">Stok Gudang</span>
+                  <span className="text-sm font-extrabold text-gray-900">{product.stok_gudang ?? 0} pcs</span>
                 </div>
               </div>
             </div>

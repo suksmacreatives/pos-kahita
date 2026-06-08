@@ -8,10 +8,7 @@ export default function ProductCard({ product, onOpenDrawer, onOpenEdit, onDelet
   const config = categoryConfig[product.kategori] || { bg: 'bg-gray-100 text-gray-500', icon: Shirt };
   const IconComponent = config.icon;
 
-  const isDiscounted = product.diskon > 0;
-  const finalPrice = isDiscounted 
-    ? product.harga_jual - (product.harga_jual * product.diskon) / 100 
-    : product.harga_jual;
+  const finalPrice = product.harga_jual;
 
   const maxStockCapacity = 100;
   const stockPercent = Math.min((product.total_stok / maxStockCapacity) * 100, 100);
@@ -31,16 +28,17 @@ export default function ProductCard({ product, onOpenDrawer, onOpenEdit, onDelet
   return (
     <div className="bg-white border border-gray-100 rounded-2xl shadow-sm hover:shadow-md transition-all overflow-hidden flex flex-col group h-full">
       {/* Photo Area (Aspect Ratio 3:4) */}
-      <div className={`aspect-[3/4] w-full relative flex items-center justify-center border-b transition-transform ${config.bg}`}>
-        <IconComponent className="w-16 h-16 opacity-75 group-hover:scale-110 transition-transform duration-300" />
-        
-        {/* Discount Badge (Pojok Kiri Atas) */}
-        {isDiscounted && (
-          <div className="absolute top-3 left-3 bg-red-500 text-white font-bold text-[10px] px-2 py-0.5 rounded-lg shadow-sm">
-            Diskon {product.diskon}%
-          </div>
+      <div className={`aspect-[3/4] w-full relative flex items-center justify-center border-b overflow-hidden ${!product.image ? config.bg : ''}`}>
+        {product.image ? (
+          <img
+            src={product.image}
+            alt={product.nama_produk}
+            className="w-full h-full object-cover absolute inset-0 group-hover:scale-110 transition-transform duration-300"
+          />
+        ) : (
+          <IconComponent className="w-16 h-16 opacity-75 group-hover:scale-110 transition-transform duration-300" />
         )}
-
+        
         {/* Status Badge (Pojok Kanan Atas) */}
         <div className="absolute top-3 right-3 shadow-md rounded-full bg-white/90 backdrop-blur-sm p-0.5">
           <ProductBadge type="status" value={displayStatus} />
@@ -61,22 +59,10 @@ export default function ProductCard({ product, onOpenDrawer, onOpenEdit, onDelet
           <span className="font-mono text-[9px] text-gray-400 block">{product.kode_produk}</span>
         </div>
 
-        {/* Price display */}
         <div>
-          {isDiscounted ? (
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-emerald-600 font-bold text-sm">
-                {formatRupiah(finalPrice)}
-              </span>
-              <span className="text-gray-400 line-through text-[10px]">
-                {formatRupiah(product.harga_jual)}
-              </span>
-            </div>
-          ) : (
-            <div className="text-gray-900 font-bold text-sm">
-              {formatRupiah(product.harga_jual)}
-            </div>
-          )}
+          <div className="text-gray-900 font-bold text-sm">
+            {formatRupiah(product.harga_jual)}
+          </div>
         </div>
 
         {/* Stock Mini Bar */}

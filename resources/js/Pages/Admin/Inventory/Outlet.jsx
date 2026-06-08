@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { usePage } from '@inertiajs/react';
+import { usePage, router } from '@inertiajs/react';
+import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useFilter } from '@/Context/FilterContext';
 
@@ -9,16 +10,6 @@ import {
   AlertTriangle, Inbox, ArrowRightLeft, Undo2, ClipboardList,
   Store, LayoutGrid, CheckSquare
 } from 'lucide-react';
-
-// Core Dummy Data
-import { 
-  outlets, 
-  outletStatsAll,
-  penerimaanDariGudang as initialPenerimaan,
-  transferAntar as initialTransfer,
-  returKeGudang as initialRetur,
-  opnameOutlet as initialOpname
-} from '@/data/inventoryOutletData';
 
 // Child Components
 import OutletSelector from '@/Components/Admin/Inventory/Outlet/OutletSelector';
@@ -36,6 +27,18 @@ import FormOpnameOutletModal from '@/Components/Admin/Inventory/Outlet/FormOpnam
 
 function OutletInventory() {
   const { outlet: selectedOutlet } = useFilter();
+  const { props } = usePage();
+  const {
+    outletStok = {},
+    outletStatsAll = {},
+    penerimaanList: initialPenerimaan = {},
+    transferList: initialTransfer = [],
+    returList: initialRetur = {},
+    opnameList: initialOpname = {},
+    perbandinganStok = [],
+    outlets = [],
+    flash
+  } = props;
 
   // Navigation Tabs state
   const [activeTab, setActiveTab] = useState('stock');
@@ -48,7 +51,7 @@ function OutletInventory() {
   const [isReturOpen, setIsReturOpen] = useState(false);
   const [isOpnameOpen, setIsOpnameOpen] = useState(false);
 
-  // Local state arrays initialized with dummy data to support dynamic additions/updates
+  // Local state arrays initialized with server data to support dynamic additions/updates
   const [penerimaanList, setPenerimaanList] = useState(initialPenerimaan);
   const [transferList, setTransferList] = useState(initialTransfer);
   const [returList, setReturList] = useState(initialRetur);
@@ -64,6 +67,13 @@ function OutletInventory() {
     }).format(num);
   };
 
+  const tabColors = ['emerald-500', 'blue-500', 'purple-500', 'amber-500', 'rose-500', 'cyan-500', 'orange-500', 'pink-500'];
+  const getTabColor = useMemo(() => {
+    if (selectedOutlet === 'all') return 'emerald-600';
+    const idx = outlets.findIndex(o => o.slug === selectedOutlet);
+    return tabColors[idx >= 0 ? idx % tabColors.length : 4];
+  }, [selectedOutlet, outlets]);
+
   // 1. Dynamic Header Info
   const headerInfo = useMemo(() => {
     if (selectedOutlet === 'all') {
@@ -73,7 +83,7 @@ function OutletInventory() {
         color: 'emerald'
       };
     }
-    const current = outlets.find(o => o.id === selectedOutlet);
+    const current = outlets.find(o => o.slug === selectedOutlet);
     return {
       title: `Inventory ${current?.nama || 'Outlet'}`,
       sub: `Kelola stok lokal, terima DO, transfer mutasi, dan stock opname di ${current?.nama || 'outlet ini'}.`,
@@ -84,16 +94,16 @@ function OutletInventory() {
   // 2. Tab Badge Counts (Pending items checking)
   const pendingTerimaCount = useMemo(() => {
     if (selectedOutlet === 'all') {
-      return Object.values(penerimaanList).flat().filter(p => p.status === 'menunggu').length;
+      return Object.values(penerimaanList || {}).flat().filter(p => p?.status === 'menunggu').length;
     }
-    return (penerimaanList[selectedOutlet] || []).filter(p => p.status === 'menunggu').length;
+    return (penerimaanList[selectedOutlet] || []).filter(p => p?.status === 'menunggu').length;
   }, [selectedOutlet, penerimaanList]);
 
   const pendingTransferCount = useMemo(() => {
     if (selectedOutlet === 'all') {
-      return transferList.filter(t => t.status === 'menunggu_konfirmasi').length;
+      return (transferList || []).filter(t => t.status === 'menunggu_konfirmasi').length;
     }
-    return transferList.filter(t => 
+    return (transferList || []).filter(t => 
       t.status === 'menunggu_konfirmasi' && 
       (t.outlet_asal_id === selectedOutlet || t.outlet_tujuan_id === selectedOutlet)
     ).length;
@@ -103,9 +113,9 @@ function OutletInventory() {
   const stats = useMemo(() => {
     if (selectedOutlet !== 'all') {
       const s = outletStatsAll[selectedOutlet] || {};
-      const pendingCount = (penerimaanList[selectedOutlet] || []).filter(p => p.status === 'menunggu').length;
+      const pendingCount = (penerimaanList[selectedOutlet] || []).filter(p => p?.status === 'menunggu').length;
       return [
-        { title: 'Total SKU Produk', value: `${s.total_sku || 20} item`, color: headerInfo.color, icon: Layers },
+        { title: 'Total SKU Produk', value: `${s.total_sku || 0} item`, color: headerInfo.color, icon: Layers },
         { title: 'Total Stok Fisik', value: `${(s.total_stok || 0).toLocaleString()} pcs`, color: headerInfo.color, icon: ArrowUpDown, sub: `Est. Nilai: ${formatIDR(s.nilai_stok || 0)}` },
         { title: 'Stok Menipis / Habis', value: `${(s.menipis || 0) + (s.habis || 0)} SKU`, color: ((s.menipis || 0) + (s.habis || 0)) > 0 ? 'amber' : headerInfo.color, icon: AlertTriangle, sub: `${s.habis || 0} SKU kosong` },
         { title: 'DO Menunggu Terima', value: `${pendingCount} dokumen`, color: pendingCount > 0 ? 'blue' : headerInfo.color, icon: Inbox },
@@ -113,15 +123,16 @@ function OutletInventory() {
     }
 
     // "Semua Outlet" Mode Calculations
-    const allOutletsStats = Object.values(outletStatsAll);
-    const totalStokAll = allOutletsStats.reduce((acc, curr) => acc + curr.total_stok, 0);
-    const totalPendingAll = Object.values(penerimaanList).flat().filter(p => p.status === 'menunggu').length;
+    const allOutletsStats = Object.values(outletStatsAll || {});
+    const totalStokAll = allOutletsStats.reduce((acc, curr) => acc + (curr.total_stok || 0), 0);
+    const totalPendingAll = Object.values(penerimaanList || {}).flat().filter(p => p?.status === 'menunggu').length;
 
     // Find outlet with highest stock
     let maxStok = 0;
     let maxOutletName = '-';
-    outlets.forEach(o => {
-      const oStok = outletStatsAll[o.id]?.total_stok || 0;
+    (outlets || []).forEach(o => {
+      const key = o.slug || o.id;
+      const oStok = (outletStatsAll[key]?.total_stok || 0);
       if (oStok > maxStok) {
         maxStok = oStok;
         maxOutletName = o.nama;
@@ -129,12 +140,20 @@ function OutletInventory() {
     });
 
     return [
-      { title: 'Outlet Aktif', value: `${outlets.length} Lokasi`, color: 'emerald', icon: Store },
+      { title: 'Outlet Aktif', value: `${(outlets || []).length} Lokasi`, color: 'emerald', icon: Store },
       { title: 'Total Stok Gabungan', value: `${totalStokAll.toLocaleString()} pcs`, color: 'emerald', icon: ArrowUpDown },
       { title: 'Stok Terbanyak', value: maxOutletName, color: 'emerald', icon: LayoutGrid, sub: `${maxStok.toLocaleString()} pcs` },
       { title: 'Total DO Pending', value: `${totalPendingAll} Dokumen`, color: 'emerald', icon: Inbox },
     ];
-  }, [selectedOutlet, headerInfo, penerimaanList]);
+  }, [selectedOutlet, headerInfo, penerimaanList, outletStatsAll, outlets]);
+
+  // 3b. Filter change via Inertia router
+  const navigateWithFilters = (tab) => {
+    router.get(route('admin.inventory.outlet'), {
+      outlet: selectedOutlet === 'all' ? undefined : selectedOutlet,
+      tab,
+    }, { preserveState: true, preserveScroll: true });
+  };
 
   // 4. Action Handlers
   const handleOpenTerimaModal = (doRow) => {
@@ -143,67 +162,126 @@ function OutletInventory() {
   };
 
   const handleConfirmReceive = (confirmedData) => {
-    setPenerimaanList(prev => {
-      const copy = { ...prev };
-      const currentList = copy[selectedOutlet] || [];
-      copy[selectedOutlet] = currentList.map(item => 
-        item.id === confirmedData.id ? confirmedData : item
-      );
-      return copy;
+    router.post(route('admin.inventory.outlet.penerimaan.konfirmasi', {
+      distributionOrder: confirmedData.id
+    }), {
+      items: confirmedData.items.map(it => ({
+        id: it.id || it.produk_id,
+        qty_terima: it.qty_terima,
+        kondisi: it.kondisi || 'baik',
+        catatan: it.catatan || '',
+      })),
+      penerima: 'Admin Outlet'
+    }, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setIsTerimaOpen(false);
+        setActiveTerimaDo(null);
+      },
+      onError: (errors) => {
+        alert('Gagal konfirmasi: ' + Object.values(errors).join(', '));
+      }
     });
-    setIsTerimaOpen(false);
-    setActiveTerimaDo(null);
   };
 
   const handleCreateTransfer = (newTransfer) => {
-    setTransferList(prev => [newTransfer, ...prev]);
-    setIsTransferOpen(false);
+    router.post(route('admin.inventory.outlet.transfer'), {
+      outlet_asal_id: newTransfer.outlet_asal_id,
+      outlet_tujuan_id: newTransfer.outlet_tujuan_id,
+      tgl_transfer: newTransfer.tgl_transfer,
+      alasan: newTransfer.alasan,
+      catatan: newTransfer.catatan || '',
+      items: newTransfer.items.map(it => ({
+        product_id: it.produk_id,
+        product_variant_id: it.product_variant_id || null,
+        nama: it.nama,
+        ukuran: it.ukuran,
+        warna: it.warna,
+        qty: it.qty,
+      })),
+    }, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setIsTransferOpen(false);
+      },
+      onError: (errors) => {
+        alert('Gagal membuat transfer: ' + Object.values(errors).join(', '));
+      }
+    });
   };
 
   const handleCancelTransfer = (id) => {
     if (confirm('Apakah Anda yakin ingin membatalkan pengajuan transfer ini?')) {
-      setTransferList(prev => prev.filter(t => t.id !== id));
+      router.delete(route('admin.inventory.outlet.transfer.cancel', { id }), {
+        preserveState: true,
+        preserveScroll: true,
+      });
     }
   };
 
   const handleConfirmReceiveTransfer = (id) => {
     if (confirm('Konfirmasi bahwa barang transfer telah diterima dengan baik di outlet?')) {
-      setTransferList(prev => prev.map(t => 
-        t.id === id 
-          ? { ...t, status: 'diterima', tgl_diterima: new Date().toISOString().split('T')[0] } 
-          : t
-      ));
+      router.patch(route('admin.inventory.outlet.transfer.terima', { id }), {}, {
+        preserveState: true,
+        preserveScroll: true,
+      });
     }
   };
 
   const handleCreateRetur = (newRetur) => {
-    setReturList(prev => {
-      const copy = { ...prev };
-      const current = copy[selectedOutlet] || [];
-      copy[selectedOutlet] = [newRetur, ...current];
-      return copy;
+    router.post(route('admin.inventory.outlet.retur'), {
+      outlet_id: newRetur.outlet_id,
+      tgl_retur: newRetur.tgl_retur,
+      alasan: newRetur.alasan,
+      catatan: newRetur.catatan || '',
+      items: newRetur.items.map(it => ({
+        product_id: it.produk_id,
+        product_variant_id: it.product_variant_id || null,
+        nama: it.nama,
+        ukuran: it.ukuran,
+        warna: it.warna,
+        qty: it.qty,
+        catatan: it.catatan || '',
+      })),
+    }, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setIsReturOpen(false);
+      },
+      onError: (errors) => {
+        alert('Gagal membuat retur: ' + Object.values(errors).join(', '));
+      }
     });
-    setIsReturOpen(false);
   };
 
   const handleCancelRetur = (id) => {
     if (confirm('Apakah Anda yakin ingin membatalkan pengajuan retur ke gudang ini?')) {
-      setReturList(prev => {
-        const copy = { ...prev };
-        copy[selectedOutlet] = (copy[selectedOutlet] || []).filter(r => r.id !== id);
-        return copy;
+      router.delete(route('admin.inventory.outlet.retur.cancel', { id }), {
+        preserveState: true,
+        preserveScroll: true,
       });
     }
   };
 
   const handleCreateOpname = (newOpname) => {
-    setOpnameList(prev => {
-      const copy = { ...prev };
-      const current = copy[selectedOutlet] || [];
-      copy[selectedOutlet] = [newOpname, ...current];
-      return copy;
+    router.post(route('admin.inventory.outlet.opname.start'), {
+      outlet_id: newOpname.outlet_id,
+      petugas: newOpname.dilakukan_oleh,
+      scope: 'all',
+      mulai: true,
+    }, {
+      preserveState: true,
+      preserveScroll: true,
+      onSuccess: () => {
+        setIsOpnameOpen(false);
+      },
+      onError: (errors) => {
+        alert('Gagal memulai opname: ' + Object.values(errors).join(', '));
+      }
     });
-    setIsOpnameOpen(false);
   };
 
   // Dummy action handler for items table buttons
@@ -237,12 +315,8 @@ function OutletInventory() {
       return (
         <button
           onClick={() => setIsTransferOpen(true)}
-          className={`px-4 py-2 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/10 cursor-pointer ${
-            selectedOutlet === 'denpasar' ? 'bg-emerald-600 hover:bg-emerald-700' :
-            selectedOutlet === 'jakarta' ? 'bg-blue-600 hover:bg-blue-700' :
-            selectedOutlet === 'bandung' ? 'bg-purple-600 hover:bg-purple-700' :
-            'bg-amber-600 hover:bg-amber-700'
-          }`}
+          style={{ backgroundColor: getTabColor }}
+          className={`px-4 py-2 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:opacity-90`}
         >
           <Plus className="w-4 h-4" />
           Buat Transfer
@@ -254,12 +328,8 @@ function OutletInventory() {
       return (
         <button
           onClick={() => setIsReturOpen(true)}
-          className={`px-4 py-2 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-rose-500/10 cursor-pointer ${
-            selectedOutlet === 'denpasar' ? 'bg-emerald-600 hover:bg-emerald-700' :
-            selectedOutlet === 'jakarta' ? 'bg-blue-600 hover:bg-blue-700' :
-            selectedOutlet === 'bandung' ? 'bg-purple-600 hover:bg-purple-700' :
-            'bg-amber-600 hover:bg-amber-700'
-          }`}
+          style={{ backgroundColor: getTabColor }}
+          className={`px-4 py-2 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:opacity-90`}
         >
           <Plus className="w-4 h-4" />
           Buat Retur ke Gudang
@@ -271,12 +341,8 @@ function OutletInventory() {
       return (
         <button
           onClick={() => setIsOpnameOpen(true)}
-          className={`px-4 py-2 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md shadow-emerald-500/10 cursor-pointer ${
-            selectedOutlet === 'denpasar' ? 'bg-emerald-600 hover:bg-emerald-700' :
-            selectedOutlet === 'jakarta' ? 'bg-blue-600 hover:bg-blue-700' :
-            selectedOutlet === 'bandung' ? 'bg-purple-600 hover:bg-purple-700' :
-            'bg-amber-600 hover:bg-amber-700'
-          }`}
+          style={{ backgroundColor: getTabColor }}
+          className={`px-4 py-2 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-md cursor-pointer hover:opacity-90`}
         >
           <Plus className="w-4 h-4" />
           Mulai Opname
@@ -324,7 +390,7 @@ function OutletInventory() {
       </div>
 
       {/* ── OUTLET SELECTOR BAR ── */}
-      <OutletSelector />
+      <OutletSelector outlets={outlets} outletStatsAll={outletStatsAll} />
 
       {/* ── STAT CARDS ── */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -333,7 +399,7 @@ function OutletInventory() {
             key={idx}
             title={c.title}
             value={c.value}
-            color={selectedOutlet === 'all' ? 'emerald' : selectedOutlet}
+            color={c.color}
             icon={c.icon}
             subtext={c.sub}
           />
@@ -342,7 +408,7 @@ function OutletInventory() {
 
       {/* ── CHART PERBANDINGAN (Mode Semua Outlet) ── */}
       {selectedOutlet === 'all' && (
-        <StokPerbandinganChart />
+        <StokPerbandinganChart perbandinganStok={perbandinganStok} outlets={outlets} />
       )}
 
       {/* ── TABS NAVIGASI ── */}
@@ -351,14 +417,10 @@ function OutletInventory() {
           onClick={() => setActiveTab('stock')}
           className={`px-4 py-2.5 rounded-t-xl text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'stock'
-              ? `${selectedOutlet === 'all' ? 'border-emerald-600 text-emerald-600' : 
-                  selectedOutlet === 'denpasar' ? 'border-emerald-500 text-emerald-500' :
-                  selectedOutlet === 'jakarta' ? 'border-blue-500 text-blue-500' :
-                  selectedOutlet === 'bandung' ? 'border-purple-500 text-purple-500' :
-                  'border-amber-500 text-amber-500'
-                } bg-white font-extrabold`
+              ? 'bg-white font-extrabold'
               : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'
           }`}
+          style={activeTab === 'stock' ? { borderBottomColor: getTabColor, color: getTabColor } : {}}
         >
           <Layers className="w-4 h-4" />
           Stok Outlet
@@ -368,14 +430,10 @@ function OutletInventory() {
           onClick={() => setActiveTab('receive')}
           className={`px-4 py-2.5 rounded-t-xl text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'receive'
-              ? `${selectedOutlet === 'all' ? 'border-emerald-600 text-emerald-600' : 
-                  selectedOutlet === 'denpasar' ? 'border-emerald-500 text-emerald-500' :
-                  selectedOutlet === 'jakarta' ? 'border-blue-500 text-blue-500' :
-                  selectedOutlet === 'bandung' ? 'border-purple-500 text-purple-500' :
-                  'border-amber-500 text-amber-500'
-                } bg-white font-extrabold`
+              ? 'bg-white font-extrabold'
               : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'
           }`}
+          style={activeTab === 'receive' ? { borderBottomColor: getTabColor, color: getTabColor } : {}}
         >
           <Inbox className="w-4 h-4" />
           Terima dari Gudang
@@ -390,14 +448,10 @@ function OutletInventory() {
           onClick={() => setActiveTab('transfer')}
           className={`px-4 py-2.5 rounded-t-xl text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'transfer'
-              ? `${selectedOutlet === 'all' ? 'border-emerald-600 text-emerald-600' : 
-                  selectedOutlet === 'denpasar' ? 'border-emerald-500 text-emerald-500' :
-                  selectedOutlet === 'jakarta' ? 'border-blue-500 text-blue-500' :
-                  selectedOutlet === 'bandung' ? 'border-purple-500 text-purple-500' :
-                  'border-amber-500 text-amber-500'
-                } bg-white font-extrabold`
+              ? 'bg-white font-extrabold'
               : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'
           }`}
+          style={activeTab === 'transfer' ? { borderBottomColor: getTabColor, color: getTabColor } : {}}
         >
           <ArrowRightLeft className="w-4 h-4" />
           Transfer Outlet
@@ -412,14 +466,10 @@ function OutletInventory() {
           onClick={() => setActiveTab('retur')}
           className={`px-4 py-2.5 rounded-t-xl text-xs font-bold border-b-2 transition-all cursor-pointer flex items-center gap-1.5 ${
             activeTab === 'retur'
-              ? `${selectedOutlet === 'all' ? 'border-emerald-600 text-emerald-600' : 
-                  selectedOutlet === 'denpasar' ? 'border-emerald-500 text-emerald-500' :
-                  selectedOutlet === 'jakarta' ? 'border-blue-500 text-blue-500' :
-                  selectedOutlet === 'bandung' ? 'border-purple-500 text-purple-500' :
-                  'border-amber-500 text-amber-500'
-                } bg-white font-extrabold`
+              ? 'bg-white font-extrabold'
               : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50'
           }`}
+          style={activeTab === 'retur' ? { borderBottomColor: getTabColor, color: getTabColor } : {}}
         >
           <Undo2 className="w-4 h-4" />
           Retur ke Gudang
@@ -429,15 +479,12 @@ function OutletInventory() {
           onClick={() => selectedOutlet !== 'all' && setActiveTab('opname')}
           disabled={selectedOutlet === 'all'}
           title={selectedOutlet === 'all' ? 'Pilih outlet terlebih dahulu' : ''}
+          style={selectedOutlet !== 'all' && activeTab === 'opname' ? { borderBottomColor: getTabColor, color: getTabColor } : {}}
           className={`px-4 py-2.5 rounded-t-xl text-xs font-bold border-b-2 transition-all flex items-center gap-1.5 ${
             selectedOutlet === 'all' 
               ? 'opacity-40 cursor-not-allowed border-transparent text-gray-400'
               : activeTab === 'opname'
-                ? `${selectedOutlet === 'denpasar' ? 'border-emerald-500 text-emerald-500' :
-                    selectedOutlet === 'jakarta' ? 'border-blue-500 text-blue-500' :
-                    selectedOutlet === 'bandung' ? 'border-purple-500 text-purple-500' :
-                    'border-amber-500 text-amber-500'
-                  } bg-white font-extrabold`
+                ? 'bg-white font-extrabold'
                 : 'border-transparent text-gray-500 hover:text-gray-900 hover:bg-gray-50 cursor-pointer'
           }`}
         >
@@ -452,6 +499,8 @@ function OutletInventory() {
           <StokOutletTable 
             selectedOutlet={selectedOutlet}
             onAction={handleTableItemAction}
+            outletStok={outletStok}
+            outlets={outlets}
           />
         )}
 
@@ -459,6 +508,7 @@ function OutletInventory() {
           <PenerimaanGudangTable
             selectedOutlet={selectedOutlet}
             onConfirmClick={handleOpenTerimaModal}
+            penerimaanList={penerimaanList}
           />
         )}
 
@@ -467,6 +517,7 @@ function OutletInventory() {
             selectedOutlet={selectedOutlet}
             onCancelTransfer={handleCancelTransfer}
             onConfirmReceive={handleConfirmReceiveTransfer}
+            transferList={transferList}
           />
         )}
 
@@ -474,12 +525,14 @@ function OutletInventory() {
           <ReturGudangTable
             selectedOutlet={selectedOutlet}
             onCancelRetur={handleCancelRetur}
+            returList={returList}
           />
         )}
 
         {activeTab === 'opname' && (
           <StockOpnameOutletTable
             selectedOutlet={selectedOutlet}
+            opnameList={opnameList}
           />
         )}
       </div>
@@ -497,6 +550,8 @@ function OutletInventory() {
         onClose={() => setIsTransferOpen(false)}
         selectedOutlet={selectedOutlet}
         onSubmit={handleCreateTransfer}
+        outlets={outlets}
+        outletStok={outletStok}
       />
 
       <FormReturGudangModal
@@ -504,6 +559,8 @@ function OutletInventory() {
         onClose={() => setIsReturOpen(false)}
         selectedOutlet={selectedOutlet}
         onSubmit={handleCreateRetur}
+        outlets={outlets}
+        outletStok={outletStok}
       />
 
       <FormOpnameOutletModal
@@ -511,6 +568,8 @@ function OutletInventory() {
         onClose={() => setIsOpnameOpen(false)}
         selectedOutlet={selectedOutlet}
         onSubmit={handleCreateOpname}
+        outlets={outlets}
+        outletStok={outletStok}
       />
     </div>
   );

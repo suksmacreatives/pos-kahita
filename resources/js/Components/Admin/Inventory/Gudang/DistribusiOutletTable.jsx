@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
-import { Eye, CheckSquare, Printer, Send } from 'lucide-react';
+import { Eye, CheckSquare, Printer, Send, XCircle } from 'lucide-react';
 
-export default function DistribusiOutletTable({ data = [], onLihat, onKonfirmasiTerima, onCetak, onProses }) {
+export default function DistribusiOutletTable({ data = [], onLihat, onKonfirmasiTerima, onCetak, onProses, onBatalDO }) {
   const [search, setSearch] = useState('');
   const [filterStatus, setFilterStatus] = useState('semua');
   const [filterOutlet, setFilterOutlet] = useState('semua');
@@ -84,6 +84,9 @@ export default function DistribusiOutletTable({ data = [], onLihat, onKonfirmasi
                       <button onClick={() => onLihat?.(d)} className="p-1.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg cursor-pointer" title="Lihat"><Eye className="w-3.5 h-3.5" /></button>
                       {d.status === 'draft' && (
                         <button onClick={() => onProses?.(d)} className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg cursor-pointer" title="Proses"><Send className="w-3.5 h-3.5" /></button>
+                      )}
+                      {d.status === 'draft' && (
+                        <button onClick={() => onBatalDO?.(d)} className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer" title="Batalkan"><XCircle className="w-3.5 h-3.5" /></button>
                       )}
                       {d.status === 'dikirim' && (
                         <button onClick={() => onKonfirmasiTerima?.(d)} className="p-1.5 text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg cursor-pointer" title="Konfirmasi Terima"><CheckSquare className="w-3.5 h-3.5" /></button>

@@ -1,14 +1,16 @@
 import React, { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from 'recharts';
 import { BarChart3 } from 'lucide-react';
-import { perbandinganStok } from '@/data/inventoryOutletData';
 
-export default function StokPerbandinganChart() {
-  const [activeLines, setActiveLines] = useState({
-    denpasar: true,
-    jakarta: true,
-    bandung: true,
-    surabaya: true,
+const CHART_COLORS = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B', '#EF4444', '#EC4899', '#14B8A6', '#F97316'];
+
+export default function StokPerbandinganChart({ perbandinganStok = [], outlets = [] }) {
+  const outletSlugs = outlets.filter(o => o.slug).map(o => o.slug);
+
+  const [activeLines, setActiveLines] = useState(() => {
+    const init = {};
+    outletSlugs.forEach(slug => { init[slug] = true; });
+    return init;
   });
 
   const handleLegendClick = (e) => {
@@ -31,7 +33,7 @@ export default function StokPerbandinganChart() {
         </div>
       </div>
 
-      <div className="w-full" style={{ height: '180px' }}>
+      <div className="w-full" style={{ minHeight: '180px', height: '180px' }}>
         <ResponsiveContainer width="100%" height="100%">
           <LineChart data={perbandinganStok} margin={{ top: 5, right: 10, left: -25, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
@@ -62,50 +64,21 @@ export default function StokPerbandinganChart() {
               cursor="pointer"
             />
             
-            {activeLines.denpasar && (
-              <Line 
-                name="Denpasar" 
-                type="monotone" 
-                dataKey="denpasar" 
-                stroke="#10B981" 
-                strokeWidth={2.5} 
-                dot={{ r: 3, strokeWidth: 1.5 }} 
-                activeDot={{ r: 5 }} 
-              />
-            )}
-            {activeLines.jakarta && (
-              <Line 
-                name="Jakarta" 
-                type="monotone" 
-                dataKey="jakarta" 
-                stroke="#3B82F6" 
-                strokeWidth={2.5} 
-                dot={{ r: 3, strokeWidth: 1.5 }} 
-                activeDot={{ r: 5 }} 
-              />
-            )}
-            {activeLines.bandung && (
-              <Line 
-                name="Bandung" 
-                type="monotone" 
-                dataKey="bandung" 
-                stroke="#8B5CF6" 
-                strokeWidth={2.5} 
-                dot={{ r: 3, strokeWidth: 1.5 }} 
-                activeDot={{ r: 5 }} 
-              />
-            )}
-            {activeLines.surabaya && (
-              <Line 
-                name="Surabaya" 
-                type="monotone" 
-                dataKey="surabaya" 
-                stroke="#F59E0B" 
-                strokeWidth={2.5} 
-                dot={{ r: 3, strokeWidth: 1.5 }} 
-                activeDot={{ r: 5 }} 
-              />
-            )}
+            {outletSlugs.map((slug, idx) => {
+              const outlet = outlets.find(o => o.slug === slug);
+              return activeLines[slug] && (
+                <Line 
+                  key={slug}
+                  name={outlet?.nama || slug} 
+                  type="monotone" 
+                  dataKey={slug} 
+                  stroke={CHART_COLORS[idx % CHART_COLORS.length]} 
+                  strokeWidth={2.5} 
+                  dot={{ r: 3, strokeWidth: 1.5 }} 
+                  activeDot={{ r: 5 }} 
+                />
+              );
+            })}
           </LineChart>
         </ResponsiveContainer>
       </div>

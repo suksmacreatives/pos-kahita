@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { X } from 'lucide-react';
 import RolePermissionMatrix from './RolePermissionMatrix';
-import { roles } from '@/data/settingsData';
+import { roles as fallbackRoles } from '@/data/settingsData';
 
-export default function AkunFormModal({ isOpen, mode, data, onClose, onSave }) {
+export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, roles: propRoles, outletList = [] }) {
+    const roles = propRoles || fallbackRoles;
     const isEdit = mode === 'edit';
     const [formData, setFormData] = useState({
         nama: '',
@@ -11,7 +12,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave }) {
         telp: '',
         password: '',
         password_confirmation: '',
-        role: 'kasir',
+        role: 'cashier',
         outlet_id: 'denpasar',
         status: 'aktif'
     });
@@ -24,13 +25,13 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave }) {
                 telp: data.telp || '',
                 password: '',
                 password_confirmation: '',
-                role: data.role || 'kasir',
+                role: data.role || 'cashier',
                 outlet_id: data.outlet_id || 'denpasar',
                 status: data.status || 'aktif'
             });
         } else if (isOpen && !isEdit) {
             setFormData({
-                nama: '', email: '', telp: '', password: '', password_confirmation: '', role: 'kasir', outlet_id: 'denpasar', status: 'aktif'
+                nama: '', email: '', telp: '', password: '', password_confirmation: '', role: 'cashier', outlet_id: 'denpasar', status: 'aktif'
             });
         }
     }, [isOpen, isEdit, data]);
@@ -41,10 +42,10 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave }) {
             const next = { ...prev, [name]: value };
             // Auto reset outlet logic
             if (name === 'role') {
-                if (value === 'super_admin' || value === 'admin') {
-                    next.outlet_id = 'Semua Outlet';
-                } else if (prev.outlet_id === 'Semua Outlet') {
-                    next.outlet_id = 'denpasar'; // fallback default
+                if (value === 'admin') {
+                    next.outlet_id = '';
+                } else if (prev.outlet_id === '') {
+                    next.outlet_id = outletList[0]?.id || '';
                 }
             }
             return next;
@@ -136,14 +137,13 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave }) {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Outlet *</label>
                                 <select 
                                     name="outlet_id" value={formData.outlet_id} onChange={handleChange}
-                                    disabled={formData.role === 'super_admin' || formData.role === 'admin'}
+                                    disabled={formData.role === 'admin'}
                                     className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:text-gray-500"
                                 >
-                                    <option value="Semua Outlet">Semua Outlet</option>
-                                    <option value="denpasar">Denpasar</option>
-                                    <option value="jakarta">Jakarta</option>
-                                    <option value="bandung">Bandung</option>
-                                    <option value="surabaya">Surabaya</option>
+                                    <option value="">Semua Outlet</option>
+                                    {outletList.map(o => (
+                                        <option key={o.id} value={o.id}>{o.name}</option>
+                                    ))}
                                 </select>
                             </div>
                         </div>

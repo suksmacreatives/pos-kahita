@@ -13,6 +13,9 @@ import {
     Coffee,
     UserCheck,
     Shirt,
+    Package,
+    Users2,
+    Wallet,
     ChevronDown,
 } from "lucide-react";
 
@@ -107,18 +110,8 @@ export default function Sidebar({ isOpen, onClose }) {
         {
             label: "Products",
             icon: Shirt,
-            children: [
-                {
-                    label: "List Products",
-                    href: getRoute("admin.products.index", "/admin/products"),
-                    pattern: /^\/admin\/products$/,
-                },
-                {
-                    label: "Categories",
-                    href: "/admin/category",
-                    pattern: /^\/admin\/category/,
-                },
-            ],
+            href: getRoute("admin.products.index", "/admin/products"),
+            pattern: /^\/admin\/products/,
         },
         {
             label: "Inventory",
@@ -145,7 +138,7 @@ export default function Sidebar({ isOpen, onClose }) {
         {
             label: "Outlets",
             icon: Store,
-            href: "/admin/outlets",
+            href: getRoute("admin.outlets.index", "/admin/outlets"),
             pattern: /^\/admin\/outlets/,
         },
         {
@@ -157,8 +150,33 @@ export default function Sidebar({ isOpen, onClose }) {
         {
             label: "Reports",
             icon: BarChart3,
-            href: getRoute("admin.laporan", "/admin/reports/penjualan"),
-            pattern: /^\/admin\/reports/,
+            children: [
+                {
+                    label: "Laporan Penjualan",
+                    href: getRoute("admin.reports.index", "/admin/reports") + "?kategori=penjualan&sub=ringkasan-omset",
+                    pattern: /kategori=penjualan/,
+                },
+                {
+                    label: "Laporan Produk",
+                    href: getRoute("admin.reports.index", "/admin/reports") + "?kategori=produk&sub=produk-terlaris",
+                    pattern: /kategori=produk/,
+                },
+                {
+                    label: "Laporan Inventori",
+                    href: getRoute("admin.reports.index", "/admin/reports") + "?kategori=inventori&sub=mutasi-stok",
+                    pattern: /kategori=inventori/,
+                },
+                {
+                    label: "Laporan Kasir",
+                    href: getRoute("admin.reports.index", "/admin/reports") + "?kategori=kasir&sub=performa-kasir",
+                    pattern: /kategori=kasir/,
+                },
+                {
+                    label: "Laporan Keuangan",
+                    href: getRoute("admin.reports.index", "/admin/reports") + "?kategori=keuangan&sub=laba-rugi",
+                    pattern: /kategori=keuangan/,
+                },
+            ],
         },
         {
             label: "Settings",

@@ -1,4 +1,6 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
+import { usePage, router } from '@inertiajs/react';
+import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import GudangStatCard from '@/Components/Admin/Inventory/Gudang/GudangStatCard';
 import MutasiChart from '@/Components/Admin/Inventory/Gudang/MutasiChart';
@@ -6,6 +8,7 @@ import StokGudangTable from '@/Components/Admin/Inventory/Gudang/StokGudangTable
 import PenerimaanBarangTable from '@/Components/Admin/Inventory/Gudang/PenerimaanBarangTable';
 import DistribusiOutletTable from '@/Components/Admin/Inventory/Gudang/DistribusiOutletTable';
 import ReturSupplierTable from '@/Components/Admin/Inventory/Gudang/ReturSupplierTable';
+import ReturOutletTable from '@/Components/Admin/Inventory/Gudang/ReturOutletTable';
 import StockOpnameTable from '@/Components/Admin/Inventory/Gudang/StockOpnameTable';
 import FormPenerimaanModal from '@/Components/Admin/Inventory/Gudang/FormPenerimaanModal';
 import FormDistribusiModal from '@/Components/Admin/Inventory/Gudang/FormDistribusiModal';
@@ -15,35 +18,65 @@ import DetailProdukModal from '@/Components/Admin/Inventory/Gudang/DetailProdukM
 import TambahStokModal from '@/Components/Admin/Inventory/Gudang/TambahStokModal';
 import LihatMutasiModal from '@/Components/Admin/Inventory/Gudang/LihatMutasiModal';
 import DetailDistribusiModal from '@/Components/Admin/Inventory/Gudang/DetailDistribusiModal';
-import {
-  warehouseProducts as initialProducts,
-  penerimaanBarang as initialPenerimaan,
-  distribusiOutlet as initialDistribusi,
-  returSupplier as initialRetur,
-  stockOpname as initialOpname,
-  mutasiLog as initialMutasiLog,
-  gudangStats as initialStats,
-} from '@/data/inventoryGudangData';
 
 const tabs = [
   { id: 'stock', label: 'Stok Gudang', Component: StokGudangTable },
   { id: 'penerimaan', label: 'Penerimaan Barang', Component: PenerimaanBarangTable },
   { id: 'distribusi', label: 'Distribusi Outlet', Component: DistribusiOutletTable },
   { id: 'retur', label: 'Retur Supplier', Component: ReturSupplierTable },
+  { id: 'retur-outlet', label: 'Retur Outlet', Component: ReturOutletTable },
   { id: 'opname', label: 'Stock Opname', Component: StockOpnameTable },
 ];
 
 function Gudang() {
+  const { props } = usePage();
+  const {
+    warehouseProducts: initialProducts,
+    penerimaanBarang: initialPenerimaan,
+    distribusiOutlet: initialDistribusi,
+    returSupplier: initialRetur,
+    returOutlet: initialReturOutlet,
+    stockOpname: initialOpname,
+    mutasiLog: initialMutasiLog,
+    gudangStats: initialStats,
+    outlets,
+    suppliers,
+    flash,
+    errors: validationErrors,
+  } = props;
+
+  const [toast, setToast] = useState(null);
+
+  const showToast = (message, type = 'success') => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
+
+  useEffect(() => {
+    if (flash?.success) showToast(flash.success, 'success');
+    if (flash?.error) showToast(flash.error, 'error');
+  }, [flash]);
+
   const [activeTab, setActiveTab] = useState('stock');
   const [modalType, setModalType] = useState(null);
 
-  const [penerimaan, setPenerimaan] = useState(initialPenerimaan);
-  const [distribusi, setDistribusi] = useState(initialDistribusi);
-  const [retur, setRetur] = useState(initialRetur);
+  const [penerimaan, setPenerimaan] = useState(initialPenerimaan || []);
+  const [distribusi, setDistribusi] = useState(initialDistribusi || []);
+  const [retur, setRetur] = useState(initialRetur || []);
+  const [returOutlet, setReturOutlet] = useState(initialReturOutlet || []);
   const [opname, setOpname] = useState(initialOpname || []);
-  const [produkStok, setProdukStok] = useState(initialProducts);
-  const [mutasiLog] = useState(initialMutasiLog);
-  const [stats] = useState(initialStats);
+  const [produkStok, setProdukStok] = useState(initialProducts || []);
+  const [mutasiLog, setMutasiLog] = useState(initialMutasiLog || []);
+  const [stats, setStats] = useState(initialStats || { total_sku: 0, total_stok: 0, nilai_stok: 0, menipis: 0, habis: 0 });
+
+  useEffect(() => { setPenerimaan(initialPenerimaan || []); }, [initialPenerimaan]);
+  useEffect(() => { setDistribusi(initialDistribusi || []); }, [initialDistribusi]);
+  useEffect(() => { setRetur(initialRetur || []); }, [initialRetur]);
+  useEffect(() => { setReturOutlet(initialReturOutlet || []); }, [initialReturOutlet]);
+  useEffect(() => { setOpname(initialOpname || []); }, [initialOpname]);
+  useEffect(() => { setProdukStok(initialProducts || []); }, [initialProducts]);
+  useEffect(() => { setMutasiLog(initialMutasiLog || []); }, [initialMutasiLog]);
+  useEffect(() => { setStats(initialStats || { total_sku: 0, total_stok: 0, nilai_stok: 0, menipis: 0, habis: 0 }); }, [initialStats]);
   const [detailProduk, setDetailProduk] = useState(null);
   const [tambahStok, setTambahStok] = useState(null);
   const [lihatMutasi, setLihatMutasi] = useState(null);
@@ -56,55 +89,146 @@ function Gudang() {
     penerimaan: penerimaan.length,
     distribusi: distribusi.length,
     retur: retur.length,
+    'retur-outlet': returOutlet.length,
     opname: opname.length,
-  }), [produkStok, penerimaan, distribusi, retur, opname]);
+  }), [produkStok, penerimaan, distribusi, retur, returOutlet, opname]);
 
   const handleOpenModal = (type) => setModalType(type);
   const handleCloseModal = () => setModalType(null);
 
+  const reloadData = () => {
+    router.reload({
+      only: ['warehouseProducts', 'penerimaanBarang', 'distribusiOutlet', 'returSupplier', 'returOutlet', 'stockOpname', 'mutasiLog', 'gudangStats'],
+      preserveScroll: true,
+    });
+  };
+
   const handlePenerimaanSubmit = (data) => {
-    const nomor = `PO-${String(penerimaan.length + 1).padStart(3, '0')}`;
-    setPenerimaan(prev => [{ ...data, nomor_po: nomor, id: prev.length + 1, tanggal_terima: null, items: data.items.map(it => ({ ...it, qty_terima: 0 })) }, ...prev]);
-  };
-
-  const handleDistribusiSubmit = (data) => {
-    const nomor = `DO-${String(distribusi.length + 1).padStart(3, '0')}`;
-    setDistribusi(prev => [{ ...data, nomor_do: nomor, id: prev.length + 1 }, ...prev]);
-  };
-
-  const handleReturSubmit = (data) => {
-    const nomor = `RTR-${String(retur.length + 1).padStart(3, '0')}`;
-    setRetur(prev => [{ ...data, nomor_retur: nomor, id: prev.length + 1 }, ...prev]);
-  };
-
-  const handleOpnameSubmit = (data) => {
-    const nomor = `OP-${String(opname.length + 1).padStart(3, '0')}`;
-    setOpname(prev => [{
-      ...data,
-      nomor_opname: nomor,
-      id: prev.length + 1,
-      tanggal_mulai: new Date().toISOString().split('T')[0],
-      tanggal_selesai: new Date().toISOString().split('T')[0],
-      petugas: 'Admin Gudang',
-    }, ...prev]);
+    router.post(route('admin.inventory.gudang.penerimaan'), data, {
+      preserveScroll: true,
+      onSuccess: () => { handleCloseModal(); reloadData(); },
+      onError: () => {},
+    });
   };
 
   const handleTandaiTerima = (item) => {
-    setPenerimaan(prev => prev.map(p =>
-      p.nomor_po === item.nomor_po ? { ...p, status: 'lengkap', tanggal_terima: new Date().toISOString().split('T')[0] } : p
-    ));
+    router.patch(route('admin.inventory.gudang.penerimaan.terima', item.id), {}, {
+      preserveScroll: true,
+      onSuccess: () => reloadData(),
+      onError: () => {},
+    });
   };
 
-  const handleKonfirmasiTerima = (item) => {
-    setDistribusi(prev => prev.map(d =>
-      d.nomor_do === item.nomor_do ? { ...d, status: 'diterima', tanggal_terima: new Date().toISOString().split('T')[0] } : d
-    ));
+  const handleProsesPenerimaan = (item) => {
+    router.patch(route('admin.inventory.gudang.penerimaan.proses', item.id), {}, {
+      preserveScroll: true,
+      onSuccess: () => reloadData(),
+      onError: () => {},
+    });
+  };
+
+  const handleDistribusiSubmit = (data) => {
+    router.post(route('admin.inventory.gudang.distribusi'), data, {
+      preserveScroll: true,
+      onSuccess: () => { handleCloseModal(); reloadData(); },
+      onError: () => {},
+    });
   };
 
   const handleProses = (item) => {
-    setDistribusi(prev => prev.map(d =>
-      d.nomor_do === item.nomor_do ? { ...d, status: 'dikirim', tanggal_kirim: new Date().toISOString().split('T')[0] } : d
-    ));
+    router.patch(route('admin.inventory.gudang.distribusi.proses', item.id), {}, {
+      preserveScroll: true,
+      onSuccess: () => reloadData(),
+      onError: () => {},
+    });
+  };
+
+  const handleKonfirmasiTerima = (item) => {
+    router.patch(route('admin.inventory.gudang.distribusi.konfirmasi', item.id), {}, {
+      preserveScroll: true,
+      onSuccess: () => reloadData(),
+      onError: () => {},
+    });
+  };
+
+  const handleReturSubmit = (data) => {
+    router.post(route('admin.inventory.gudang.retur'), data, {
+      preserveScroll: true,
+      onSuccess: () => { handleCloseModal(); reloadData(); },
+      onError: () => {},
+    });
+  };
+
+  const handleTerimaReturOutlet = (item) => {
+    if (confirm('Terima retur ini? Stok gudang akan bertambah sesuai qty barang yang diretur.')) {
+      router.patch(route('admin.inventory.gudang.retur-outlet.terima', item.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => reloadData(),
+        onError: () => {},
+      });
+    }
+  };
+
+  const handleBatalReturOutlet = (item) => {
+    if (confirm('Batalkan retur dari outlet ini? Stok outlet akan dikembalikan.')) {
+      router.patch(route('admin.inventory.gudang.retur-outlet.batal', item.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => reloadData(),
+        onError: () => {},
+      });
+    }
+  };
+
+  const handleBatalPO = (item) => {
+    if (confirm('Batalkan Purchase Order ini?')) {
+      router.patch(route('admin.inventory.gudang.penerimaan.batal', item.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => reloadData(),
+        onError: () => {},
+      });
+    }
+  };
+
+  const handleBatalDO = (item) => {
+    if (confirm('Batalkan Distribution Order ini?')) {
+      router.patch(route('admin.inventory.gudang.distribusi.batal', item.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => reloadData(),
+        onError: () => {},
+      });
+    }
+  };
+
+  const handleBatalReturSupplier = (item) => {
+    if (confirm('Batalkan Retur Supplier ini?')) {
+      router.patch(route('admin.inventory.gudang.retur.batal', item.id), {}, {
+        preserveScroll: true,
+        onSuccess: () => reloadData(),
+        onError: () => {},
+      });
+    }
+  };
+
+  const handleOpnameSubmit = (data) => {
+    router.post(route('admin.inventory.gudang.opname'), data, {
+      preserveScroll: true,
+      onSuccess: () => { handleCloseModal(); reloadData(); },
+      onError: () => {},
+    });
+  };
+
+  const handleTambahStokSubmit = ({ produk_id, qty, catatan }) => {
+    const item = produkStok.find(p => p.id === produk_id);
+    router.post(route('admin.inventory.gudang.tambah-stok'), {
+      produk_id,
+      nama: item?.nama_produk || '',
+      qty,
+      catatan: catatan || '',
+    }, {
+      preserveScroll: true,
+      onSuccess: () => { setTambahStok(null); reloadData(); },
+      onError: () => {},
+    });
   };
 
   const handleLihat = (item) => setDetailDistribusi(item);
@@ -113,22 +237,17 @@ function Gudang() {
   const handleTambahStok = (item) => setTambahStok(item);
   const handleLihatMutasi = (item) => setLihatMutasi(item);
 
-  const handleTambahStokSubmit = ({ produk_id, qty }) => {
-    setProdukStok(prev => prev.map(p =>
-      p.id === produk_id ? { ...p, total_stok: p.total_stok + qty, varian: p.varian.map(v => ({ ...v, stok: v.stok + qty })) } : p
-    ));
-  };
-
   const tableData = useMemo(() => {
     switch (activeTab) {
       case 'stock': return produkStok;
       case 'penerimaan': return penerimaan;
       case 'distribusi': return distribusi;
       case 'retur': return retur;
+      case 'retur-outlet': return returOutlet;
       case 'opname': return opname;
       default: return [];
     }
-  }, [activeTab, produkStok, penerimaan, distribusi, retur, opname]);
+  }, [activeTab, produkStok, penerimaan, distribusi, retur, returOutlet, opname]);
 
   return (
     <div className="p-6 space-y-6 bg-[#F8FAFC] min-h-screen">
@@ -148,8 +267,8 @@ function Gudang() {
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <GudangStatCard title="Total SKU" value={stats.total_sku} sub="produk unik" color="emerald" alert={false} />
         <GudangStatCard title="Total Stok" value={stats.total_stok} sub="semua varian" color="blue" />
-        <GudangStatCard title="Nilai Stok" value={`Rp ${stats.nilai_stok.toLocaleString()}`} sub="harga beli" color="violet" />
-        <GudangStatCard title="Produk Menipis" value={stats.produk_menipis + stats.produk_habis} sub="stok ≤ minimum" color="rose" alert={true} percentage={Math.round(((stats.produk_menipis + stats.produk_habis) / stats.total_sku) * 100)} />
+        <GudangStatCard title="Nilai Stok" value={`Rp ${(stats.nilai_stok || 0).toLocaleString()}`} sub="harga beli" color="violet" />
+        <GudangStatCard title="Produk Menipis" value={stats.menipis + stats.habis} sub="stok ≤ minimum" color="rose" alert={true} percentage={stats.total_sku > 0 ? Math.round(((stats.menipis + stats.habis) / stats.total_sku) * 100) : 0} />
       </div>
 
       <div className="bg-white rounded-2xl shadow-sm p-5">
@@ -182,28 +301,59 @@ function Gudang() {
             onTambahStok={handleTambahStok}
             onLihatMutasi={handleLihatMutasi}
             onTandaiTerima={handleTandaiTerima}
+            onProsesPenerimaan={handleProsesPenerimaan}
+            onProses={handleProses}
             onCetak={handleCetak}
             onLihat={handleLihat}
             onKonfirmasiTerima={handleKonfirmasiTerima}
-            onProses={handleProses}
-            onLanjutkan={(item) => {
-              setOpname(prev => prev.map(o =>
-                o.nomor_opname === item.nomor_opname ? { ...o, status: 'berlangsung' } : o
-              ));
-            }}
+            onTerimaRetur={handleTerimaReturOutlet}
+            onBatalRetur={handleBatalReturOutlet}
+            onBatalPO={handleBatalPO}
+            onBatalDO={handleBatalDO}
+            onBatalReturSupplier={handleBatalReturSupplier}
           />
         </div>
       </div>
 
-      <FormPenerimaanModal open={modalType === 'penerimaan'} onClose={handleCloseModal} onSubmit={handlePenerimaanSubmit} />
-      <FormDistribusiModal open={modalType === 'distribusi'} onClose={handleCloseModal} onSubmit={handleDistribusiSubmit} />
-      <FormReturModal open={modalType === 'retur'} onClose={handleCloseModal} onSubmit={handleReturSubmit} />
-      <FormOpnameModal open={modalType === 'opname'} onClose={handleCloseModal} onSubmit={handleOpnameSubmit} />
+      <FormPenerimaanModal
+        open={modalType === 'penerimaan'}
+        onClose={handleCloseModal}
+        onSubmit={handlePenerimaanSubmit}
+        warehouseProducts={produkStok}
+      />
+      <FormDistribusiModal
+        open={modalType === 'distribusi'}
+        onClose={handleCloseModal}
+        onSubmit={handleDistribusiSubmit}
+        outlets={outlets}
+        warehouseProducts={produkStok}
+      />
+      <FormReturModal
+        open={modalType === 'retur'}
+        onClose={handleCloseModal}
+        onSubmit={handleReturSubmit}
+        suppliers={suppliers}
+        warehouseProducts={produkStok}
+      />
+      <FormOpnameModal
+        open={modalType === 'opname'}
+        onClose={handleCloseModal}
+        onSubmit={handleOpnameSubmit}
+        warehouseProducts={produkStok}
+      />
 
       <DetailProdukModal data={detailProduk} onClose={() => setDetailProduk(null)} />
       <TambahStokModal data={tambahStok} onClose={() => setTambahStok(null)} onSubmit={handleTambahStokSubmit} />
-      <LihatMutasiModal data={lihatMutasi} onClose={() => setLihatMutasi(null)} />
+      <LihatMutasiModal data={lihatMutasi} onClose={() => setLihatMutasi(null)} mutasiLog={mutasiLog} />
       <DetailDistribusiModal data={detailDistribusi} onClose={() => setDetailDistribusi(null)} />
+
+      {toast && (
+        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 px-4.5 py-3 rounded-2xl shadow-xl border bg-white animate-in slide-in-from-bottom-6 duration-200">
+          {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />}
+          <span className="text-xs font-semibold text-gray-800">{toast.message}</span>
+          <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600 ml-1.5 p-0.5 rounded"><X className="w-3.5 h-3.5" /></button>
+        </div>
+      )}
     </div>
   );
 }
