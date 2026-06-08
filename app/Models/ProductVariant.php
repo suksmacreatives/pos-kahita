@@ -14,14 +14,21 @@ class ProductVariant extends Model
         'color',
         'size',
         'stock',
-        'sku'
+        'sku',
+        'price_adjustment',
     ];
 
-    /**
-     * RELASI KE PRODUCT
-     */
+    protected $casts = [
+        'color' => 'array',
+    ];
+
     public function product()
     {
         return $this->belongsTo(Product::class);
+    }
+
+    public function outletStocks()
+    {
+        return $this->hasMany(OutletStock::class, 'product_variant_id');
     }
 }

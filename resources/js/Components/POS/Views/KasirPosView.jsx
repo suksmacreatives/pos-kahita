@@ -36,16 +36,12 @@ export default function KasirPosView({
     const [customAlert, setCustomAlert] = useState({ isOpen: false, message: '' });
     const [customConfirm, setCustomConfirm] = useState({ isOpen: false, message: '', onConfirm: null });
 
-    // Master Data Variasi & Mock Foto
-    const listWarna = [
-        { name: 'Putih', image: null },
-        { name: 'Hitam', image: null },
-        { name: 'Mutiara', image: null },
-        { name: 'Kuning', image: null },
-        { name: 'Merah Manggis', image: null },
-        { name: 'Biru Cendana', image: null }
-    ];
-    const listUkuran = ['S', 'M', 'L', 'XL', 'XXL'];
+    // Helper untuk mengelompokkan varian berdasarkan warna
+    const getColorName = (color) => {
+        if (!color) return 'Default';
+        if (typeof color === 'string') return color;
+        return color.nama || 'Default';
+    };
 
     // Helper pemicu alert custom
     const showAlert = (msg) => {
@@ -212,6 +208,14 @@ export default function KasirPosView({
                                         <div>
                                             <h3 className="text-xs font-bold text-gray-700 tracking-wide line-clamp-1">{product.name}</h3>
                                             <span className="text-xs font-bold text-[#009664] block mt-0.5">{formatRupiah(product.price)}</span>
+                                            {product.variants && (
+                                                (() => {
+                                                    const totalStock = product.variants.reduce((s, v) => s + (v.stok_outlet || 0), 0);
+                                                    return totalStock > 0
+                                                        ? <span className="text-[9px] font-bold text-green-600 block mt-0.5">Stok Outlet: {totalStock}</span>
+                                                        : <span className="text-[9px] font-bold text-red-500 block mt-0.5">Habis</span>;
+                                                })()
+                                            )}
                                         </div>
                                     </div>
                                 ))}
@@ -434,54 +438,80 @@ export default function KasirPosView({
                         </div>
 
                         <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/50">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                {listWarna.map((warna) => (
-                                    <div key={warna.name} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col space-y-3">
-                                        <div className="flex items-center space-x-3 border-b border-gray-100 pb-2">
-                                            <div className="w-12 h-12 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center font-bold text-[9px] text-gray-400 uppercase text-center flex-shrink-0">
-                                                FOTO VARIAN
-                                            </div>
-                                            <div>
-                                                <h4 className="font-black text-gray-800 text-xs uppercase tracking-wide">{warna.name}</h4>
-                                                <p className="text-[10px] text-gray-400 font-semibold">Tentukan jumlah per-ukuran:</p>
-                                            </div>
-                                        </div>
-
-                                        <div className="space-y-2 pt-1">
-                                            {listUkuran.map((ukuran) => {
-                                                const key = `${warna.name}-${ukuran}`;
-                                                const currentQty = variantSelection[key] || 0;
-
-                                                return (
-                                                    <div key={ukuran} className="flex items-center justify-between bg-gray-50 border border-gray-100 p-2 rounded-lg">
-                                                        <span className="font-black text-gray-700 text-[11px]">Size {ukuran}</span>
-                                                        
-                                                        <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleUpdateQuantityInModal(warna.name, ukuran, -1)}
-                                                                className="w-7 h-7 flex items-center justify-center font-bold text-gray-500 hover:bg-red-50 hover:text-red-500 border-r border-gray-200 transition"
-                                                            >
-                                                                -
-                                                            </button>
-                                                            <div className={`w-8 h-7 flex items-center justify-center font-black text-xs ${currentQty > 0 ? 'text-[#009664] bg-emerald-50/50' : 'text-gray-400'}`}>
-                                                                {currentQty}
-                                                            </div>
-                                                            <button 
-                                                                type="button"
-                                                                onClick={() => handleUpdateQuantityInModal(warna.name, ukuran, 1)}
-                                                                className="w-7 h-7 flex items-center justify-center font-bold text-gray-500 hover:bg-emerald-50 hover:text-[#009664] border-l border-gray-200 transition"
-                                                            >
-                                                                +
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
-                                        </div>
+                            {(() => {
+                            if (!selectedProduct.variants || selectedProduct.variants.length === 0) {
+                                return (
+                                    <div className="text-center py-10 text-gray-400 font-semibold text-xs">
+                                        Produk ini belum memiliki varian. Silakan atur varian di menu Produk.
                                     </div>
-                                ))}
-                            </div>
+                                );
+                            }
+
+                            const grouped = {};
+                            selectedProduct.variants.forEach(v => {
+                                const colorName = getColorName(v.color);
+                                if (!grouped[colorName]) grouped[colorName] = [];
+                                grouped[colorName].push(v);
+                            });
+
+                            return (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {Object.entries(grouped).map(([colorName, variants]) => (
+                                        <div key={colorName} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col space-y-3">
+                                            <div className="flex items-center space-x-3 border-b border-gray-100 pb-2">
+                                                <div className="w-12 h-12 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center font-bold text-[9px] text-gray-400 uppercase text-center flex-shrink-0">
+                                                    FOTO VARIAN
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-black text-gray-800 text-xs uppercase tracking-wide">{colorName}</h4>
+                                                    <p className="text-[10px] text-gray-400 font-semibold">Tentukan jumlah per-ukuran:</p>
+                                                </div>
+                                            </div>
+
+                                            <div className="space-y-2 pt-1">
+                                                {variants.map(v => {
+                                                    const key = `${colorName}-${v.size}`;
+                                                    const currentQty = variantSelection[key] || 0;
+                                                    const stok = v.stok_outlet || 0;
+
+                                                    return (
+                                                        <div key={v.size} className="flex items-center justify-between bg-gray-50 border border-gray-100 p-2 rounded-lg">
+                                                            <div>
+                                                                <span className="font-black text-gray-700 text-[11px]">Size {v.size}</span>
+                                                                <span className="text-[9px] text-gray-400 font-semibold ml-2">Stok: {stok} pcs</span>
+                                                            </div>
+                                                            
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleUpdateQuantityInModal(colorName, v.size, -1)}
+                                                                        className="w-7 h-7 flex items-center justify-center font-bold text-gray-500 hover:bg-red-50 hover:text-red-500 border-r border-gray-200 transition"
+                                                                    >
+                                                                        -
+                                                                    </button>
+                                                                    <div className={`w-8 h-7 flex items-center justify-center font-black text-xs ${currentQty > 0 ? 'text-[#009664] bg-emerald-50/50' : 'text-gray-400'}`}>
+                                                                        {currentQty}
+                                                                    </div>
+                                                                    <button 
+                                                                        type="button"
+                                                                        onClick={() => handleUpdateQuantityInModal(colorName, v.size, 1)}
+                                                                        disabled={currentQty >= stok}
+                                                                        className="w-7 h-7 flex items-center justify-center font-bold text-gray-500 hover:bg-emerald-50 hover:text-[#009664] border-l border-gray-200 transition disabled:opacity-30 disabled:cursor-not-allowed"
+                                                                    >
+                                                                        +
+                                                                    </button>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            );
+                        })()}
                         </div>
 
                         <div className="p-4 border-t border-gray-200 bg-white flex items-center justify-between flex-shrink-0">

@@ -9,6 +9,8 @@ use App\Models\Transaction;
 use App\Models\TransactionItem;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\OutletStock;
+use App\Models\StockMovement;
 use App\Models\CashRegisterShift;
 
 use Illuminate\Support\Facades\DB;
@@ -116,11 +118,37 @@ class TransactionController extends Controller
         'total_price' => $item['price'] * $item['quantity']
     ]);
 
-    // KURANGI STOCK VARIANT
-    ProductVariant::where('product_id', $item['product_id'])
-        ->where('color', $item['variant_color'])
-        ->where('size', $item['variant_size'])
-        ->decrement('stock', $item['quantity']);
+    // KURANGI STOCK OUTLET
+    $variant = ProductVariant::where('product_id', $item['product_id'])->get()->first(function ($v) use ($item) {
+        $color = is_array($v->color) ? ($v->color['nama'] ?? '') : $v->color;
+        return $color === ($item['variant_color'] ?? '') && $v->size === ($item['variant_size'] ?? '');
+    });
+
+    if ($variant) {
+        $outletStock = OutletStock::where('outlet_id', $transaction->outlet_id)
+            ->where('product_variant_id', $variant->id)
+            ->first();
+
+        if ($outletStock) {
+            $outletStock->decrement('stock', $item['quantity']);
+        } else {
+            OutletStock::create([
+                'outlet_id' => $transaction->outlet_id,
+                'product_variant_id' => $variant->id,
+                'stock' => -$item['quantity'],
+            ]);
+        }
+
+        StockMovement::create([
+            'product_variant_id' => $variant->id,
+            'outlet_id' => $transaction->outlet_id,
+            'type' => 'sale',
+            'reference_type' => 'transaction',
+            'reference_id' => $transaction->id,
+            'qty' => -$item['quantity'],
+            'user_id' => $user->id,
+        ]);
+    }
 }
 
             DB::commit();
@@ -161,12 +189,39 @@ class TransactionController extends Controller
                 ], 400);
             }
 
-            // KEMBALIKAN STOCK
+            // KEMBALIKAN STOCK OUTLET
+            $user = Auth::user();
             foreach ($transaction->items as $item) {
-    ProductVariant::where('product_id', $item->product_id)
-        ->where('color', $item->variant_color)
-        ->where('size', $item->variant_size)
-        ->increment('stock', $item->quantity);
+    $variant = ProductVariant::where('product_id', $item->product_id)->get()->first(function ($v) use ($item) {
+        $color = is_array($v->color) ? ($v->color['nama'] ?? '') : $v->color;
+        return $color === ($item->variant_color ?? '') && $v->size === ($item->variant_size ?? '');
+    });
+
+    if ($variant) {
+        $outletStock = OutletStock::where('outlet_id', $transaction->outlet_id)
+            ->where('product_variant_id', $variant->id)
+            ->first();
+
+        if ($outletStock) {
+            $outletStock->increment('stock', $item->quantity);
+        } else {
+            OutletStock::create([
+                'outlet_id' => $transaction->outlet_id,
+                'product_variant_id' => $variant->id,
+                'stock' => $item->quantity,
+            ]);
+        }
+
+        StockMovement::create([
+            'product_variant_id' => $variant->id,
+            'outlet_id' => $transaction->outlet_id,
+            'type' => 'void',
+            'reference_type' => 'transaction',
+            'reference_id' => $transaction->id,
+            'qty' => $item->quantity,
+            'user_id' => $user->id,
+        ]);
+    }
 }
 
             // UPDATE STATUS

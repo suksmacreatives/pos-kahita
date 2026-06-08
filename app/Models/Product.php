@@ -11,18 +11,17 @@ class Product extends Model
         'category_id',
         'name',
         'sku',
-        'barcode',
         'price',
         'cost_price',
-        'stock',
-        'min_stock',
-        'image',
         'description',
-        'is_active'
+        'image',
+        'sub_kategori',
+        'status',
+        'outlet_ids',
     ];
 
     protected $casts = [
-        'is_active' => 'boolean'
+        'outlet_ids' => 'array',
     ];
 
     public function outlet()
@@ -35,12 +34,8 @@ class Product extends Model
         return $this->belongsTo(ProductCategory::class, 'category_id');
     }
 
-    public function transactionItems()
-    {
-        return $this->hasMany(TransactionItem::class);
-    }
     public function variants()
-{
-    return $this->hasMany(ProductVariant::class);
-}
+    {
+        return $this->hasMany(ProductVariant::class);
+    }
 }
