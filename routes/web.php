@@ -84,6 +84,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
         // --- MENU 3: MASTER PRODUK ---
         Route::get('/admin/products', [ProductController::class, 'index'])->name('admin.products.index');
+        Route::get('/admin/products/create', [ProductController::class, 'create'])->name('admin.products.create');
         Route::post('/admin/products', [ProductController::class, 'store'])->name('admin.products.store');
         Route::patch('/admin/products/{product}', [ProductController::class, 'update'])->name('admin.products.update');
         Route::delete('/admin/products/{product}', [ProductController::class, 'destroy'])->name('admin.products.destroy');

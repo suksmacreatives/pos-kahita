@@ -1,5 +1,22 @@
-import React, { useState, useEffect, useRef } from "react";
-import { X, Plus, Trash2, Upload, Shirt } from "lucide-react";
+import React, { useEffect, useRef } from "react";
+import { useForm, usePage } from "@inertiajs/react";
+import { X, Plus, Trash2, Upload } from "lucide-react";
+
+const letterSizes = ["XS", "S", "M", "L", "XL", "XXL", "Free Size"];
+const numberSizes = ["36", "37", "38", "39", "40", "41", "42"];
+
+const abbr = (s) => (s || "").slice(0, 2).toUpperCase();
+const randomSuffix = () => Math.random().toString(36).slice(2, 5).toUpperCase();
+
+const generateSku = (kodeProduk, ukuran, warnaNama) => {
+  if (!kodeProduk) return "";
+  const a = abbr(warnaNama);
+  if (!ukuran) {
+    const prefix = kodeProduk.split("-")[0];
+    return `${prefix}-${a}-${randomSuffix()}`;
+  }
+  return `${kodeProduk}-${ukuran}-${a}`;
+};
 
 export default function ProductFormModal({
   isOpen,
@@ -9,190 +26,172 @@ export default function ProductFormModal({
   outlets = [],
   categories = [],
 }) {
+  const { errors } = usePage().props;
   const isEditMode = !!product;
-
-  const [namaProduk, setNamaProduk] = useState("");
-  const [kategori, setKategori] = useState("");
-  const [subKategori, setSubKategori] = useState("");
-  const [kodeProduk, setKodeProduk] = useState("");
-  const [deskripsi, setDeskripsi] = useState("");
-  const [hargaBeli, setHargaBeli] = useState("");
-  const [hargaJual, setHargaJual] = useState("");
-  const [status, setStatus] = useState("aktif");
-  const [varian, setVarian] = useState([]);
-  const [outletTersedia, setOutletTersedia] = useState([]);
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
   const fileInputRef = useRef(null);
 
+  const { data, setData, processing, reset } = useForm({
+    kode_produk: "",
+    nama_produk: "",
+    category_id: "",
+    sub_kategori: "",
+    deskripsi: "",
+    harga_beli: "",
+    harga_jual: "",
+    status: "aktif",
+    variants: [],
+    outlet_tersedia: [],
+    image: null,
+  });
+
+  const [imagePreview, setImagePreview] = React.useState(null);
+
   useEffect(() => {
+    if (!isOpen) return;
     if (isEditMode && product) {
-      setNamaProduk(product.nama_produk || "");
-      setKategori(product.kategori || "");
-      setSubKategori(product.sub_kategori || "");
-      setKodeProduk(product.kode_produk || "");
-      setDeskripsi(product.deskripsi || "");
-      setHargaBeli(product.harga_beli || "");
-      setHargaJual(product.harga_jual || "");
-      setStatus(product.status || "aktif");
-      setVarian(
-        product.varian
+      setData({
+        kode_produk: product.kode_produk || "",
+        nama_produk: product.nama_produk || "",
+        category_id: product.category_id || "",
+        sub_kategori: product.sub_kategori || "",
+        deskripsi: product.deskripsi || "",
+        harga_beli: product.harga_beli || "",
+        harga_jual: product.harga_jual || "",
+        status: product.status || "aktif",
+        variants: product.varian && product.varian.length > 0
           ? JSON.parse(JSON.stringify(product.varian))
           : [],
-      );
-      setOutletTersedia(
-        product.outlet_tersedia ? [...product.outlet_tersedia] : [],
-      );
-      setImageFile(null);
+        outlet_tersedia: product.outlet_tersedia ? [...product.outlet_tersedia] : [],
+        image: null,
+      });
       setImagePreview(product.image || null);
     } else {
-      setNamaProduk("");
-      setKodeProduk("KHT-" + String(Date.now()).slice(-4));
-      setKategori("");
-      setSubKategori("");
-      setDeskripsi("");
-      setHargaBeli("");
-      setHargaJual("");
-      setStatus("aktif");
-      setVarian([
-        {
-          ukuran: "M",
-          warna: { nama: "Hitam", hex: "#000000" },
-          stok: 10,
-          sku: "",
-        },
-      ]);
-      setOutletTersedia([]);
-      setImageFile(null);
+      const autoKode = "KHT-" + String(Date.now()).slice(-4);
+      reset();
+      setData("kode_produk", autoKode);
       setImagePreview(null);
     }
   }, [product, isOpen]);
 
-  const addVarianRow = () => {
-    const lastVarian = varian[varian.length - 1];
-    const size = lastVarian ? lastVarian.ukuran : "M";
-    const colorName = lastVarian ? lastVarian.warna.nama : "Hitam";
-    const colorHex = lastVarian ? lastVarian.warna.hex : "#000000";
+  const handleKodeProdukChange = (value) => {
+    setData("kode_produk", value);
+    const updated = data.variants.map((v) => ({
+      ...v,
+      sku: generateSku(value, v.ukuran, v.warna.nama),
+    }));
+    setData("variants", updated);
+  };
 
-    const cleanColorAbbr = colorName.slice(0, 2).toUpperCase();
-    const newSku = kodeProduk ? `${kodeProduk}-${size}-${cleanColorAbbr}` : "";
-
-    setVarian([
-      ...varian,
-      {
-        ukuran: size,
-        warna: { nama: colorName, hex: colorHex },
-        stok: 5,
-        sku: newSku,
-      },
+  const addEmptyVariant = () => {
+    setData("variants", [
+      ...data.variants,
+      { ukuran: null, warna: { nama: "Hitam", hex: "#000000" }, stok: 0, sku: generateSku(data.kode_produk, null, "Hitam") },
     ]);
   };
 
-  const updateVarianField = (index, field, value) => {
-    const updated = [...varian];
+  const addLetterVariant = () => {
+    const newSku = generateSku(data.kode_produk, "M", "Hitam");
+    setData("variants", [
+      ...data.variants,
+      { ukuran: "M", warna: { nama: "Hitam", hex: "#000000" }, stok: 0, sku: newSku },
+    ]);
+  };
+
+  const updateVariantField = (index, field, value) => {
+    const updated = [...data.variants];
     if (field === "warna_nama") {
       updated[index].warna.nama = value;
-      const cleanColorAbbr = value.slice(0, 2).toUpperCase();
-      updated[index].sku =
-        kodeProduk ? `${kodeProduk}-${updated[index].ukuran}-${cleanColorAbbr}` : "";
+      updated[index].sku = generateSku(data.kode_produk, updated[index].ukuran, value);
     } else if (field === "warna_hex") {
       updated[index].warna.hex = value;
     } else if (field === "ukuran") {
       updated[index].ukuran = value;
-      const cleanColorAbbr = updated[index].warna.nama
-        .slice(0, 2)
-        .toUpperCase();
-      updated[index].sku = kodeProduk ? `${kodeProduk}-${value}-${cleanColorAbbr}` : "";
+      updated[index].sku = generateSku(data.kode_produk, value, updated[index].warna.nama);
     } else {
       updated[index][field] = value;
     }
-    setVarian(updated);
+    setData("variants", updated);
   };
 
-  const removeVarianRow = (index) => {
-    setVarian(varian.filter((_, idx) => idx !== index));
+  const removeVariantRow = (index) => {
+    setData("variants", data.variants.filter((_, i) => i !== index));
   };
 
   const handleFileSelect = (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      setImageFile(file);
+      setData("image", file);
       setImagePreview(URL.createObjectURL(file));
     }
   };
 
   const handleRemoveImage = () => {
-    setImageFile(null);
+    setData("image", null);
     setImagePreview(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const handleOutletToggle = (outletId) => {
-    if (outletTersedia.includes(outletId)) {
-      setOutletTersedia(outletTersedia.filter((id) => id !== outletId));
-    } else {
-      setOutletTersedia([...outletTersedia, outletId]);
-    }
+    const updated = data.outlet_tersedia.includes(outletId)
+      ? data.outlet_tersedia.filter((id) => id !== outletId)
+      : [...data.outlet_tersedia, outletId];
+    setData("outlet_tersedia", updated);
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!namaProduk || !hargaBeli || !hargaJual) {
+    if (!data.nama_produk || !data.harga_beli || !data.harga_jual) {
       alert("Mohon lengkapi semua kolom wajib (*)");
       return;
     }
 
-    setIsSaving(true);
-
     const fd = new FormData();
-
     if (isEditMode) {
-      fd.append('_method', 'PATCH');
-      fd.append('id', String(product.id));
+      fd.append("_method", "PATCH");
+      fd.append("id", String(product.id));
     }
-    fd.append('kode_produk', kodeProduk);
-    fd.append('nama_produk', namaProduk);
-    fd.append('kategori', kategori);
-    fd.append('sub_kategori', subKategori);
-    fd.append('deskripsi', deskripsi);
-    fd.append('harga_beli', String(hargaBeli));
-    fd.append('harga_jual', String(hargaJual));
-    fd.append('status', status);
+    fd.append("kode_produk", data.kode_produk);
+    fd.append("nama_produk", data.nama_produk);
+    fd.append("category_id", String(data.category_id));
+    fd.append("sub_kategori", data.sub_kategori);
+    fd.append("deskripsi", data.deskripsi);
+    fd.append("harga_beli", String(data.harga_beli));
+    fd.append("harga_jual", String(data.harga_jual));
+    fd.append("status", data.status);
 
-    varian.forEach((v, i) => {
-      fd.append(`varian[${i}][ukuran]`, v.ukuran);
-      fd.append(`varian[${i}][warna][nama]`, v.warna.nama);
-      fd.append(`varian[${i}][warna][hex]`, v.warna.hex);
-      fd.append(`varian[${i}][stok]`, String(v.stok));
-      fd.append(`varian[${i}][sku]`, v.sku);
+    data.variants.forEach((v, i) => {
+      fd.append(`variants[${i}][ukuran]`, v.ukuran ?? "");
+      fd.append(`variants[${i}][warna][nama]`, v.warna.nama);
+      fd.append(`variants[${i}][warna][hex]`, v.warna.hex);
+      fd.append(`variants[${i}][stok]`, String(v.stok));
+      fd.append(`variants[${i}][sku]`, v.sku);
     });
 
-    outletTersedia.forEach((id) => {
-      fd.append('outlet_tersedia[]', id);
+    data.outlet_tersedia.forEach((id) => {
+      fd.append("outlet_tersedia[]", id);
     });
 
-    if (imageFile) {
-      fd.append('image', imageFile);
+    if (data.image) {
+      fd.append("image", data.image);
     }
 
     onSave(fd, isEditMode);
-    setIsSaving(false);
     onClose();
   };
 
-  const sizes = ["XS", "S", "M", "L", "XL", "XXL", "Free Size"];
-
   if (!isOpen) return null;
+
+  const fieldError = (field) => {
+    const msg = errors[field];
+    return msg ? <p className="text-[10px] text-red-500 mt-0.5 font-semibold">{msg}</p> : null;
+  };
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
       <div className="relative bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
           <h3 className="text-base font-extrabold text-gray-900">
-            {isEditMode
-              ? `Edit Produk: ${product.kode_produk}`
-              : "Tambah Produk Baru"}
+            {isEditMode ? `Edit Produk: ${product.kode_produk}` : "Tambah Produk Baru"}
           </h3>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors">
             <X className="w-4.5 h-4.5" />
@@ -209,22 +208,12 @@ export default function ProductFormModal({
                 className="border-2 border-dashed border-gray-200 hover:border-emerald-400 rounded-2xl p-4 flex flex-col items-center justify-center bg-slate-50/50 cursor-pointer transition-colors group"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  className="hidden"
-                  onChange={handleFileSelect}
-                />
+                <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileSelect} />
                 {imagePreview ? (
                   <div className="flex items-center gap-3">
-                    <img
-                      src={imagePreview}
-                      alt="Preview"
-                      className="w-14 h-16 object-cover rounded-xl border shadow-xs"
-                    />
+                    <img src={imagePreview} alt="Preview" className="w-14 h-16 object-cover rounded-xl border shadow-xs" />
                     <div className="text-left">
-                      <p className="text-[11px] font-bold text-slate-800">{imageFile?.name || 'Gambar produk'}</p>
+                      <p className="text-[11px] font-bold text-slate-800">{data.image?.name || "Gambar produk"}</p>
                       <p className="text-[9px] text-gray-400">Klik untuk ganti gambar</p>
                     </div>
                     <button type="button" onClick={(e) => { e.stopPropagation(); handleRemoveImage(); }} className="text-red-500 text-[10px] font-bold hover:underline">Hapus</button>
@@ -237,31 +226,40 @@ export default function ProductFormModal({
                   </>
                 )}
               </div>
+              {fieldError("image")}
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1">Kode Produk</label>
-              <input type="text" value={kodeProduk} onChange={(e) => setKodeProduk(e.target.value)} placeholder="KHT-XXXX"
+              <input type="text" value={data.kode_produk} onChange={(e) => handleKodeProdukChange(e.target.value)} placeholder="KHT-XXXX"
                 className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2 bg-slate-50" />
+              {fieldError("kode_produk")}
             </div>
 
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1">Nama Produk *</label>
-              <input type="text" required value={namaProduk} onChange={(e) => setNamaProduk(e.target.value)}
+              <input type="text" required value={data.nama_produk} onChange={(e) => setData("nama_produk", e.target.value)}
                 placeholder="Nama produk"
                 className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
+              {fieldError("nama_produk")}
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Kategori</label>
-                <input type="text" value={kategori} onChange={(e) => setKategori(e.target.value)}
-                  placeholder="Misal: Atasan"
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
+                <select value={data.category_id} onChange={(e) => setData("category_id", e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2 bg-white"
+                >
+                  <option value="">-- Pilih Kategori --</option>
+                  {categories.map((cat) => (
+                    <option key={cat.id} value={cat.id}>{cat.name}</option>
+                  ))}
+                </select>
+                {fieldError("category_id")}
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Sub-Kategori</label>
-                <input type="text" value={subKategori} onChange={(e) => setSubKategori(e.target.value)}
+                <input type="text" value={data.sub_kategori} onChange={(e) => setData("sub_kategori", e.target.value)}
                   placeholder="Misal: Kemeja"
                   className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
               </div>
@@ -269,7 +267,7 @@ export default function ProductFormModal({
 
             <div>
               <label className="block text-[11px] font-bold text-gray-700 mb-1">Deskripsi Produk</label>
-              <textarea value={deskripsi} onChange={(e) => setDeskripsi(e.target.value)}
+              <textarea value={data.deskripsi} onChange={(e) => setData("deskripsi", e.target.value)}
                 placeholder="Tuliskan keterangan detail mengenai bahan, ukuran pas, dll..." rows="3"
                 className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
             </div>
@@ -277,13 +275,15 @@ export default function ProductFormModal({
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Harga Beli (Rp) *</label>
-                <input type="number" required value={hargaBeli} onChange={(e) => setHargaBeli(e.target.value)} placeholder="100000"
+                <input type="number" required value={data.harga_beli} onChange={(e) => setData("harga_beli", e.target.value)} placeholder="100000"
                   className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
+                {fieldError("harga_beli")}
               </div>
               <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Harga Jual (Rp) *</label>
-                <input type="number" required value={hargaJual} onChange={(e) => setHargaJual(e.target.value)} placeholder="150000"
+                <input type="number" required value={data.harga_jual} onChange={(e) => setData("harga_jual", e.target.value)} placeholder="150000"
                   className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
+                {fieldError("harga_jual")}
               </div>
             </div>
 
@@ -292,13 +292,9 @@ export default function ProductFormModal({
                 <span className="block text-xs font-bold text-gray-800">Status Produk</span>
                 <span className="block text-[10px] text-gray-400">Aktifkan agar dapat dipilih di kasir POS</span>
               </div>
-              <button type="button" onClick={() => setStatus(status === "aktif" ? "nonaktif" : "aktif")}
-                className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${
-                  status === "aktif" ? "bg-emerald-500" : "bg-gray-300"
-                }`}>
-                <div className={`w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 ${
-                  status === "aktif" ? "translate-x-5.5" : "translate-x-0"
-                }`} />
+              <button type="button" onClick={() => setData("status", data.status === "aktif" ? "nonaktif" : "aktif")}
+                className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${data.status === "aktif" ? "bg-emerald-500" : "bg-gray-300"}`}>
+                <div className={`w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 ${data.status === "aktif" ? "translate-x-5.5" : "translate-x-0"}`} />
               </button>
             </div>
           </div>
@@ -306,13 +302,19 @@ export default function ProductFormModal({
           <div className="space-y-6 flex flex-col justify-between">
             <div className="space-y-4">
               <div className="flex items-center justify-between border-b pb-1.5">
-                <h4 className="text-xs font-bold text-gray-950 uppercase tracking-wider">Varian Produk</h4>
-                <button type="button" onClick={addVarianRow} className="flex items-center gap-1 text-[10px] font-bold text-emerald-600 hover:text-emerald-800 transition-colors">
-                  <Plus className="w-3.5 h-3.5" /> Tambah Varian
+                <h4 className="text-xs font-bold text-gray-950 uppercase tracking-wider">Varian & Stok</h4>
+              </div>
+
+              <div className="flex flex-wrap items-center gap-2">
+                <button type="button" onClick={addEmptyVariant} className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-[10px] font-bold text-gray-600 hover:bg-gray-50 transition-colors">
+                  <Plus className="w-3 h-3" /> Tambah Varian
+                </button>
+                <button type="button" onClick={addLetterVariant} className="flex items-center gap-1 px-3 py-1.5 border border-emerald-300 rounded-lg text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 transition-colors">
+                  <Plus className="w-3 h-3" /> Tambah Ukuran
                 </button>
               </div>
 
-              <div className="border border-gray-100 rounded-xl overflow-hidden shadow-2xs max-h-60 overflow-y-auto">
+              <div className="border border-gray-100 rounded-xl overflow-hidden shadow-2xs max-h-72 overflow-y-auto">
                 <table className="w-full text-[11px] text-left">
                   <thead className="bg-slate-50 text-gray-500 font-semibold sticky top-0">
                     <tr>
@@ -324,37 +326,47 @@ export default function ProductFormModal({
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 text-gray-700 bg-white">
-                    {varian.length === 0 ? (
+                    {data.variants.length === 0 ? (
                       <tr>
-                        <td colSpan="5" className="text-center py-6 text-gray-400 italic">Belum ada varian ditambahkan.</td>
+                        <td colSpan="5" className="text-center py-8 text-gray-400 italic text-xs">Belum ada data. Tambah varian atau ukuran di atas.</td>
                       </tr>
                     ) : (
-                      varian.map((row, index) => (
+                      data.variants.map((row, index) => (
                         <tr key={index} className="hover:bg-slate-50/50">
                           <td className="py-1 px-1.5">
-                            <select value={row.ukuran} onChange={(e) => updateVarianField(index, "ukuran", e.target.value)}
-                              className="block w-full p-1 border border-gray-200 rounded-md text-[11px] focus:outline-none">
-                              {sizes.map((sz) => (<option key={sz} value={sz}>{sz}</option>))}
-                            </select>
+                            {row.ukuran ? (
+                              <select value={row.ukuran} onChange={(e) => updateVariantField(index, "ukuran", e.target.value)}
+                                className="block w-full p-1 border border-gray-200 rounded-md text-[11px] focus:outline-none bg-white">
+                                <option value="">Pilih Ukuran</option>
+                                <optgroup label="─ Huruf ─">
+                                  {letterSizes.map((sz) => (<option key={sz} value={sz}>{sz}</option>))}
+                                </optgroup>
+                                <optgroup label="─ Angka ─">
+                                  {numberSizes.map((sz) => (<option key={sz} value={sz}>{sz}</option>))}
+                                </optgroup>
+                              </select>
+                            ) : (
+                              <span className="block text-center text-gray-300 font-bold text-xs px-2 py-1">—</span>
+                            )}  
                           </td>
                           <td className="py-1 px-1.5">
                             <div className="flex items-center gap-1">
-                              <input type="text" value={row.warna.nama} onChange={(e) => updateVarianField(index, "warna_nama", e.target.value)}
-                                placeholder="Merah" className="w-16 p-1 border border-gray-200 rounded-md text-[10px] focus:outline-none" />
-                              <input type="color" value={row.warna.hex} onChange={(e) => updateVarianField(index, "warna_hex", e.target.value)}
+                              <input type="text" value={row.warna.nama} onChange={(e) => updateVariantField(index, "warna_nama", e.target.value)}
+                                placeholder="Hitam" className="w-16 p-1 border border-gray-200 rounded-md text-[10px] focus:outline-none" />
+                              <input type="color" value={row.warna.hex} onChange={(e) => updateVariantField(index, "warna_hex", e.target.value)}
                                 className="w-5 h-5 rounded border border-gray-200 cursor-pointer p-0 shrink-0" />
                             </div>
                           </td>
                           <td className="py-1 px-1.5">
-                            <input type="number" value={row.stok} min="0" onChange={(e) => updateVarianField(index, "stok", Number(e.target.value))}
+                            <input type="number" value={row.stok} min="0" onChange={(e) => updateVariantField(index, "stok", Number(e.target.value))}
                               className="w-full p-1 border border-gray-200 rounded-md text-[11px] font-semibold text-center focus:outline-none" />
                           </td>
                           <td className="py-1 px-1.5">
-                            <input type="text" value={row.sku} onChange={(e) => updateVarianField(index, "sku", e.target.value)}
+                            <input type="text" value={row.sku} onChange={(e) => updateVariantField(index, "sku", e.target.value)}
                               placeholder="SKU" className="w-full p-1 border border-gray-200 rounded-md text-[10px] font-mono text-gray-400 focus:outline-none" />
                           </td>
                           <td className="py-1 px-1.5 text-center">
-                            <button type="button" onClick={() => removeVarianRow(index)}
+                            <button type="button" onClick={() => removeVariantRow(index)}
                               className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Hapus Baris">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -365,6 +377,7 @@ export default function ProductFormModal({
                   </tbody>
                 </table>
               </div>
+              {fieldError("variants")}
             </div>
 
             <div className="space-y-3">
@@ -372,7 +385,7 @@ export default function ProductFormModal({
               <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 border border-gray-100 rounded-2xl">
                 {outlets.map((out) => {
                   const outletId = String(out.id);
-                  const isChecked = outletTersedia.includes(outletId);
+                  const isChecked = data.outlet_tersedia.includes(outletId);
                   return (
                     <label key={out.id} className={`flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer text-xs font-medium transition-all ${
                       isChecked ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-white border-gray-200 text-gray-600 hover:bg-slate-50"
@@ -387,15 +400,16 @@ export default function ProductFormModal({
                   <p className="text-xs text-gray-400 col-span-2 text-center py-2">Tidak ada outlet tersedia</p>
                 )}
               </div>
+              {fieldError("outlet_tersedia")}
             </div>
           </div>
         </form>
 
         <div className="px-6 py-4 border-t border-gray-100 bg-slate-50/50 flex items-center justify-end gap-3">
           <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-slate-100 transition-colors cursor-pointer">Batal</button>
-          <button type="button" onClick={handleSubmit} disabled={isSaving}
+          <button type="button" onClick={handleSubmit} disabled={processing}
             className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer">
-            {isSaving ? (
+            {processing ? (
               <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Menyimpan...</>
             ) : "Simpan Produk"}
           </button>
