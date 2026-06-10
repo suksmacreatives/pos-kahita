@@ -142,12 +142,6 @@ export default function Sidebar({ isOpen, onClose }) {
             pattern: /^\/admin\/outlets/,
         },
         {
-            label: "Transactions",
-            icon: Receipt,
-            href: "/admin/transactions",
-            pattern: /^\/admin\/transactions/,
-        },
-        {
             label: "Reports",
             icon: BarChart3,
             children: [
