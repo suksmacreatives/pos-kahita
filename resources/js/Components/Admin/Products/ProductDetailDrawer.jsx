@@ -7,10 +7,9 @@ import ProductBadge from './ProductBadge';
 export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEdit, onToggleStatus, allOutlets = [] }) {
   const [activeColorTab, setActiveColorTab] = useState('');
 
-  // Auto-select first color tab when drawer opens/changes
   useEffect(() => {
     if (product && product.varian && product.varian.length > 0) {
-      setActiveColorTab(product.varian[0].warna.nama);
+      setActiveColorTab(product.varian[0].color_name || "");
     } else {
       setActiveColorTab('');
     }
@@ -21,15 +20,11 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
   const config = categoryConfig[product.kategori] || { bg: 'bg-gray-100 text-gray-500', icon: MapPin };
   const IconComponent = config.icon;
 
-  // Group variants by color
   const colorGroups = {};
   product.varian.forEach(v => {
-    const colName = v.warna.nama;
+    const colName = v.color_name || "Tanpa Warna";
     if (!colorGroups[colName]) {
-      colorGroups[colName] = {
-        hex: v.warna.hex,
-        items: []
-      };
+      colorGroups[colName] = { items: [] };
     }
     colorGroups[colName].items.push(v);
   });
@@ -118,7 +113,6 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
                 <div className="flex flex-wrap gap-1.5 border-b border-gray-100 pb-2">
                   {uniqueColors.map((colorName) => {
                     const isActive = activeColorTab === colorName;
-                    const hex = colorGroups[colorName].hex;
                     return (
                       <button
                         key={colorName}
@@ -129,10 +123,6 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
                             : 'bg-white text-gray-600 hover:bg-slate-50 border-gray-200'
                         }`}
                       >
-                        <span 
-                          className="w-2.5 h-2.5 rounded-full border border-gray-300 shadow-xs block" 
-                          style={{ backgroundColor: hex }}
-                        />
                         {colorName}
                       </button>
                     );
@@ -153,7 +143,7 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
                       <tbody className="divide-y divide-gray-50 text-gray-600">
                         {colorGroups[activeColorTab].items.map((item, idx) => (
                           <tr key={idx} className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 font-semibold text-gray-800">{item.ukuran}</td>
+                            <td className="py-2 px-3 font-semibold text-gray-800">{item.size_label || "—"}</td>
                             <td className="py-2 px-3 font-mono text-[10px] text-gray-400">{item.sku}</td>
                             <td className="py-2 px-3 text-right font-bold">
                               <span className={item.stok === 0 ? 'text-red-500' : item.stok < 5 ? 'text-amber-500' : 'text-gray-800'}>

@@ -1,22 +1,46 @@
-import React, { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm, usePage } from "@inertiajs/react";
-import { X, Plus, Trash2, Upload } from "lucide-react";
+import { X, Upload } from "lucide-react";
+import VariantManager from "./VariantManager";
 
-const letterSizes = ["XS", "S", "M", "L", "XL", "XXL", "Free Size"];
-const numberSizes = ["36", "37", "38", "39", "40", "41", "42"];
-
-const abbr = (s) => (s || "").slice(0, 2).toUpperCase();
-const randomSuffix = () => Math.random().toString(36).slice(2, 5).toUpperCase();
-
-const generateSku = (kodeProduk, ukuran, warnaNama) => {
-  if (!kodeProduk) return "";
-  const a = abbr(warnaNama);
-  if (!ukuran) {
-    const prefix = kodeProduk.split("-")[0];
-    return `${prefix}-${a}-${randomSuffix()}`;
+function convertProductVariants(varian) {
+  if (!varian || varian.length === 0) {
+    return { hasColor: false, hasSize: false, colors: [], sizes: [], variants: [] };
   }
-  return `${kodeProduk}-${ukuran}-${a}`;
-};
+
+  const colorNames = [...new Set(varian.map(v => v.color_name).filter(Boolean))];
+  const sizeLabels = [...new Set(varian.map(v => v.size_label).filter(Boolean))];
+
+  const genId = () => Math.random().toString(36).slice(2, 8);
+
+  const colors = colorNames.map(n => ({ id: `c_${genId()}`, nama: n }));
+  const sizes = sizeLabels.map(l => ({ id: `s_${genId()}`, label: l, standar: "Custom" }));
+
+  const colorMap = Object.fromEntries(colors.map(c => [c.nama, c.id]));
+  const sizeMap = Object.fromEntries(sizes.map(s => [s.label, s.id]));
+
+  const variants = varian.map(v => ({
+    id: `v_${v.color_name ? colorMap[v.color_name] : "null"}_${v.size_label ? sizeMap[v.size_label] : "null"}`,
+    color_id: v.color_name ? colorMap[v.color_name] : null,
+    color_nama: v.color_name || null,
+    size_id: v.size_label ? sizeMap[v.size_label] : null,
+    size_label: v.size_label || null,
+    size_standar: v.size_label ? "Custom" : null,
+    stok: v.stok ?? 0,
+    harga_jual: v.harga_jual ?? 0,
+    harga_beli: v.harga_beli ?? 0,
+    sku: v.sku || "",
+    aktif: true,
+  }));
+
+  return {
+    hasColor: colors.length > 0,
+    hasSize: sizes.length > 0,
+    colors,
+    sizes,
+    variants,
+  };
+}
 
 export default function ProductFormModal({
   isOpen,
@@ -29,22 +53,29 @@ export default function ProductFormModal({
   const { errors } = usePage().props;
   const isEditMode = !!product;
   const fileInputRef = useRef(null);
+  const initialVariantData = useRef(null);
 
   const { data, setData, processing, reset } = useForm({
     kode_produk: "",
     nama_produk: "",
     category_id: "",
-    sub_kategori: "",
+    // sub_kategori: "",
     deskripsi: "",
     harga_beli: "",
     harga_jual: "",
     status: "aktif",
-    variants: [],
     outlet_tersedia: [],
     image: null,
   });
 
-  const [imagePreview, setImagePreview] = React.useState(null);
+  const [imagePreview, setImagePreview] = useState(null);
+  const [variantData, setVariantData] = useState({
+    hasColor: false,
+    hasSize: false,
+    colors: [],
+    sizes: [],
+    variants: [],
+  });
 
   useEffect(() => {
     if (!isOpen) return;
@@ -53,97 +84,55 @@ export default function ProductFormModal({
         kode_produk: product.kode_produk || "",
         nama_produk: product.nama_produk || "",
         category_id: product.category_id || "",
-        sub_kategori: product.sub_kategori || "",
+        // sub_kategori: product.sub_kategori || "",
         deskripsi: product.deskripsi || "",
-        harga_beli: product.harga_beli || "",
-        harga_jual: product.harga_jual || "",
         status: product.status || "aktif",
-        variants: product.varian && product.varian.length > 0
-          ? JSON.parse(JSON.stringify(product.varian))
-          : [],
-        outlet_tersedia: product.outlet_tersedia ? [...product.outlet_tersedia] : [],
+        outlet_tersedia: product.outlet_tersedia ? product.outlet_tersedia.map(String) : [],
         image: null,
       });
       setImagePreview(product.image || null);
+
+      const converted = convertProductVariants(product.varian);
+      initialVariantData.current = converted;
+      setVariantData(converted);
     } else {
       const autoKode = "KHT-" + String(Date.now()).slice(-4);
       reset();
       setData("kode_produk", autoKode);
       setImagePreview(null);
+      const empty = { hasColor: false, hasSize: false, colors: [], sizes: [], variants: [] };
+      initialVariantData.current = empty;
+      setVariantData(empty);
     }
   }, [product, isOpen]);
 
-  const handleKodeProdukChange = (value) => {
-    setData("kode_produk", value);
-    const updated = data.variants.map((v) => ({
-      ...v,
-      sku: generateSku(value, v.ukuran, v.warna.nama),
-    }));
-    setData("variants", updated);
-  };
-
-  const addEmptyVariant = () => {
-    setData("variants", [
-      ...data.variants,
-      { ukuran: null, warna: { nama: "Hitam", hex: "#000000" }, stok: 0, sku: generateSku(data.kode_produk, null, "Hitam") },
-    ]);
-  };
-
-  const addLetterVariant = () => {
-    const newSku = generateSku(data.kode_produk, "M", "Hitam");
-    setData("variants", [
-      ...data.variants,
-      { ukuran: "M", warna: { nama: "Hitam", hex: "#000000" }, stok: 0, sku: newSku },
-    ]);
-  };
-
-  const updateVariantField = (index, field, value) => {
-    const updated = [...data.variants];
-    if (field === "warna_nama") {
-      updated[index].warna.nama = value;
-      updated[index].sku = generateSku(data.kode_produk, updated[index].ukuran, value);
-    } else if (field === "warna_hex") {
-      updated[index].warna.hex = value;
-    } else if (field === "ukuran") {
-      updated[index].ukuran = value;
-      updated[index].sku = generateSku(data.kode_produk, value, updated[index].warna.nama);
-    } else {
-      updated[index][field] = value;
+  useEffect(() => {
+    if (variantData.variants.length > 0) return;
+    if (!variantData.hasColor && !variantData.hasSize && data.kode_produk) {
+      const v = [{
+        id: "v_simple",
+        color_id: null, color_nama: null,
+        size_id: null, size_label: null, size_standar: null,
+        stok: 0,
+        harga_jual: 0,
+        harga_beli: 0,
+        sku: data.kode_produk || "",
+        aktif: true,
+      }];
+      setVariantData(prev => ({ ...prev, variants: v }));
     }
-    setData("variants", updated);
-  };
-
-  const removeVariantRow = (index) => {
-    setData("variants", data.variants.filter((_, i) => i !== index));
-  };
-
-  const handleFileSelect = (e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setData("image", file);
-      setImagePreview(URL.createObjectURL(file));
-    }
-  };
-
-  const handleRemoveImage = () => {
-    setData("image", null);
-    setImagePreview(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleOutletToggle = (outletId) => {
-    const updated = data.outlet_tersedia.includes(outletId)
-      ? data.outlet_tersedia.filter((id) => id !== outletId)
-      : [...data.outlet_tersedia, outletId];
-    setData("outlet_tersedia", updated);
-  };
+  }, [data.kode_produk]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!data.nama_produk || !data.harga_beli || !data.harga_jual) {
-      alert("Mohon lengkapi semua kolom wajib (*)");
+    if (!data.nama_produk) {
+      alert("Mohon lengkapi Nama Produk");
       return;
     }
+
+    const first = variantData.variants[0] || {};
+    const baseHargaBeli = first.harga_beli ?? 0;
+    const baseHargaJual = first.harga_jual ?? 0;
 
     const fd = new FormData();
     if (isEditMode) {
@@ -153,17 +142,18 @@ export default function ProductFormModal({
     fd.append("kode_produk", data.kode_produk);
     fd.append("nama_produk", data.nama_produk);
     fd.append("category_id", String(data.category_id));
-    fd.append("sub_kategori", data.sub_kategori);
+    // fd.append("sub_kategori", data.sub_kategori);
     fd.append("deskripsi", data.deskripsi);
-    fd.append("harga_beli", String(data.harga_beli));
-    fd.append("harga_jual", String(data.harga_jual));
+    fd.append("harga_beli", String(baseHargaBeli));
+    fd.append("harga_jual", String(baseHargaJual));
     fd.append("status", data.status);
 
-    data.variants.forEach((v, i) => {
-      fd.append(`variants[${i}][ukuran]`, v.ukuran ?? "");
-      fd.append(`variants[${i}][warna][nama]`, v.warna.nama);
-      fd.append(`variants[${i}][warna][hex]`, v.warna.hex);
+    variantData.variants.forEach((v, i) => {
+      fd.append(`variants[${i}][color_name]`, v.color_nama ?? "");
+      fd.append(`variants[${i}][size_label]`, v.size_label ?? "");
       fd.append(`variants[${i}][stok]`, String(v.stok));
+      fd.append(`variants[${i}][harga_jual]`, String(v.harga_jual));
+      fd.append(`variants[${i}][harga_beli]`, String(v.harga_beli));
       fd.append(`variants[${i}][sku]`, v.sku);
     });
 
@@ -208,7 +198,10 @@ export default function ProductFormModal({
                 className="border-2 border-dashed border-gray-200 hover:border-emerald-400 rounded-2xl p-4 flex flex-col items-center justify-center bg-slate-50/50 cursor-pointer transition-colors group"
                 onClick={() => fileInputRef.current?.click()}
               >
-                <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={handleFileSelect} />
+                <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) { setData("image", file); setImagePreview(URL.createObjectURL(file)); }
+                }} />
                 {imagePreview ? (
                   <div className="flex items-center gap-3">
                     <img src={imagePreview} alt="Preview" className="w-14 h-16 object-cover rounded-xl border shadow-xs" />
@@ -216,7 +209,7 @@ export default function ProductFormModal({
                       <p className="text-[11px] font-bold text-slate-800">{data.image?.name || "Gambar produk"}</p>
                       <p className="text-[9px] text-gray-400">Klik untuk ganti gambar</p>
                     </div>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); handleRemoveImage(); }} className="text-red-500 text-[10px] font-bold hover:underline">Hapus</button>
+                    <button type="button" onClick={(e) => { e.stopPropagation(); setData("image", null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-red-500 text-[10px] font-bold hover:underline">Hapus</button>
                   </div>
                 ) : (
                   <>
@@ -230,8 +223,15 @@ export default function ProductFormModal({
             </div>
 
             <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Kode Produk</label>
-              <input type="text" value={data.kode_produk} onChange={(e) => handleKodeProdukChange(e.target.value)} placeholder="KHT-XXXX"
+              <label className="block text-[11px] font-bold text-gray-700 mb-1">Kode Produk *</label>
+              <input type="text" value={data.kode_produk} onChange={(e) => {
+                setData("kode_produk", e.target.value);
+                const updated = variantData.variants.map(v => ({
+                  ...v,
+                  sku: generateSku(e.target.value, v.color_nama, v.size_label),
+                }));
+                setVariantData(prev => ({ ...prev, variants: updated }));
+              }} placeholder="KHT-XXXX"
                 className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2 bg-slate-50" />
               {fieldError("kode_produk")}
             </div>
@@ -257,12 +257,12 @@ export default function ProductFormModal({
                 </select>
                 {fieldError("category_id")}
               </div>
-              <div>
+              {/* <div>
                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Sub-Kategori</label>
                 <input type="text" value={data.sub_kategori} onChange={(e) => setData("sub_kategori", e.target.value)}
                   placeholder="Misal: Kemeja"
                   className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
-              </div>
+              </div> */}
             </div>
 
             <div>
@@ -272,20 +272,7 @@ export default function ProductFormModal({
                 className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Harga Beli (Rp) *</label>
-                <input type="number" required value={data.harga_beli} onChange={(e) => setData("harga_beli", e.target.value)} placeholder="100000"
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
-                {fieldError("harga_beli")}
-              </div>
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Harga Jual (Rp) *</label>
-                <input type="number" required value={data.harga_jual} onChange={(e) => setData("harga_jual", e.target.value)} placeholder="150000"
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
-                {fieldError("harga_jual")}
-              </div>
-            </div>
+
 
             <div className="flex items-center justify-between p-3 bg-slate-50 border border-gray-150 rounded-2xl">
               <div>
@@ -301,82 +288,13 @@ export default function ProductFormModal({
 
           <div className="space-y-6 flex flex-col justify-between">
             <div className="space-y-4">
-              <div className="flex items-center justify-between border-b pb-1.5">
-                <h4 className="text-xs font-bold text-gray-950 uppercase tracking-wider">Varian & Stok</h4>
-              </div>
-
-              <div className="flex flex-wrap items-center gap-2">
-                <button type="button" onClick={addEmptyVariant} className="flex items-center gap-1 px-3 py-1.5 border border-gray-300 rounded-lg text-[10px] font-bold text-gray-600 hover:bg-gray-50 transition-colors">
-                  <Plus className="w-3 h-3" /> Tambah Varian
-                </button>
-                <button type="button" onClick={addLetterVariant} className="flex items-center gap-1 px-3 py-1.5 border border-emerald-300 rounded-lg text-[10px] font-bold text-emerald-700 hover:bg-emerald-50 transition-colors">
-                  <Plus className="w-3 h-3" /> Tambah Ukuran
-                </button>
-              </div>
-
-              <div className="border border-gray-100 rounded-xl overflow-hidden shadow-2xs max-h-72 overflow-y-auto">
-                <table className="w-full text-[11px] text-left">
-                  <thead className="bg-slate-50 text-gray-500 font-semibold sticky top-0">
-                    <tr>
-                      <th className="py-2 px-2.5">Ukuran</th>
-                      <th className="py-2 px-2">Warna</th>
-                      <th className="py-2 px-2 w-16">Stok</th>
-                      <th className="py-2 px-2">SKU</th>
-                      <th className="py-2 px-2 text-center w-8">Aksi</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-50 text-gray-700 bg-white">
-                    {data.variants.length === 0 ? (
-                      <tr>
-                        <td colSpan="5" className="text-center py-8 text-gray-400 italic text-xs">Belum ada data. Tambah varian atau ukuran di atas.</td>
-                      </tr>
-                    ) : (
-                      data.variants.map((row, index) => (
-                        <tr key={index} className="hover:bg-slate-50/50">
-                          <td className="py-1 px-1.5">
-                            {row.ukuran ? (
-                              <select value={row.ukuran} onChange={(e) => updateVariantField(index, "ukuran", e.target.value)}
-                                className="block w-full p-1 border border-gray-200 rounded-md text-[11px] focus:outline-none bg-white">
-                                <option value="">Pilih Ukuran</option>
-                                <optgroup label="─ Huruf ─">
-                                  {letterSizes.map((sz) => (<option key={sz} value={sz}>{sz}</option>))}
-                                </optgroup>
-                                <optgroup label="─ Angka ─">
-                                  {numberSizes.map((sz) => (<option key={sz} value={sz}>{sz}</option>))}
-                                </optgroup>
-                              </select>
-                            ) : (
-                              <span className="block text-center text-gray-300 font-bold text-xs px-2 py-1">—</span>
-                            )}  
-                          </td>
-                          <td className="py-1 px-1.5">
-                            <div className="flex items-center gap-1">
-                              <input type="text" value={row.warna.nama} onChange={(e) => updateVariantField(index, "warna_nama", e.target.value)}
-                                placeholder="Hitam" className="w-16 p-1 border border-gray-200 rounded-md text-[10px] focus:outline-none" />
-                              <input type="color" value={row.warna.hex} onChange={(e) => updateVariantField(index, "warna_hex", e.target.value)}
-                                className="w-5 h-5 rounded border border-gray-200 cursor-pointer p-0 shrink-0" />
-                            </div>
-                          </td>
-                          <td className="py-1 px-1.5">
-                            <input type="number" value={row.stok} min="0" onChange={(e) => updateVariantField(index, "stok", Number(e.target.value))}
-                              className="w-full p-1 border border-gray-200 rounded-md text-[11px] font-semibold text-center focus:outline-none" />
-                          </td>
-                          <td className="py-1 px-1.5">
-                            <input type="text" value={row.sku} onChange={(e) => updateVariantField(index, "sku", e.target.value)}
-                              placeholder="SKU" className="w-full p-1 border border-gray-200 rounded-md text-[10px] font-mono text-gray-400 focus:outline-none" />
-                          </td>
-                          <td className="py-1 px-1.5 text-center">
-                            <button type="button" onClick={() => removeVariantRow(index)}
-                              className="p-1 text-red-500 hover:bg-red-50 rounded-md transition-colors" title="Hapus Baris">
-                              <Trash2 className="w-3.5 h-3.5" />
-                            </button>
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
-              </div>
+              <VariantManager
+                value={variantData}
+                onChange={setVariantData}
+                productCode={data.kode_produk}
+                hargaDefault={data.harga_jual}
+                hargaBeliDefault={data.harga_beli}
+              />
               {fieldError("variants")}
             </div>
 
@@ -390,7 +308,12 @@ export default function ProductFormModal({
                     <label key={out.id} className={`flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer text-xs font-medium transition-all ${
                       isChecked ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-white border-gray-200 text-gray-600 hover:bg-slate-50"
                     }`}>
-                      <input type="checkbox" checked={isChecked} onChange={() => handleOutletToggle(outletId)}
+                      <input type="checkbox" checked={isChecked} onChange={() => {
+                        const updated = data.outlet_tersedia.includes(outletId)
+                          ? data.outlet_tersedia.filter((id) => id !== outletId)
+                          : [...data.outlet_tersedia, outletId];
+                        setData("outlet_tersedia", updated);
+                      }}
                         className="rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 w-3.5 h-3.5" />
                       {out.name}
                     </label>
@@ -417,4 +340,13 @@ export default function ProductFormModal({
       </div>
     </div>
   );
+}
+
+function generateSku(productCode, colorName, sizeLabel) {
+  if (!productCode) return "";
+  const abbr = (s) => (s || "").slice(0, 2).toUpperCase();
+  const parts = [productCode];
+  if (colorName) parts.push(abbr(colorName));
+  if (sizeLabel) parts.push(sizeLabel);
+  return parts.join("-");
 }

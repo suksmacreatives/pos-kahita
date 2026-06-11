@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PosController;
 use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\POS\DashboardPosController;
 use App\Http\Controllers\ProductController;
 // Menambahkan import Controller Baru yang kita buat
@@ -72,9 +73,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:admin'])->group(function () {
         
         // --- MENU 1: DASHBOARD UTAMA ---
-        Route::get('/admin/dashboard', function () { 
-            return Inertia::render('Admin/Dashboard'); 
-        })->name('admin.dashboard.index');
+        Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard.index');
 
         // --- MENU 2: KELOLA STAF & AKUN ---
         Route::get('/admin/staff', [UserController::class, 'index'])->name('admin.staff.index');

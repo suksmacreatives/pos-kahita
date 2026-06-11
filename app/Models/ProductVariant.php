@@ -15,11 +15,12 @@ class ProductVariant extends Model
         'size',
         'stock',
         'sku',
-        'price_adjustment',
+        'price',
+        'cost_price',
     ];
 
     protected $casts = [
-        'color' => 'array',
+        'color' => 'string',
     ];
 
     public function product()

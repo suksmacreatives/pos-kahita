@@ -35,9 +35,11 @@ class ProductController extends Controller
 
         $mapped = $products->map(function ($p) use ($salesData) {
             $variants = $p->variants->map(fn ($v) => [
-                'ukuran' => in_array($v->size, ['', null], true) ? null : $v->size,
-                'warna' => is_string($v->color) ? json_decode($v->color, true) : ($v->color ?? ['nama' => '', 'hex' => '#000000']),
+                'color_name' => $v->color,
+                'size_label' => in_array($v->size, ['', null], true) ? null : $v->size,
                 'stok' => (int) $v->stock,
+                'harga_jual' => (int) ($v->price ?? $p->price),
+                'harga_beli' => (int) ($v->cost_price ?? $p->cost_price),
                 'sku' => $v->sku,
                 'stok_outlet' => $v->outletStocks->groupBy('outlet_id')->map(fn ($stocks) => $stocks->sum('stock')),
             ]);
@@ -90,11 +92,11 @@ class ProductController extends Controller
             'sub_kategori' => 'nullable|string',
             'status' => 'nullable|string|in:aktif,nonaktif',
             'variants' => 'nullable|array',
-            'variants.*.ukuran' => 'nullable|string',
-            'variants.*.warna' => 'nullable|array',
-            'variants.*.warna.nama' => 'nullable|string',
-            'variants.*.warna.hex' => 'nullable|string',
+            'variants.*.color_name' => 'nullable|string',
+            'variants.*.size_label' => 'nullable|string',
             'variants.*.stok' => 'nullable|integer|min:0',
+            'variants.*.harga_jual' => 'nullable|integer|min:0',
+            'variants.*.harga_beli' => 'nullable|integer|min:0',
             'variants.*.sku' => 'nullable|string',
             'outlet_tersedia' => 'nullable|array',
             'outlet_tersedia.*' => 'string',
@@ -125,11 +127,12 @@ class ProductController extends Controller
 
         if (!empty($validated['variants'])) {
             foreach ($validated['variants'] as $v) {
-                $size = $v['ukuran'] ?? null;
                 $variant = $product->variants()->create([
-                    'size' => $size !== '' ? $size : null,
-                    'color' => $v['warna'] ?? ['nama' => 'Universal', 'hex' => '#FFFFFF'],
+                    'color' => $v['color_name'] ?? null,
+                    'size' => $v['size_label'] ?? null,
                     'stock' => $v['stok'] ?? 0,
+                    'price' => $v['harga_jual'] ?? $validated['harga_jual'],
+                    'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
                     'sku' => $v['sku'] ?? $validated['kode_produk'] . '-ALL',
                 ]);
 
@@ -157,11 +160,11 @@ class ProductController extends Controller
             'sub_kategori' => 'nullable|string',
             'status' => 'nullable|string|in:aktif,nonaktif',
             'variants' => 'nullable|array',
-            'variants.*.ukuran' => 'nullable|string',
-            'variants.*.warna' => 'nullable|array',
-            'variants.*.warna.nama' => 'nullable|string',
-            'variants.*.warna.hex' => 'nullable|string',
+            'variants.*.color_name' => 'nullable|string',
+            'variants.*.size_label' => 'nullable|string',
             'variants.*.stok' => 'nullable|integer|min:0',
+            'variants.*.harga_jual' => 'nullable|integer|min:0',
+            'variants.*.harga_beli' => 'nullable|integer|min:0',
             'variants.*.sku' => 'nullable|string',
             'outlet_tersedia' => 'nullable|array',
             'outlet_tersedia.*' => 'string',
@@ -190,18 +193,18 @@ class ProductController extends Controller
         }
 
         $product->update($updateData);
-
         $product->outlets()->sync($outletTersedia);
 
         $product->variants()->delete();
 
         if (!empty($validated['variants'])) {
             foreach ($validated['variants'] as $v) {
-                $size = $v['ukuran'] ?? null;
                 $variant = $product->variants()->create([
-                    'size' => $size !== '' ? $size : null,
-                    'color' => $v['warna'] ?? ['nama' => 'Universal', 'hex' => '#FFFFFF'],
+                    'color' => $v['color_name'] ?? null,
+                    'size' => $v['size_label'] ?? null,
                     'stock' => $v['stok'] ?? 0,
+                    'price' => $v['harga_jual'] ?? $validated['harga_jual'],
+                    'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
                     'sku' => $v['sku'] ?? $validated['kode_produk'] . '-ALL',
                 ]);
 

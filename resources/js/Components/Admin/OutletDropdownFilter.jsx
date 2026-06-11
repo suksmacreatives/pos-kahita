@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { usePage } from '@inertiajs/react';
 import { useFilter } from '@/Context/FilterContext';
 import { Store, ChevronDown, Check } from 'lucide-react';
 
@@ -6,13 +7,12 @@ export default function OutletDropdownFilter() {
   const { outlet, setOutlet } = useFilter();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const { props } = usePage();
+  const outlets = props.outlets || [];
 
   const options = [
     { value: 'all', label: 'Semua Outlet' },
-    { value: 'denpasar', label: 'Outlet Denpasar' },
-    { value: 'jakarta', label: 'Outlet Jakarta' },
-    { value: 'bandung', label: 'Outlet Bandung' },
-    { value: 'surabaya', label: 'Outlet Surabaya' }
+    ...outlets.map(o => ({ value: String(o.id), label: o.name })),
   ];
 
   const currentOption = options.find(opt => opt.value === outlet) || options[0];

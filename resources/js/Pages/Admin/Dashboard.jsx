@@ -1,18 +1,7 @@
-import React, { useMemo } from 'react';
+import React, { useEffect } from 'react';
+import { router } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useFilter } from '@/Context/FilterContext';
-import { 
-  warehouseStats, 
-  outletStats, 
-  stockMovementData, 
-  salesTrendData, 
-  incomingGoods, 
-  outgoingGoods, 
-  activityLog, 
-  lowStockItems, 
-  outletPerformance, 
-  topProducts 
-} from '@/data/dummyData';
 
 import StatCard from '@/Components/Admin/StatCard';
 import ChartCard from '@/Components/Admin/ChartCard';
@@ -38,10 +27,20 @@ import {
   RefreshCw
 } from 'lucide-react';
 
-export default function Dashboard() {
+export default function Dashboard({ dashboard }) {
   const { outlet, period } = useFilter();
 
-  // 1. Format Helpers
+  const d = dashboard || {};
+  const filteredStats = d.stats || {};
+  const filteredSalesTrend = d.salesTrend || [];
+  const filteredStockMovement = d.stockMovement || [];
+  const filteredIncomingGoods = d.incomingGoods || [];
+  const filteredOutgoingGoods = d.outgoingGoods || [];
+  const filteredActivities = d.activities || [];
+  const filteredLowStock = d.lowStockItems || [];
+  const filteredTopProducts = d.topProducts || [];
+  const filteredPerformanceList = d.outletPerformance || [];
+
   const formatIDR = (num) => {
     return new Intl.NumberFormat('id-ID', {
       style: 'currency',
@@ -55,57 +54,16 @@ export default function Dashboard() {
     return new Intl.NumberFormat('id-ID').format(num);
   };
 
-  // 2. Client-side state filtering & aggregation using useMemo
-  const filteredStats = useMemo(() => {
-    const oStats = outletStats[outlet]?.[period] || outletStats.all[period];
-    const wStats = warehouseStats[outlet]?.[period] || warehouseStats.all[period];
-    return { ...oStats, ...wStats };
-  }, [outlet, period]);
-
-  const filteredSalesTrend = useMemo(() => {
-    return salesTrendData[outlet]?.[period] || salesTrendData.all[period];
-  }, [outlet, period]);
-
-  const filteredStockMovement = useMemo(() => {
-    return stockMovementData[outlet]?.[period] || stockMovementData.all[period];
-  }, [outlet, period]);
-
-  const filteredIncomingGoods = useMemo(() => {
-    if (outlet === 'all') return incomingGoods.slice(0, 5);
-    return incomingGoods.filter(item => item.outlet === outlet).slice(0, 5);
-  }, [outlet]);
-
-  const filteredOutgoingGoods = useMemo(() => {
-    if (outlet === 'all') return outgoingGoods.slice(0, 5);
-    return outgoingGoods.filter(item => item.outlet === outlet).slice(0, 5);
-  }, [outlet]);
-
-  const filteredActivities = useMemo(() => {
-    if (outlet === 'all') return activityLog;
-    return activityLog.filter(act => act.outlet === outlet || act.outlet === 'all');
-  }, [outlet]);
-
-  const filteredLowStock = useMemo(() => {
-    if (outlet === 'all') return lowStockItems.slice(0, 4);
-    return lowStockItems.filter(item => item.outlet === outlet).slice(0, 4);
-  }, [outlet]);
-
-  // BUGFIX DI SINI: Menambahkan penanganan kondisi outlet === 'all'
-  const filteredTopProducts = useMemo(() => {
-    if (outlet === 'all') {
-      return topProducts.filter(item => item.period === period);
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('outlet') !== outlet || params.get('period') !== period) {
+      router.get(`/admin/dashboard`, { outlet, period }, {
+        preserveState: true,
+        preserveScroll: true,
+        replace: true,
+        only: ['dashboard'],
+      });
     }
-    return topProducts.filter(item => item.outlet === outlet && item.period === period);
-  }, [outlet, period]);
-
-  const filteredPerformanceList = useMemo(() => {
-    if (outlet === 'all') {
-      return outletPerformance[period] || [];
-    }
-    const matched = outletPerformance[period]?.find(item =>
-      item.name.toLowerCase().includes(outlet.toLowerCase())
-    );
-    return matched ? [matched] : [];
   }, [outlet, period]);
 
   // 3. Custom Chart Tooltip styling
@@ -298,7 +256,7 @@ export default function Dashboard() {
                         </td>
                       </tr>
                     ) : (
-                      filteredTopProducts.slice(0, 5).map((prod) => (
+                      filteredTopProducts.map((prod) => (
                         <tr key={prod.id} className="hover:bg-gray-50/30 transition-colors">
                           <td className="py-3 text-xs">
                             <p className="font-bold text-gray-800 leading-none">{prod.name}</p>

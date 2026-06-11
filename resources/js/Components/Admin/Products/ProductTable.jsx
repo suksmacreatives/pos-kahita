@@ -64,8 +64,8 @@ export default function ProductTable({
 
     const getVariantSummary = (varian) => {
         if (!varian || varian.length === 0) return "Tidak ada varian";
-        const sizes = [...new Set(varian.map((v) => v.ukuran))];
-        const colors = [...new Set(varian.map((v) => v.warna.nama))];
+        const sizes = [...new Set(varian.map((v) => v.size_label).filter(Boolean))];
+        const colors = [...new Set(varian.map((v) => v.color_name).filter(Boolean))];
         return `${sizes.length} Ukuran · ${colors.length} Warna`;
     };
 

@@ -131,11 +131,13 @@ export default function Products({ products: initialProducts, outlets, categorie
     const prod = products.find(p => p.id === productId);
     if (!prod) return;
     const nextStatus = prod.status === 'aktif' ? 'nonaktif' : 'aktif';
-    router.patch(`/admin/products/${productId}`, { 
-      ...prod,
-      status: nextStatus,
-      varian: prod.varian,
+    router.patch(`/admin/products/${productId}`, {
+      nama_produk: prod.nama_produk,
+      kode_produk: prod.kode_produk,
+      harga_jual: prod.harga_jual,
+      harga_beli: prod.harga_beli,
       outlet_tersedia: prod.outlet_tersedia,
+      status: nextStatus,
     }, {
       preserveScroll: true,
       onSuccess: () => showToast(`Status produk dirubah menjadi ${nextStatus}`),

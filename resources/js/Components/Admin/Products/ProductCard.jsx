@@ -21,7 +21,7 @@ export default function ProductCard({ product, onOpenDrawer, onOpenEdit, onDelet
 
   const getVariantSizes = () => {
     if (!product.varian || product.varian.length === 0) return 'T/A';
-    const sizes = [...new Set(product.varian.map(v => v.ukuran))];
+    const sizes = [...new Set(product.varian.map(v => v.size_label).filter(Boolean))];
     return sizes.join(', ');
   };
 
