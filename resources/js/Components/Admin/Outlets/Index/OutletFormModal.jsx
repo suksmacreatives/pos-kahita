@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save, MapPin, Phone, Mail, User, Store } from 'lucide-react';
 
 export default function OutletFormModal({ isOpen, onClose, onSave }) {
@@ -46,8 +47,11 @@ export default function OutletFormModal({ isOpen, onClose, onSave }) {
 
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col">
         <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
           <h2 className="text-xl font-bold text-gray-900">Tambah Outlet Baru</h2>
@@ -126,6 +130,10 @@ export default function OutletFormModal({ isOpen, onClose, onSave }) {
           </div>
         </form>
       </div>
-    </div>
+        </div>
+      </div>
+    </>
+    , document.body
   );
 }
+

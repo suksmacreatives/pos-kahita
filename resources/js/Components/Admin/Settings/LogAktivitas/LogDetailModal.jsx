@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Globe, Monitor, MapPin, Hash, User, Activity } from 'lucide-react';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
@@ -49,8 +50,11 @@ export default function LogDetailModal({ isOpen, data, onClose }) {
         );
     };
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+    return createPortal(
+        <>
+            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+                <div className="min-h-full flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
                 <div className="p-5 border-b border-gray-100 flex items-start justify-between bg-white z-10 shrink-0">
                     <div>
@@ -138,6 +142,10 @@ export default function LogDetailModal({ isOpen, data, onClose }) {
                     </button>
                 </div>
             </div>
-        </div>
+                </div>
+            </div>
+        </>
+        , document.body
     );
 }
+

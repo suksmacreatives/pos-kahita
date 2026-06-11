@@ -81,6 +81,9 @@ class OutletInventoryController extends Controller
 
     public function konfirmasiTerima(KonfirmasiTerimaRequest $request, DistributionOrder $distributionOrder)
     {
+        $user = $request->user();
+        abort_if($user->outlet_id && $distributionOrder->outlet_id !== $user->outlet_id, 403);
+
         try {
             $this->inventoriOutlet->konfirmasiTerima(
                 $distributionOrder->id,
@@ -110,9 +113,16 @@ class OutletInventoryController extends Controller
         }
     }
 
-    public function konfirmasiTerimaTransfer(int $id)
+    public function konfirmasiTerimaTransfer(Request $request, int $id)
     {
+        $user = $request->user();
+
         try {
+            if ($user->outlet_id) {
+                $transfer = \App\Models\OutletTransfer::findOrFail($id);
+                abort_if($transfer->outlet_tujuan_id !== $user->outlet_id, 403);
+            }
+
             $this->transferService->confirmReceive($id);
             return redirect()->back()->with('success', 'Transfer berhasil dikonfirmasi diterima.');
         } catch (\App\Exceptions\InsufficientStockException $e) {
@@ -123,9 +133,16 @@ class OutletInventoryController extends Controller
         }
     }
 
-    public function cancelTransfer(int $id)
+    public function cancelTransfer(Request $request, int $id)
     {
+        $user = $request->user();
+
         try {
+            if ($user->outlet_id) {
+                $transfer = \App\Models\OutletTransfer::findOrFail($id);
+                abort_if($transfer->outlet_asal_id !== $user->outlet_id, 403);
+            }
+
             $this->transferService->cancelTransfer($id);
             return redirect()->back()->with('success', 'Transfer berhasil dibatalkan.');
         } catch (\App\Exceptions\InsufficientStockException $e) {
@@ -149,9 +166,16 @@ class OutletInventoryController extends Controller
         }
     }
 
-    public function cancelRetur(int $id)
+    public function cancelRetur(Request $request, int $id)
     {
+        $user = $request->user();
+
         try {
+            if ($user->outlet_id) {
+                $retur = \App\Models\OutletReturn::findOrFail($id);
+                abort_if($retur->outlet_id !== $user->outlet_id, 403);
+            }
+
             $this->returService->cancelRetur($id);
             return redirect()->back()->with('success', 'Retur berhasil dibatalkan.');
         } catch (\App\Exceptions\InsufficientStockException $e) {
@@ -193,7 +217,7 @@ class OutletInventoryController extends Controller
                         'total_item' => $snapshot['total_item'],
                         'total_selisih_plus' => 0,
                         'total_selisih_minus' => 0,
-                        'dilakukan_oleh' => $petugas ?? '',
+                        'dilakukan_oleh' => $request->input('petugas'),
                     ],
                 ],
             ]);
@@ -208,7 +232,14 @@ class OutletInventoryController extends Controller
 
     public function submitOpname(SubmitOpnameOutletRequest $request, int $id)
     {
+        $user = $request->user();
+
         try {
+            if ($user->outlet_id) {
+                $opname = \App\Models\StockOpname::findOrFail($id);
+                abort_if($opname->outlet_id !== $user->outlet_id, 403);
+            }
+
             $this->opnameService->finishOpname($id, $request->input('items'));
             return redirect()->back()->with('success', 'Stock opname berhasil diselesaikan.');
         } catch (\App\Exceptions\InsufficientStockException $e) {

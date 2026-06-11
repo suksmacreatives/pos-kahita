@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Search } from "lucide-react";
 export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouseProducts = [] }) {
   const [supplierNama, setSupplierNama] = useState("");
@@ -57,8 +58,11 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouse
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4" onClick={onClose}>
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div>
@@ -137,6 +141,10 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouse
           )}
         </form>
       </div>
-    </div>
+        </div>
+      </div>
+    </>
+    , document.body
   );
 }
+

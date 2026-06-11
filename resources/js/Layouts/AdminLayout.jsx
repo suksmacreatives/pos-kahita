@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
+import { usePage } from '@inertiajs/react';
 import Sidebar from '@/Components/Admin/Sidebar';
 import Topbar from '@/Components/Admin/Topbar';
 import { FilterProvider } from '@/Context/FilterContext';
 
 export default function AdminLayout({ children }) {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+  const { auth } = usePage().props;
+  const initialOutlet = auth?.user?.outlet_id || null;
 
   return (
-    <FilterProvider>
+    <FilterProvider initialOutlet={initialOutlet}>
       <div className="min-h-screen bg-[#F8FAFC] text-gray-900 flex font-sans antialiased">
         {/* Desktop Sidebar & Mobile Sidebar Wrapper */}
         <Sidebar 

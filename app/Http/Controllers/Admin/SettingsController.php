@@ -28,13 +28,19 @@ class SettingsController extends Controller
 
         $data = [
             'tab' => $tab,
-            'outlet_list' => Outlet::aktif()->get(['id', 'name', 'slug']),
+            'outlet_list' => $request->user()->outlet_id
+                ? Outlet::aktif()->where('id', $request->user()->outlet_id)->get(['id', 'name', 'slug'])
+                : Outlet::aktif()->get(['id', 'name', 'slug']),
             'roles' => $this->akunService->getRoles(),
             'permissions' => $this->akunService->getPermissions(),
         ];
 
         if ($tab === 'kelola_akun') {
-            $result = $this->akunService->getAll($request->only(['search', 'role', 'status']));
+            $params = $request->only(['search', 'role', 'status']);
+            if ($request->user()->outlet_id) {
+                $params['outlet_id'] = $request->user()->outlet_id;
+            }
+            $result = $this->akunService->getAll($params);
             $data['accounts'] = $result['accounts'];
             $data['akun_stats'] = $result['akun_stats'];
         }
@@ -58,7 +64,12 @@ class SettingsController extends Controller
 
     public function storeAkun(StoreAkunRequest $request)
     {
-        $user = $this->akunService->create($request->validated());
+        $data = $request->validated();
+        if ($request->user()->outlet_id) {
+            $data['outlet_id'] = $request->user()->outlet_id;
+        }
+
+        $user = $this->akunService->create($data);
 
         $this->logService->log(
             userId: $request->user()->id,
@@ -75,6 +86,10 @@ class SettingsController extends Controller
     {
         $user = $this->akunService->update($id, $request->validated());
 
+        if ($request->user()->outlet_id) {
+            abort_if($user->outlet_id !== $request->user()->outlet_id, 403);
+        }
+
         $this->logService->log(
             userId: $request->user()->id,
             aksi: 'EDIT',
@@ -89,6 +104,11 @@ class SettingsController extends Controller
 
     public function toggleStatusAkun(int $id, Request $request)
     {
+        $user = \App\Models\User::findOrFail($id);
+        if ($request->user()->outlet_id) {
+            abort_if($user->outlet_id !== $request->user()->outlet_id, 403);
+        }
+
         $user = $this->akunService->toggleStatus($id);
 
         $this->logService->log(
@@ -105,6 +125,11 @@ class SettingsController extends Controller
 
     public function suspendAkun(int $id, Request $request)
     {
+        $user = \App\Models\User::findOrFail($id);
+        if ($request->user()->outlet_id) {
+            abort_if($user->outlet_id !== $request->user()->outlet_id, 403);
+        }
+
         $user = $this->akunService->suspend($id);
 
         $this->logService->log(
@@ -122,7 +147,14 @@ class SettingsController extends Controller
     public function destroyAkun(int $id, Request $request)
     {
         $user = \App\Models\User::find($id);
-        $name = $user?->name;
+        if (!$user) {
+            return back()->with('error', 'Akun tidak ditemukan');
+        }
+        if ($request->user()->outlet_id) {
+            abort_if($user->outlet_id !== $request->user()->outlet_id, 403);
+        }
+
+        $name = $user->name;
         $this->akunService->delete($id);
 
         if ($name) {
@@ -139,6 +171,11 @@ class SettingsController extends Controller
 
     public function resetPasswordAkun(int $id, Request $request)
     {
+        $user = \App\Models\User::findOrFail($id);
+        if ($request->user()->outlet_id) {
+            abort_if($user->outlet_id !== $request->user()->outlet_id, 403);
+        }
+
         $password = $this->akunService->resetPassword($id);
         $user = \App\Models\User::find($id);
 

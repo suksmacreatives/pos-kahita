@@ -1,4 +1,5 @@
-﻿import React, { useState, useMemo } from "react";
+import React, { useState, useMemo } from "react";
+import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, Search, AlertTriangle } from "lucide-react";
 export default function FormDistribusiModal({ open, onClose, onSubmit, outlets = [], warehouseProducts = [] }) {
   const [outletId, setOutletId] = useState("");
@@ -58,8 +59,11 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4" onClick={onClose}>
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div><h3 className="text-sm font-bold text-gray-800">Tambah Distribusi ke Outlet</h3><p className="text-[10px] text-gray-400">Catat pengiriman barang ke outlet</p></div>
@@ -117,7 +121,7 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
                   <div key={idx} className={`flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-xl border ${overStock ? 'border-rose-300 bg-rose-50' : 'border-gray-200'}`}>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-semibold text-gray-800 truncate">{it.nama}</p>
-                      <p className="text-[10px] text-gray-400 font-mono">{it.kode} • Stok tersedia: <strong className="text-gray-700">{it.stokTersedia}</strong></p>
+                      <p className="text-[10px] text-gray-400 font-mono">{it.kode} � Stok tersedia: <strong className="text-gray-700">{it.stokTersedia}</strong></p>
                     </div>
                     <select className="w-14 px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-emerald-500" value={it.ukuran} onChange={e => updateItem(idx, "ukuran", e.target.value)}>
                       {it.varianOptions.map(v => <option key={v.ukuran} value={v.ukuran}>{v.ukuran}</option>)}
@@ -143,6 +147,10 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
           )}
         </form>
       </div>
-    </div>
+        </div>
+      </div>
+    </>
+    , document.body
   );
 }
+

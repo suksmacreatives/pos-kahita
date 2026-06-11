@@ -83,7 +83,9 @@ class ReportsController extends Controller
             default => [],
         };
 
-        $outlets = Outlet::aktif()->get(['id', 'slug', 'name', 'warna']);
+        $outlets = $request->user()->outlet_id
+            ? Outlet::aktif()->where('id', $request->user()->outlet_id)->get(['id', 'slug', 'name', 'warna'])
+            : Outlet::aktif()->get(['id', 'slug', 'name', 'warna']);
 
         return Inertia::render('Admin/Reports', [
             'data'         => $data,
@@ -110,6 +112,10 @@ class ReportsController extends Controller
         $dari   = Carbon::parse($request->input('dari', now()->startOfMonth()->format('Y-m-d')));
         $sampai = Carbon::parse($request->input('sampai', now()->format('Y-m-d')));
         $outlet = $request->input('outlet', 'all');
+        if ($request->user()->outlet_id) {
+            $userOutlet = Outlet::find($request->user()->outlet_id);
+            $outlet = $userOutlet?->slug ?? $outlet;
+        }
 
         $data = match ($kategori) {
             'penjualan' => app(PenjualanReportService::class, compact('dari', 'sampai', 'outlet'))->all(),

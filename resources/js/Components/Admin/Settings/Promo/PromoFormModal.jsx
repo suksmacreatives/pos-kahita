@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Percent, DollarSign, PackagePlus, Package } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -73,8 +74,11 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave }) 
 
     if (!isOpen) return null;
 
-    return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/50 backdrop-blur-sm animate-in fade-in duration-200">
+    return createPortal(
+        <>
+            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+                <div className="min-h-full flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10 shrink-0">
                     <h2 className="text-xl font-bold text-gray-900">
@@ -264,6 +268,10 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave }) 
                     </div>
                 </form>
             </div>
-        </div>
+                </div>
+            </div>
+        </>
+        , document.body
     );
 }
+

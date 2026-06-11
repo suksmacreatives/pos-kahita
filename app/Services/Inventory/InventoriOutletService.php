@@ -29,7 +29,6 @@ class InventoriOutletService
         $result = [];
         foreach ($outlets as $outlet) {
             $products = Product::whereJsonContains('outlet_ids', (string) $outlet->id)
-                ->orWhere('outlet_id', $outlet->id)
                 ->with(['variants', 'category'])
                 ->get();
 
@@ -41,8 +40,9 @@ class InventoriOutletService
                 $variants = $p->variants->map(function ($v) use ($stokPerVariant) {
                     $stok = $stokPerVariant->get($v->id);
                     return [
+                        'id' => $v->id,
                         'ukuran' => $v->size ?? '',
-                        'warna' => is_array($v->color) ? ($v->color['hex'] ?? '#000000') : ($v->color ?? '#000000'),
+                        'warna' => $v->color ?? '',
                         'stok' => (int) ($stok?->stock ?? 0),
                         'sku' => $v->sku,
                     ];
@@ -79,7 +79,6 @@ class InventoriOutletService
         $result = [];
         foreach ($outlets as $outlet) {
             $products = Product::whereJsonContains('outlet_ids', (string) $outlet->id)
-                ->orWhere('outlet_id', $outlet->id)
                 ->with('variants')
                 ->get();
 
@@ -299,8 +298,8 @@ class InventoriOutletService
     private function getFirstVariantColor($variants): string
     {
         $first = $variants->first();
-        if (!$first) return '#000000';
-        return is_array($first->color) ? ($first->color['hex'] ?? '#000000') : ($first->color ?? '#000000');
+        if (!$first) return '';
+        return $first->color ?? '';
     }
 
     private function mapPenerimaanStatus(string $status): string

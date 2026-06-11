@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, AlertTriangle, CheckCircle, Info } from 'lucide-react';
 
 export default function KonfirmasiTerimaModal({ isOpen, onClose, data, onConfirm }) {
@@ -83,8 +84,11 @@ export default function KonfirmasiTerimaModal({ isOpen, onClose, data, onConfirm
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300">
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
       <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100 max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
@@ -215,6 +219,10 @@ export default function KonfirmasiTerimaModal({ isOpen, onClose, data, onConfirm
           </button>
         </div>
       </div>
-    </div>
+        </div>
+      </div>
+    </>
+    , document.body
   );
 }
+

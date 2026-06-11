@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Save } from 'lucide-react';
 import { router } from '@inertiajs/react';
 import KasirAvatar from '../Shared/KasirAvatar';
@@ -45,12 +46,15 @@ export default function ShiftFormModal({ isOpen, onClose, outletId = null, kasir
 
     const activeKasir = availableKasirs.find(k => k.id === selectedKasir);
 
-    return (
-        <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-200">
-            <div className="bg-white rounded-2xl w-full max-w-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
-                    <h3 className="font-extrabold text-gray-900">
-                        Atur Jadwal Shift
+    return createPortal(
+        <>
+            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+            <div className="fixed inset-0 z-50 overflow-y-auto">
+                <div className="min-h-full flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl w-full max-w-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+                        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+                            <h3 className="font-extrabold text-gray-900">
+                                Atur Jadwal Shift
                     </h3>
                     <button 
                         onClick={onClose} 
@@ -159,7 +163,11 @@ export default function ShiftFormModal({ isOpen, onClose, outletId = null, kasir
                     </div>
 
                 </form>
+                    </div>
+                </div>
             </div>
-        </div>
+        </>
+        , document.body
     );
 }
+

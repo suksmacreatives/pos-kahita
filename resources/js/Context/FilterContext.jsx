@@ -1,12 +1,17 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 
 // Create Filter Context
 const FilterContext = createContext();
 
 // Provider Component
-export function FilterProvider({ children }) {
-  const [outlet, setOutlet] = useState('all');
-  const [period, setPeriod] = useState('monthly'); // Default to monthly for better initial metrics
+export function FilterProvider({ children, initialOutlet = null }) {
+  const [outlet, setOutletState] = useState(initialOutlet || 'all');
+  const [period, setPeriod] = useState('monthly');
+
+  const setOutlet = useCallback((val) => {
+    if (initialOutlet) return;
+    setOutletState(val);
+  }, [initialOutlet]);
 
   return (
     <FilterContext.Provider value={{ outlet, setOutlet, period, setPeriod }}>

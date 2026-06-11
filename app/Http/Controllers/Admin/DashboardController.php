@@ -25,6 +25,11 @@ class DashboardController extends Controller
     public function index(Request $request)
     {
         $outlet = $request->query('outlet', 'all');
+        if ($request->user()->outlet_id) {
+            $userOutlet = Outlet::find($request->user()->outlet_id);
+            $outlet = $userOutlet?->slug ?? $outlet;
+        }
+
         $period = $request->query('period', 'monthly');
 
         [$start, $end] = $this->dateRange($period);
@@ -43,7 +48,9 @@ class DashboardController extends Controller
                 'outletPerformance' => $this->outletPerformance($start, $end),
                 'topProducts' => $this->topProducts($outlet, $start, $end),
             ],
-            'outlets' => Outlet::aktif()->get(['id', 'name']),
+            'outlets' => $request->user()->outlet_id
+                ? Outlet::aktif()->where('id', $request->user()->outlet_id)->get(['id', 'name'])
+                : Outlet::aktif()->get(['id', 'name']),
         ]);
     }
 

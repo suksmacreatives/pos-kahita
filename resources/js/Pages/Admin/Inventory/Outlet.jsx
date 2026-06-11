@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { useForm } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
@@ -26,9 +26,10 @@ import StockOpnameOutletTable from '@/Components/Admin/Inventory/Outlet/StockOpn
 import FormOpnameOutletModal from '@/Components/Admin/Inventory/Outlet/FormOpnameOutletModal';
 
 function OutletInventory() {
-  const { outlet: selectedOutlet } = useFilter();
+  const { outlet: selectedOutlet, setOutlet } = useFilter();
   const { props } = usePage();
   const {
+    auth = {},
     outletStok = {},
     outletStatsAll = {},
     penerimaanList: initialPenerimaan = {},
@@ -39,6 +40,18 @@ function OutletInventory() {
     outlets = [],
     flash
   } = props;
+
+  const user = auth.user;
+  const currentOutlet = useMemo(() => outlets.find(o => o.slug === selectedOutlet), [selectedOutlet, outlets]);
+
+  useEffect(() => {
+    if (user?.outlet_id) {
+      const userOutlet = outlets.find(o => o.id === user.outlet_id);
+      if (userOutlet) {
+        setOutlet(userOutlet.slug);
+      }
+    }
+  }, []);
 
   // Navigation Tabs state
   const [activeTab, setActiveTab] = useState('stock');
@@ -83,13 +96,12 @@ function OutletInventory() {
         color: 'emerald'
       };
     }
-    const current = outlets.find(o => o.slug === selectedOutlet);
     return {
-      title: `Inventory ${current?.nama || 'Outlet'}`,
-      sub: `Kelola stok lokal, terima DO, transfer mutasi, dan stock opname di ${current?.nama || 'outlet ini'}.`,
-      color: current?.warna || 'emerald'
+      title: `Inventory ${currentOutlet?.nama || 'Outlet'}`,
+      sub: `Kelola stok lokal, terima DO, transfer mutasi, dan stock opname di ${currentOutlet?.nama || 'outlet ini'}.`,
+      color: currentOutlet?.warna || 'emerald'
     };
-  }, [selectedOutlet]);
+  }, [selectedOutlet, currentOutlet]);
 
   // 2. Tab Badge Counts (Pending items checking)
   const pendingTerimaCount = useMemo(() => {
@@ -193,8 +205,8 @@ function OutletInventory() {
       alasan: newTransfer.alasan,
       catatan: newTransfer.catatan || '',
       items: newTransfer.items.map(it => ({
-        product_id: it.produk_id,
-        product_variant_id: it.product_variant_id || null,
+        product_id: it.product_id,
+        product_variant_id: it.product_variant_id,
         nama: it.nama,
         ukuran: it.ukuran,
         warna: it.warna,
@@ -371,12 +383,7 @@ function OutletInventory() {
           {/* Dynamic title with color dot */}
           <div className="flex items-center gap-2">
             {selectedOutlet !== 'all' && (
-              <span className={`w-3 h-3 rounded-full shrink-0 ${
-                selectedOutlet === 'denpasar' ? 'bg-emerald-500' :
-                selectedOutlet === 'jakarta' ? 'bg-blue-500' :
-                selectedOutlet === 'bandung' ? 'bg-purple-500' :
-                'bg-amber-500'
-              }`} />
+              <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: currentOutlet?.warna || '#amber-500' }} />
             )}
             <h1 className="text-2xl font-black text-gray-900 tracking-tight">{headerInfo.title}</h1>
           </div>

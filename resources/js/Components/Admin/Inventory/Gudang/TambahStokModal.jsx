@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from 'react-dom';
 import { X, Plus, Package } from "lucide-react";
 
 export default function TambahStokModal({ data, onClose, onSubmit }) {
@@ -14,8 +15,11 @@ export default function TambahStokModal({ data, onClose, onSubmit }) {
     onClose();
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4" onClick={onClose}>
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div className="flex items-center gap-3">
@@ -46,6 +50,10 @@ export default function TambahStokModal({ data, onClose, onSubmit }) {
           </div>
         </form>
       </div>
-    </div>
+        </div>
+      </div>
+    </>
+    , document.body
   );
 }
+

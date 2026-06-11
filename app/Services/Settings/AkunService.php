@@ -27,6 +27,10 @@ class AkunService
             $query->where('status', $filters['status']);
         }
 
+        if (!empty($filters['outlet_id'])) {
+            $query->where('outlet_id', $filters['outlet_id']);
+        }
+
         $users = $query->orderBy('created_at', 'desc')->get()->map(function ($user) {
             return [
                 'id' => $user->id,

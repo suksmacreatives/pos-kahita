@@ -17,7 +17,7 @@ class StoreTransferRequest extends FormRequest
             'outlet_tujuan_id' => 'required|exists:outlets,slug|different:outlet_asal_id',
             'outlet_asal_id' => 'required|exists:outlets,slug',
             'tgl_transfer' => 'required|date',
-            'alasan' => 'required|string|in:permintaan,kelebihan stok,larurat',
+            'alasan' => 'required|string|in:permintaan,kelebihan stok,darurat',
             'catatan' => 'nullable|string|max:1000',
             'items' => 'required|array|min:1',
             'items.*.product_id' => 'required|exists:products,id',

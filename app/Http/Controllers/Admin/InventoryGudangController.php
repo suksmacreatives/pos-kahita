@@ -25,6 +25,14 @@ use Inertia\Inertia;
 
 class InventoryGudangController extends Controller
 {
+    public function __construct()
+    {
+        $this->middleware(function ($request, $next) {
+            abort_if($request->user()?->outlet_id, 403);
+            return $next($request);
+        });
+    }
+
     public function index()
     {
         $products = Product::with(['variants', 'category'])->orderBy('created_at', 'desc')->get();

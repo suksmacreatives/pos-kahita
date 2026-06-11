@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
-import { ChevronDown, ChevronUp, Search, AlertCircle, RefreshCw, ArrowRightLeft, Eye, HelpCircle } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { ChevronDown, ChevronUp, Search, AlertCircle, RefreshCw, ArrowRightLeft, Eye, HelpCircle, X, Package } from 'lucide-react';
 
 export default function StokOutletTable({ selectedOutlet, onAction, outletStok = {}, outlets = [] }) {
   // Local state for search, filters and sort
@@ -8,6 +9,7 @@ export default function StokOutletTable({ selectedOutlet, onAction, outletStok =
   const [status, setStatus] = useState('all');
   const [sortField, setSortField] = useState('nama'); // nama, banyak, sedikit, terjual
   const [expandedRows, setExpandedRows] = useState({});
+  const [detailItem, setDetailItem] = useState(null);
 
   const toggleRow = (id) => {
     setExpandedRows(prev => ({
@@ -145,8 +147,104 @@ export default function StokOutletTable({ selectedOutlet, onAction, outletStok =
     return 'text-emerald-600 bg-emerald-50/20';
   };
 
+  const getStatusLabel = (stat) => {
+    if (stat === 'habis') return { label: 'Habis', cls: 'bg-rose-50 text-rose-700 border-rose-100' };
+    if (stat === 'menipis') return { label: 'Menipis', cls: 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse' };
+    return { label: 'Normal', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100' };
+  };
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
+      {/* Detail Product Modal */}
+      {detailItem && createPortal(
+        <>
+          <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setDetailItem(null)} />
+          <div className="fixed inset-0 z-50 overflow-y-auto">
+            <div className="min-h-full flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+                {/* Header */}
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-emerald-100 flex items-center justify-center">
+                      <Package className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-gray-900">{detailItem.nama_produk}</h3>
+                      <p className="text-[11px] text-gray-500 font-semibold">{detailItem.kode_produk}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setDetailItem(null)}
+                    className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+
+                {/* Summary */}
+                <div className="px-6 py-4 grid grid-cols-2 gap-4 border-b border-gray-100">
+                  <div className="bg-emerald-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-extrabold text-emerald-700">{detailItem.total_stok}</p>
+                    <p className="text-[10px] font-bold text-emerald-600 mt-0.5">Total Stok</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-3 text-center">
+                    <p className="text-2xl font-extrabold text-gray-700">{detailItem.stok_minimum}</p>
+                    <p className="text-[10px] font-bold text-gray-500 mt-0.5">Min. Stok</p>
+                  </div>
+                </div>
+
+                {/* Variants Table */}
+                <div className="px-6 py-4">
+                  <h4 className="text-xs font-bold text-gray-700 mb-3">
+                    Detail Varian
+                    <span className="ml-1.5 text-gray-400 font-normal">({detailItem.varian?.length || 0} varian)</span>
+                  </h4>
+                  <div className="bg-gray-50 rounded-xl border border-gray-100 overflow-hidden">
+                    <table className="w-full text-left">
+                      <thead>
+                        <tr className="bg-gray-100/60">
+                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-gray-500">Ukuran</th>
+                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-gray-500">Warna</th>
+                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-gray-500 text-right">Stok</th>
+                          <th className="px-3 py-2 text-[10px] font-bold uppercase text-gray-500 text-right">SKU</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {detailItem.varian?.map((v) => {
+                          const s = getStatusLabel(v.status || (v.stok > 0 ? (v.stok < 10 ? 'menipis' : 'normal') : 'habis'));
+                          return (
+                            <tr key={v.sku} className="hover:bg-white/80">
+                              <td className="px-3 py-2 text-xs font-bold text-gray-800">{v.ukuran}</td>
+                              <td className="px-3 py-2 flex items-center gap-2 text-xs text-gray-600">
+                                <span className="w-3 h-3 rounded-full border border-gray-200 shrink-0" style={{ backgroundColor: v.warna }} />
+                                <span className="font-medium">{v.warna_label || v.warna}</span>
+                              </td>
+                              <td className="px-3 py-2 text-xs text-right font-bold text-gray-800">{v.stok} pcs</td>
+                              <td className="px-3 py-2 text-xs text-right text-gray-400 font-mono">{v.sku}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Footer */}
+                <div className="px-6 py-4 border-t border-gray-100 bg-slate-50/50 flex justify-end">
+                  <button
+                    onClick={() => setDetailItem(null)}
+                    className="px-4 py-2 bg-gray-900 hover:bg-gray-800 text-white rounded-xl text-xs font-bold transition-colors"
+                  >
+                    Tutup
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </>,
+        document.body
+      )}
       {/* Table Header / Action Bar */}
       <div className="p-5 border-b border-gray-100 bg-gray-50/40 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -317,9 +415,9 @@ export default function StokOutletTable({ selectedOutlet, onAction, outletStok =
                         </td>
                         <td className="px-5 py-3 text-right space-x-1.5">
                           <button
-                            onClick={() => onAction('detail', item)}
+                            onClick={() => setDetailItem(item)}
                             className="p-1.5 rounded-lg text-emerald-600 hover:bg-emerald-50 transition-colors inline-flex items-center justify-center cursor-pointer"
-                            title="Detail"
+                            title="Detail Produk"
                           >
                             <Eye className="w-4 h-4" />
                           </button>

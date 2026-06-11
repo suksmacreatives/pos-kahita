@@ -98,8 +98,7 @@ class ProductController extends Controller
             'variants.*.harga_jual' => 'nullable|integer|min:0',
             'variants.*.harga_beli' => 'nullable|integer|min:0',
             'variants.*.sku' => 'nullable|string',
-            'outlet_tersedia' => 'nullable|array',
-            'outlet_tersedia.*' => 'string',
+            'outlet_tersedia' => 'nullable',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
@@ -108,7 +107,7 @@ class ProductController extends Controller
             $imagePath = $request->file('image')->store('products', 'public');
         }
 
-        $outletTersedia = $validated['outlet_tersedia'] ?? [];
+        $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
 
         $product = Product::create([
             'name' => $validated['nama_produk'],
@@ -120,6 +119,7 @@ class ProductController extends Controller
             'sub_kategori' => $validated['sub_kategori'] ?? null,
             'status' => $validated['status'] ?? 'aktif',
             'outlet_id' => !empty($outletTersedia) ? (int) $outletTersedia[0] : null,
+            'outlet_ids' => !empty($outletTersedia) ? $outletTersedia : null,
             'image' => $imagePath,
         ]);
 
@@ -139,7 +139,7 @@ class ProductController extends Controller
                 foreach ($outletTersedia as $outletId) {
                     OutletStock::firstOrCreate(
                         ['outlet_id' => $outletId, 'product_variant_id' => $variant->id],
-                        ['stock' => 0]
+                        ['stock' => $v['stok'] ?? 0]
                     );
                 }
             }
@@ -166,12 +166,11 @@ class ProductController extends Controller
             'variants.*.harga_jual' => 'nullable|integer|min:0',
             'variants.*.harga_beli' => 'nullable|integer|min:0',
             'variants.*.sku' => 'nullable|string',
-            'outlet_tersedia' => 'nullable|array',
-            'outlet_tersedia.*' => 'string',
+            'outlet_tersedia' => 'nullable',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
-        $outletTersedia = $validated['outlet_tersedia'] ?? [];
+        $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
 
         $updateData = [
             'name' => $validated['nama_produk'],
@@ -183,6 +182,7 @@ class ProductController extends Controller
             'sub_kategori' => $validated['sub_kategori'] ?? null,
             'status' => $validated['status'] ?? 'aktif',
             'outlet_id' => !empty($outletTersedia) ? (int) $outletTersedia[0] : null,
+            'outlet_ids' => !empty($outletTersedia) ? $outletTersedia : null,
         ];
 
         if ($request->hasFile('image')) {
@@ -211,7 +211,7 @@ class ProductController extends Controller
                 foreach ($outletTersedia as $outletId) {
                     OutletStock::firstOrCreate(
                         ['outlet_id' => $outletId, 'product_variant_id' => $variant->id],
-                        ['stock' => 0]
+                        ['stock' => $v['stok'] ?? 0]
                     );
                 }
             }
@@ -227,5 +227,19 @@ class ProductController extends Controller
         }
         $product->delete();
         return redirect()->back()->with('success', 'Produk berhasil dihapus!');
+    }
+
+    private function parseOutletTersedia(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+            return is_array($decoded) ? $decoded : [];
+        }
+
+        return [];
     }
 }

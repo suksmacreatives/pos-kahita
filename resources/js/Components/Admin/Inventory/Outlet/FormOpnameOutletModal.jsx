@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Play, AlertTriangle, Check, ShieldCheck, Search } from 'lucide-react';
 
 export default function FormOpnameOutletModal({ isOpen, onClose, selectedOutlet, onSubmit, outlets = [], outletStok = {} }) {
@@ -110,8 +111,11 @@ export default function FormOpnameOutletModal({ isOpen, onClose, selectedOutlet,
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60 backdrop-blur-sm transition-opacity duration-300">
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
       <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100 max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-250">
         
         {/* Header */}
@@ -320,6 +324,10 @@ export default function FormOpnameOutletModal({ isOpen, onClose, selectedOutlet,
         )}
 
       </div>
-    </div>
+        </div>
+      </div>
+    </>
+    , document.body
   );
 }
+

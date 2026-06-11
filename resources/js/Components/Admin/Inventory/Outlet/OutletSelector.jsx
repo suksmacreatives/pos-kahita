@@ -1,9 +1,13 @@
 import React from 'react';
+import { usePage } from '@inertiajs/react';
 import { useFilter } from '@/Context/FilterContext';
 import { Store, AlertTriangle } from 'lucide-react';
 
 export default function OutletSelector({ outlets = [], outletStatsAll = {} }) {
+  const { auth } = usePage().props;
   const { outlet, setOutlet } = useFilter();
+
+  if (auth?.user?.outlet_id) return null;
 
   // Helper to count issues per outlet (menipis + habis)
   const getOutletIssuesCount = (outletId) => {

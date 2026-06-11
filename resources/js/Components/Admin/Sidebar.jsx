@@ -91,6 +91,9 @@ const SidebarDropdown = ({ item, currentUrl, checkActive }) => {
 // === KOMPONEN UTAMA SIDEBAR ===
 export default function Sidebar({ isOpen, onClose }) {
     const { url } = usePage();
+    const { auth } = usePage().props;
+    const user = auth?.user;
+    const isScoped = !!user?.outlet_id;
 
     const getRoute = (name, fallback) => {
         try {
@@ -117,14 +120,14 @@ export default function Sidebar({ isOpen, onClose }) {
             label: "Inventory",
             icon: Layers,
             children: [
-                {
+                ...(isScoped ? [] : [{
                     label: "Gudang",
                     href: getRoute(
                         "admin.inventory.gudang",
                         "/admin/inventory/gudang",
                     ),
                     pattern: /^\/admin\/inventory\/gudang/,
-                },
+                }]),
                 {
                     label: "Outlet",
                     href: getRoute(
@@ -135,12 +138,12 @@ export default function Sidebar({ isOpen, onClose }) {
                 },
             ],
         },
-        {
+        ...(isScoped ? [] : [{
             label: "Outlets",
             icon: Store,
             href: getRoute("admin.outlets.index", "/admin/outlets"),
             pattern: /^\/admin\/outlets/,
-        },
+        }]),
         {
             label: "Reports",
             icon: BarChart3,
@@ -238,7 +241,7 @@ export default function Sidebar({ isOpen, onClose }) {
                                     Kahita Busana POS
                                 </span>
                                 <span className="text-[10px] text-gray-400 font-medium tracking-wide uppercase mt-0.5 block">
-                                    HQ Admin
+                                    {isScoped ? 'Admin Outlet' : 'HQ Admin'}
                                 </span>
                             </div>
                         </Link>
@@ -301,14 +304,14 @@ export default function Sidebar({ isOpen, onClose }) {
                 <div className="p-4 border-t border-gray-100 bg-gray-50/50">
                     <div className="flex items-center gap-3 px-2 py-1.5">
                         <div className="w-9 h-9 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-800 font-semibold text-sm">
-                            AD
+                            {(user?.nama || user?.name || 'A').charAt(0).toUpperCase()}
                         </div>
                         <div className="min-w-0 flex-1">
                             <p className="text-xs font-semibold text-gray-900 truncate">
-                                Admin Pusat
+                                {user?.nama || user?.name || 'Admin'}
                             </p>
                             <p className="text-[10px] text-gray-400 truncate">
-                                admin@kahita.com
+                                {user?.email || ''}
                             </p>
                         </div>
                         <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white ring-1 ring-emerald-500/30" />

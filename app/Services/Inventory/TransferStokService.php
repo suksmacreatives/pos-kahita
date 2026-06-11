@@ -54,17 +54,22 @@ class TransferStokService
     public function processTransfer(array $data): OutletTransfer
     {
         return DB::transaction(function () use ($data) {
-            $asalId = $data['outlet_asal_id'];
-            $tujuanId = $data['outlet_tujuan_id'];
+            $asalSlug = $data['outlet_asal_id'];
+            $tujuanSlug = $data['outlet_tujuan_id'];
 
-            if ($asalId === $tujuanId) {
+            if ($asalSlug === $tujuanSlug) {
                 throw new \App\Exceptions\InsufficientStockException('Outlet asal dan tujuan harus berbeda');
             }
 
-            $tujuan = Outlet::findOrFail($tujuanId);
+            $asal = Outlet::where('slug', $asalSlug)->firstOrFail();
+            $tujuan = Outlet::where('slug', $tujuanSlug)->firstOrFail();
+
             if ($tujuan->status === 'nonaktif') {
                 throw new \App\Exceptions\InsufficientStockException('Outlet tujuan tidak aktif');
             }
+
+            $asalId = $asal->id;
+            $tujuanId = $tujuan->id;
 
             $items = $data['items'];
             $totalQty = 0;

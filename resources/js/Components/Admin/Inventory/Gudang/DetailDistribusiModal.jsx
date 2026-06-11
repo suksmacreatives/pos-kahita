@@ -1,10 +1,14 @@
 import React from "react";
+import { createPortal } from 'react-dom';
 import { X, Send } from "lucide-react";
 
 export default function DetailDistribusiModal({ data, onClose }) {
   if (!data) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4" onClick={onClose}>
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="fixed inset-0 z-50 overflow-y-auto">
+        <div className="min-h-full flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div className="flex items-center gap-3">
@@ -68,6 +72,10 @@ export default function DetailDistribusiModal({ data, onClose }) {
           <button onClick={onClose} className="px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white rounded-xl text-xs font-bold cursor-pointer">Tutup</button>
         </div>
       </div>
-    </div>
+        </div>
+      </div>
+    </>
+    , document.body
   );
 }
+
