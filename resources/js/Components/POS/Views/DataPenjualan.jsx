@@ -26,7 +26,7 @@ export default function DataPenjualan({
             {/* TABLE */}
             <div className="flex-1 overflow-y-auto p-4">
 
-                <div className="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden text-xs">
+                <div className="bg-white border border-gray-200 rounded-l shadow-sm overflow-hidden text-xs">
 
                     <table className="w-full text-left border-collapse">
 
@@ -134,7 +134,7 @@ export default function DataPenjualan({
 
                 <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
 
-                    <div className="bg-white w-full max-w-xl rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+                    <div className="bg-white w-full max-w-xl rounded-l shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150">
 
                         {/* HEADER */}
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
@@ -164,7 +164,7 @@ export default function DataPenjualan({
                             {/* INFO */}
                             <div className="grid grid-cols-2 gap-3 text-xs mb-4">
 
-                                <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                                <div className="bg-gray-50 border border-gray-100 rounded-l p-3">
                                     <span className="text-gray-400 font-semibold block mb-1">
                                         Pelanggan
                                     </span>
@@ -174,7 +174,7 @@ export default function DataPenjualan({
                                     </p>
                                 </div>
 
-                                <div className="bg-gray-50 border border-gray-100 rounded-xl p-3">
+                                <div className="bg-gray-50 border border-gray-100 rounded-l p-3">
                                     <span className="text-gray-400 font-semibold block mb-1">
                                         Metode Pembayaran
                                     </span>
@@ -187,7 +187,7 @@ export default function DataPenjualan({
                             </div>
 
                             {/* ITEM LIST */}
-                            <div className="border border-gray-200 rounded-xl overflow-hidden">
+                            <div className="border border-gray-200 rounded-l overflow-hidden">
 
                                 <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-[10px] uppercase font-bold text-gray-400 tracking-wide">
                                     Detail Item

@@ -10,6 +10,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Attendance;
+use App\Models\Outlet;
 use Inertia\Inertia;
 
 class PosController extends Controller
@@ -32,9 +33,10 @@ class PosController extends Controller
 
         // Pastikan outlet id tersedia
         $outletId = $user->outlet_id;
+        $outlet = Outlet::find($outletId);
 
         // Ambil produk
-        $products = Product::with('variants')
+        $products = Product::with(['variants', 'category'])
             ->where(function ($q) use ($outletId) {
                 $q->where('outlet_id', $outletId)
                     ->orWhereJsonContains('outlet_ids', (string) $outletId);
@@ -46,6 +48,11 @@ class PosController extends Controller
                     'name' => $p->name,
                     'sku' => $p->sku,
                     'price' => $p->price,
+                    'category_id' => $p->category_id,
+                    'category' => [
+                        'id' => $p->category?->id,
+                        'name' => $p->category?->name,
+                    ],
                     'image' => $p->image
                         ? Storage::url($p->image)
                         : null,
@@ -70,8 +77,9 @@ class PosController extends Controller
         return Inertia::render('Pos/Index', [
             'is_shift_open_db' => $activeShift ? true : false,
             'active_shift_details' => $activeShift,
-            'products' => $products,
+            'products_from_db' => $products,
             'attendances' => $attendances,
+            'outlet_name' => $outlet?->name,
         ]);
     }
 }

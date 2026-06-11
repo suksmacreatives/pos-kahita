@@ -1,8 +1,18 @@
 import React, { useState } from 'react';
+import {
+    Computer,
+    BaggageClaim,
+    ChartColumnIncreasing,
+    CalendarCheck2,
+    Settings,
+    Lock
+} from 'lucide-react';
+
 
 export default function SidebarPos({ 
-    isOpen,          // Logika State Sidebar: true = terbuka penuh, false = hanya icon
-    onClose,         // Fungsi untuk menutup/meringkas sidebar
+    isOpen,          
+    onClose,
+    onOpen,        
     activeMenu, 
     setActiveMenu, 
     isSessionOpen, 
@@ -14,9 +24,9 @@ export default function SidebarPos({
 
     // Daftar menu utama bagian atas
     const menuItemsTop = [
-        { id: 'kasir', label: 'Kasir (POS)', icon: '🖥️' },
-        { id: 'penjualan', label: 'Penjualan', icon: '🛒' },
-    ];
+    { id: 'kasir', label: 'Kasir (POS)', icon: <Computer size={20} /> },
+    { id: 'penjualan', label: 'Penjualan', icon: <BaggageClaim size={20} /> },
+];
 
     // List anak menu (sub-menu) untuk Laporan
     const subMenuLaporan = [
@@ -37,24 +47,22 @@ export default function SidebarPos({
 
     // Fungsi handle klik menu Laporan
     const handleLaporanToggle = () => {
-        if (!isOpen) {
-            // JIKA SIDEBAR SEDANG COLLAPSED/TUTUP: Buka dulu sidebarnya, lalu buka dropdown-nya
-            if (onClose) onClose(); 
-            setIsLaporanOpen(true);
-        } else {
-            setIsLaporanOpen(!isLaporanOpen);
-        }
+    if (!isOpen) {
+        if (onOpen) onOpen();
+        setIsLaporanOpen(true);
+        return;
+    }
+    setIsLaporanOpen(prev => !prev);
     };
 
     // Fungsi handle klik menu Pengaturan
     const handlePengaturanToggle = () => {
-        if (!isOpen) {
-            // JIKA SIDEBAR SEDANG COLLAPSED/TUTUP: Buka dulu sidebarnya, lalu buka dropdown-nya
-            if (onClose) onClose();
-            setIsPengaturanOpen(!isPengaturanOpen);
-        } else {
-            setIsPengaturanOpen(!isPengaturanOpen);
-        }
+    if (!isOpen) {
+        if (onOpen) onOpen();
+        setIsPengaturanOpen(true);
+        return;
+    }
+    setIsPengaturanOpen(prev => !prev);
     };
 
     // Handler klik item menu untuk sekaligus merapatkan sidebar (opsional/fleksibel)
@@ -84,7 +92,6 @@ export default function SidebarPos({
                         {/* Detail teks profil muncul jika isOpen = true */}
                         {isOpen && (
                             <div className="flex flex-col min-w-0 flex-1 animate-in fade-in duration-200">
-                                <span className="font-bold text-slate-800 text-sm truncate">KAHITA BUSANA</span>
                                 <span className="text-xs text-slate-500 truncate">Agus Arismawan</span>
                                 <span className="text-[10px] text-slate-400 truncate">ID Pelanggan: #0266213</span>
                             </div>
@@ -124,7 +131,7 @@ export default function SidebarPos({
                             } ${activeMenu.startsWith('laporan') ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}
                             title={!isOpen ? 'Laporan' : ''}
                         >
-                            <span className="text-lg flex-shrink-0">📊</span>
+                            <ChartColumnIncreasing size={20} className="flex-shrink-0" />
                             {isOpen && <span className="truncate text-left flex-1">Laporan</span>}
                         </button>
 
@@ -158,7 +165,7 @@ export default function SidebarPos({
                         } ${activeMenu === 'absensi' ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}
                         title={!isOpen ? 'Absensi' : ''}
                     >
-                        <span className="text-lg flex-shrink-0">📅</span>
+                        <CalendarCheck2 size={20} className="flex-shrink-0" />
                         {isOpen && <span className="truncate text-left flex-1">Absensi</span>}
                     </button>
 
@@ -172,7 +179,7 @@ export default function SidebarPos({
                             } ${activeMenu.startsWith('pengaturan') ? 'bg-emerald-50 text-emerald-600' : 'text-slate-600 hover:bg-slate-50'}`}
                             title={!isOpen ? 'Pengaturan' : ''}
                         >
-                            <span className="text-lg flex-shrink-0">⚙️</span>
+                            <Settings size={20} className="flex-shrink-0" />
                             {isOpen && <span className="truncate text-left flex-1">Pengaturan</span>}
                         </button>
 
@@ -208,7 +215,7 @@ export default function SidebarPos({
                                 } text-slate-600 hover:bg-slate-50`}
                                 title={!isOpen ? 'Tutup Kasir' : ''}
                             >
-                                <span className="text-lg flex-shrink-0 text-orange-500">🔒</span>
+                                <Lock size={20} className="flex-shrink-0 text-orange-500" />
                                 {isOpen && (
                                     <span className="truncate text-left flex-1 font-semibold text-slate-700">
                                         Tutup Kasir

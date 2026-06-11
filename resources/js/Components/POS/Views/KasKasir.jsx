@@ -160,13 +160,13 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
     return (
         <div className="flex-1 flex flex-col h-full bg-[#f8fafc] p-5 gap-4">
             <div className="flex flex-row justify-start items-center w-full flex-shrink-0">
-                <button onClick={() => setIsOpenModal(true)} className="bg-[#009664] hover:bg-[#007a51] text-white py-2 px-5 rounded-lg font-bold text-xs">+ Transaksi</button>
+                <button onClick={() => setIsOpenModal(true)} className="bg-[#009664] hover:bg-[#007a51] text-white py-2 px-5 rounded-l font-bold text-xs">+ Transaksi</button>
             </div>
 
             {/* Ringkasan */}
             <div className="grid grid-cols-5 gap-4 w-full flex-shrink-0">
                 {[{title: 'Pemasukan', val: ringkasan.pemasukan, color: 'emerald'}, {title: 'Pengeluaran', val: ringkasan.pengeluaran, color: 'indigo'}, {title: 'Total Refund', val: ringkasan.totalRefund, color: 'rose'}, {title: 'Total Kas Kasir', val: ringkasan.totalKasKasir, color: 'sky'}, {title: 'Total Penjualan', val: ringkasan.totalPenjualan, color: 'amber'}].map((item, i) => (
-                    <div key={i} className={`bg-white p-3.5 rounded-xl border border-slate-200 border-b-[3px] border-b-${item.color}-500`}>
+                    <div key={i} className={`bg-white p-3.5 rounded-l border border-slate-200 border-b-[3px] border-b-${item.color}-500`}>
                         <p className="text-[10px] font-semibold text-slate-400 uppercase">{item.title}</p>
                         <p className="text-base font-bold text-slate-800 mt-1">{renderRupiah(item.val)}</p>
                     </div>
@@ -174,7 +174,7 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
             </div>
 
             {/* Tabel */}
-            <div className="flex-1 overflow-hidden bg-white border border-slate-200/80 rounded-xl shadow-2xs">
+            <div className="flex-1 overflow-hidden bg-white border border-slate-200/80 rounded-l shadow-2xs">
                 <div className="overflow-y-auto h-full">
                     <table className="w-full text-left border-collapse">
                         <thead className="bg-slate-50 sticky top-0">
@@ -219,7 +219,7 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
                     />
                     
                     {/* Kotak Konten Form */}
-                    <div className="relative bg-white rounded-xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 mx-4">
+                    <div className="relative bg-white rounded-l shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 mx-4">
                         <div className="bg-slate-50 px-5 py-3.5 border-b border-slate-200 flex justify-between items-center">
                             <h3 className="text-xs font-bold text-slate-700 uppercase tracking-wide">Input Transaksi Kasir</h3>
                             <button 
@@ -246,7 +246,7 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
                                                 kategoriDetail: jenisBaru === 'Uang Masuk' ? 'Pemasukan Umum' : 'Pengeluaran Umum'
                                             }));
                                         }}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664]"
+                                        className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664]"
                                     >
                                         <option value="Uang Keluar">Pengeluaran (Uang Keluar)</option>
                                         <option value="Uang Masuk">Pemasukan (Uang Masuk)</option>
@@ -258,7 +258,7 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
                                     <select 
                                         value={formData.kategoriDetail}
                                         onChange={(e) => setFormData(prev => ({ ...prev, kategoriDetail: e.target.value }))}
-                                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664]"
+                                        className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664]"
                                     >
                                         {formData.jenis === 'Uang Keluar' ? (
                                             <>
@@ -283,7 +283,7 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
                                     placeholder="Contoh: Bayar Listrik / Biaya Sampah"
                                     value={formData.nama}
                                     onChange={(e) => setFormData(prev => ({ ...prev, nama: e.target.value }))}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664]"
+                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664]"
                                     required
                                 />
                             </div>
@@ -296,7 +296,7 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
                                     placeholder="Masukkan nilai uang"
                                     value={formData.jumlah}
                                     onChange={(e) => setFormData(prev => ({ ...prev, jumlah: e.target.value }))}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] font-mono"
+                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] font-mono"
                                     required
                                 />
                             </div>
@@ -309,7 +309,7 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
                                     placeholder="Alasan detail..."
                                     value={formData.deskripsi}
                                     onChange={(e) => setFormData(prev => ({ ...prev, deskripsi: e.target.value }))}
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] resize-none"
+                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] resize-none"
                                 />
                             </div>
 
@@ -318,13 +318,13 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
                                 <button 
                                     type="button" 
                                     onClick={() => setIsOpenModal(false)}
-                                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-lg text-xs font-semibold cursor-pointer"
+                                    className="px-4 py-2 border border-slate-200 hover:bg-slate-50 text-slate-500 rounded-l text-xs font-semibold cursor-pointer"
                                 >
                                     Batal
                                 </button>
                                 <button 
                                     type="submit"
-                                    className="px-4 py-2 bg-[#009664] hover:bg-[#007a51] text-white rounded-lg text-xs font-semibold shadow-2xs cursor-pointer"
+                                    className="px-4 py-2 bg-[#009664] hover:bg-[#007a51] text-white rounded-l text-xs font-semibold shadow-2xs cursor-pointer"
                                 >
                                     Simpan Transaksi
                                 </button>

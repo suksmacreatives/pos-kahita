@@ -1,17 +1,13 @@
 import React, { useMemo } from 'react';
 
 export default function JenisBayar({ salesHistory = [], formatRupiah }) {
-    // ----------------------------------------------------
-    // UTILITY: FORMAT RUPIAH AMAN
-    // ----------------------------------------------------
+    
     const renderRupiah = (nilai) => {
         if (formatRupiah) return formatRupiah(nilai);
         return `Rp ${(nilai || 0).toLocaleString('id-ID')}`;
     };
 
-    // ----------------------------------------------------
-    // ENGINE ANALISIS METODE PEMBAYARAN (SELARAS DATABASE)
-    // ----------------------------------------------------
+
     const analisisPembayaran = useMemo(() => {
         const paymentMethods = ['Tunai', 'QRIS', 'Debit', 'Kredit'];
         let grandTotalSemuaMetode = 0;
@@ -60,12 +56,12 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
             {/* METRIK MINI RINGKASAN                                    */}
             {/* ======================================================== */}
             <div className="grid grid-cols-2 gap-4 w-full flex-shrink-0">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Penjualan Masuk (Sales)</p>
                     <p className="text-base font-bold text-slate-800 mt-1 font-mono">{renderRupiah(analisisPembayaran.grandTotal)}</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Aktivitas Transaksi</p>
                     <p className="text-base font-bold text-slate-800 mt-1">{analisisPembayaran.totalTransaksi} Kali</p>
                 </div>
@@ -75,7 +71,7 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
             {/* TABEL METODE PEMBAYARAN: BERSIH & KONSISTEN              */}
             {/* ======================================================== */}
             <div className="flex-1 overflow-hidden flex flex-col w-full">
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs flex flex-col h-full w-full">
+                <div className="bg-white border border-slate-200 rounded-l overflow-hidden shadow-2xs flex flex-col h-full w-full">
                     
                     <div className="overflow-y-auto flex-1">
                         <table className="w-full text-left border-collapse">

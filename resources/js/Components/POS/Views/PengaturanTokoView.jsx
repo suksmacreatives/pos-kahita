@@ -33,7 +33,7 @@ export default function PengaturanTokoView() {
             <div className="flex-1 flex flex-row gap-6 overflow-hidden items-start w-full">
                 
                 {/* KOLOM KIRI: FORM CONFIGURATION IDENTITAS */}
-                <form onSubmit={handleSave} className="flex-1 bg-white border border-slate-200 rounded-xl p-6 shadow-2xs space-y-5 overflow-y-auto max-h-full">
+                <form onSubmit={handleSave} className="flex-1 bg-white border border-slate-200 rounded-l p-6 shadow-2xs space-y-5 overflow-y-auto max-h-full">
                     <div className="space-y-4">
                         
                         {/* Nama Bisnis */}
@@ -43,7 +43,7 @@ export default function PengaturanTokoView() {
                                 type="text" 
                                 value={toko.nama} 
                                 onChange={(e) => setToko({...toko, nama: e.target.value.toUpperCase()})} 
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
+                                className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
                                 required
                             />
                         </div>
@@ -55,7 +55,7 @@ export default function PengaturanTokoView() {
                                 type="text" 
                                 value={toko.tagline} 
                                 onChange={(e) => setToko({...toko, tagline: e.target.value.toUpperCase()})} 
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
+                                className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
                                 placeholder="CONTOH: INTEGRITY & QUALITY SERVICE"
                             />
                         </div>
@@ -67,7 +67,7 @@ export default function PengaturanTokoView() {
                                 type="text" 
                                 value={toko.alamat} 
                                 onChange={(e) => setToko({...toko, alamat: e.target.value.toUpperCase()})} 
-                                className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
+                                className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
                                 required
                             />
                         </div>
@@ -81,7 +81,7 @@ export default function PengaturanTokoView() {
                                     type="text" 
                                     value={toko.telp} 
                                     onChange={(e) => setToko({...toko, telp: e.target.value})} 
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
+                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
                                     required
                                 />
                             </div>
@@ -93,7 +93,7 @@ export default function PengaturanTokoView() {
                                     type="text" 
                                     value={toko.registrasi} 
                                     onChange={(e) => setToko({...toko, registrasi: e.target.value.toUpperCase()})} 
-                                    className="w-full bg-white border border-slate-200 rounded-lg px-3 py-2 font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
+                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
                                     placeholder="CONTOH: NIB-123456"
                                 />
                             </div>
@@ -103,7 +103,7 @@ export default function PengaturanTokoView() {
 
                     {/* Action Button & Feedback Status */}
                     <div className="space-y-3 pt-2">
-                        <button type="submit" className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-lg text-xs uppercase tracking-wider transition-colors shadow-2xs cursor-pointer">
+                        <button type="submit" className="w-full bg-slate-800 hover:bg-slate-900 text-white font-bold py-2 rounded-l text-xs uppercase tracking-wider transition-colors shadow-2xs cursor-pointer">
                             Perbarui Profil Outlet
                         </button>
 
@@ -116,14 +116,14 @@ export default function PengaturanTokoView() {
                 </form>
 
                 {/* KOLOM KANAN: REAL-TIME PROFILE CARD PREVIEW */}
-                <div className="w-80 bg-white border border-slate-200 rounded-xl p-6 shadow-2xs flex flex-col gap-4 self-stretch">
+                <div className="w-80 bg-white border border-slate-200 rounded-l p-6 shadow-2xs flex flex-col gap-4 self-stretch">
                     <div className="flex flex-col">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Representasi Identitas</span>
                         <span className="text-[11px] text-slate-400">Pratinjau visual ringkas profil eksekutif perusahaan.</span>
                     </div>
 
                     {/* Kad Profil Minimalis */}
-                    <div className="flex-1 border border-slate-200 bg-slate-50/40 rounded-xl p-5 flex flex-col justify-between overflow-hidden">
+                    <div className="flex-1 border border-slate-200 bg-slate-50/40 rounded-l p-5 flex flex-col justify-between overflow-hidden">
                         
                         {/* Sisi Atas: Nama Bisnis & Tagline */}
                         <div className="space-y-1">

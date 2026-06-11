@@ -76,7 +76,7 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
                         placeholder="Cari nama produk..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="w-full bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white transition-all"
+                        className="w-full bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 placeholder-slate-400 focus:outline-none focus:border-slate-400 focus:bg-white transition-all"
                     />
                 </div>
             </div>
@@ -85,22 +85,22 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
             {/* METRIK FINANSIAL & OPERASIONAL (SEDERHANA & FLAT)        */}
             {/* ======================================================== */}
             <div className="grid grid-cols-4 gap-4 w-full flex-shrink-0">
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Omset Penjualan</p>
                     <p className="text-base font-bold text-slate-800 mt-1 font-mono">{renderRupiah(analisis.totalOmset)}</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Volume Produk Terjual</p>
                     <p className="text-base font-bold text-slate-800 mt-1">{analisis.totalKuantitas} Pcs</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Model Terjual</p>
                     <p className="text-base font-bold text-slate-800 mt-1">{analisis.totalProdukUnik} SKU</p>
                 </div>
 
-                <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs">
+                <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rata-rata Omset / Model</p>
                     <p className="text-base font-bold text-slate-800 mt-1 font-mono">{renderRupiah(analisis.rataRataOmsetPerItem)}</p>
                 </div>
@@ -110,7 +110,7 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
             {/* TABEL DATA UTAMA: BERSIH & FOKUS PADA AKURASI            */}
             {/* ======================================================== */}
             <div className="flex-1 overflow-hidden flex flex-col w-full">
-                <div className="bg-white border border-slate-200 rounded-xl overflow-hidden shadow-2xs flex flex-col h-full w-full">
+                <div className="bg-white border border-slate-200 rounded-l overflow-hidden shadow-2xs flex flex-col h-full w-full">
                     
                     <div className="overflow-y-auto flex-1">
                         <table className="w-full text-left border-collapse">

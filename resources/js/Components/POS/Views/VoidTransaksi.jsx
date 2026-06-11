@@ -109,7 +109,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                         <select 
                             value={periodeMakro}
                             onChange={(e) => setPeriodeMakro(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
                         >
                             <option value="hari">Hari ini</option>
                             <option value="bulan">Bulan ini</option>
@@ -118,7 +118,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                     </div>
 
                     {/* Filter Tengah: Date Range Picker Interaktif */}
-                    <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden h-[33px] min-w-[300px] flex-1 relative">
+                    <div className="flex items-center bg-white border border-slate-200 rounded-l overflow-hidden h-[33px] min-w-[300px] flex-1 relative">
                         <button 
                             type="button"
                             onClick={() => geserTanggal(-1)}
@@ -156,7 +156,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                         <select 
                             value={selectedOutlet}
                             onChange={(e) => setSelectedOutlet(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
                         >
                             <option value="all">Semua Status</option>
                         </select>
@@ -176,7 +176,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                         <input 
                             type="text"
                             placeholder="Cari No. Nota, kasir, alasan..."
-                            className="w-full bg-white border border-slate-200 rounded-lg pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:border-emerald-500 transition shadow-2xs"
+                            className="w-full bg-white border border-slate-200 rounded-l pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:border-emerald-500 transition shadow-2xs"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
@@ -188,7 +188,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                 </div>
 
                 {/* DATA TABEL LOG VOID */}
-                <div className="bg-white rounded-xl border border-slate-200/60 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-l border border-slate-200/60 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>

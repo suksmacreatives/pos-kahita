@@ -22,6 +22,7 @@ export default function Index({
     is_shift_open_db = false,
     active_shift_details = null,
     attendances = [],
+    outlet_name = '',
 }) {
 
     // =========================================================
@@ -403,7 +404,7 @@ console.log(
 );
     return (
         <div className="bg-[#f4f6f9] h-screen w-screen flex flex-col font-sans overflow-hidden select-none text-gray-700">
-            <Head title="Kasa POS - Kahita Busana" />
+            <Head title={`Kasa POS - ${outlet_name || 'Outlet'}`} />
 
             {/* MODAL NOTIFIKASI */}
             {appNotification.isOpen && (
@@ -561,12 +562,12 @@ console.log(
 )}
 
             <div className="flex-1 flex overflow-hidden relative w-full h-full">
-                <SidebarPos isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} activeMenu={activeMenu} setActiveMenu={setActiveMenu} isSessionOpen={isSessionOpen} onTutupKasir={() => setShowModalTutup(true)} />
+                <SidebarPos isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)}  onOpen={() => setIsSidebarOpen(true)} activeMenu={activeMenu} setActiveMenu={setActiveMenu} isSessionOpen={isSessionOpen} onTutupKasir={() => setShowModalTutup(true)} />
                 <div className="flex-1 flex flex-col overflow-hidden">
                     <header className="bg-[#009664] text-white h-[48px] px-4 flex items-center justify-between shadow-sm z-10 flex-shrink-0">
                         <div className="flex items-center space-x-3">
                             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-1 rounded hover:bg-emerald-700 transition">☰</button>
-                            <span className="font-black text-sm tracking-wide uppercase">Kahita Busana</span>
+                            <span className="font-black text-sm tracking-wide uppercase">{outlet_name || 'Outlet'}</span>
                         </div>
                         <div className="text-xs font-bold tracking-wider opacity-90">{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     </header>
