@@ -6,6 +6,7 @@ export default function KasirPosView({
     setSearchQuery,
     cart,
     setCart,
+    outlet_name,
     savedBills,
     setSavedBills,
     customerName,
@@ -19,7 +20,7 @@ export default function KasirPosView({
     subtotal,
     uangKembalian,
     handleProsesBayarFinal,
-    formatRupiah
+    formatRupiah,
 }) {
     // --- STATE MANAGEMENT VIEW KIRI ---
     // 'grid' = menampilkan produk, 'saved_list' = menampilkan tabel daftar belanja full-screen
@@ -35,6 +36,7 @@ export default function KasirPosView({
     // --- STATE CUSTOM DIALOG SYSTEM ---
     const [customAlert, setCustomAlert] = useState({ isOpen: false, message: '' });
     const [customConfirm, setCustomConfirm] = useState({ isOpen: false, message: '', onConfirm: null });
+    const [modalType, setModalType] = useState('default');
 
     // Helper untuk mengelompokkan varian berdasarkan warna
     const getColorName = (color) => {
@@ -50,10 +52,20 @@ export default function KasirPosView({
 
     // Klik Produk -> Reset & Buka Modal Multi-Variasi
     const handleCardClick = (product) => {
-        setSelectedProduct(product);
-        setVariantSelection({}); // Kosongkan pilihan variasi sebelumnya
-        setIsModalOpen(true);
-    };
+    const kategori =
+        product.category?.name?.toLowerCase();
+    setSelectedProduct(product);
+    if (kategori === 'kebaya') {
+        setModalType('kebaya');
+    }
+    else if (kategori === 'kamen') {
+        setModalType('kamen');
+    }
+    else {
+        setModalType('default');
+    }
+    setIsModalOpen(true);
+};
 
     // Handler Tambah/Kurang Kuantitas Variasi di dalam Pop-up (- Angka +)
     const handleUpdateQuantityInModal = (warna, ukuran, delta) => {
@@ -71,61 +83,41 @@ export default function KasirPosView({
             return updated;
         });
     };
-
-    // Konfirmasi Multi-Variasi ke Keranjang Aktif (LOGIKANYA SUDAH DISELARASKAN)
+    
     const handleKonfirmasiMultiVarian = () => {
-
     const keys = Object.keys(variantSelection);
-
     if (keys.length === 0) {
         showAlert('Silakan tentukan jumlah pada variasi warna & ukuran terlebih dahulu!');
         return;
     }
-
     const newItems = [];
-
-    keys.forEach(key => {
-
-        const [warna, ukuran] = key.split('-');
-
-        const qty = variantSelection[key];
-
+        keys.forEach(key => {
+    const [warna, ukuran] = key.split('-');
+    const qty = variantSelection[key];
         newItems.push({
-    cart_id:
-        `${selectedProduct.id}-${warna}-${ukuran}-${Date.now()}-${Math.random()}`,
-
-    product_id: selectedProduct.id,
-
-    variant_color: warna,
-    variant_size: ukuran,
-
-    id: selectedProduct.id,
-
-    name: selectedProduct.name,
-
-    customName: selectedProduct.name,
-
-    price: selectedProduct.price,
-
-    varianWarna: warna,
-
-    varianUkuran: ukuran,
-
-    quantity: qty
-});
-    });
-
+            cart_id:
+                `${selectedProduct.id}-${warna}-${ukuran}-${Date.now()}-${Math.random()}`,
+            product_id: selectedProduct.id,
+            variant_color: warna,
+            variant_size: ukuran,
+            id: selectedProduct.id,
+            name: selectedProduct.name,
+            customName: selectedProduct.name,
+            price: selectedProduct.price,
+            varianWarna: warna,
+            varianUkuran: ukuran,
+            quantity: qty
+        });
+            });
     setCart(prev => [...prev, ...newItems]);
-
     setIsModalOpen(false);
 };
-
     // FUNGSI SIMPAN BILL (Dipicu dari tombol Simpan Bill kanan)
     const handleSimpanBillAction = () => {
         if (cart.length === 0) return;
 
-        const nameForBill = customerName.trim() || `Pelanggan ${savedBills.length + 1}`;
-        const newBill = {
+    const nameForBill = customerName.trim() || `Pelanggan ${savedBills.length + 1}`;
+    const newBill = {
             id: Date.now(),
             customerName: nameForBill,
             items: [...cart],
@@ -137,7 +129,6 @@ export default function KasirPosView({
         setCustomerName('');
         showAlert(`Belanjaan "${nameForBill}" dialihkan ke Daftar Belanja.`);
     };
-
     // FUNGSI RECALL BILL (Mengembalikan baris tabel terklik ke Box Pembayaran)
     const handleRecallBill = (bill) => {
         if (cart.length > 0) {
@@ -169,6 +160,7 @@ export default function KasirPosView({
             setLeftContentView('grid');
         }
     };
+    
 
     return (
         <div className="flex-1 flex h-full overflow-hidden w-full bg-[#f4f6f9]">
@@ -176,111 +168,54 @@ export default function KasirPosView({
             {/* =========================================================================
                 AREA KIRI: KONDISIONAL SCREEN (GRID PRODUK / TABEL DAFTAR BELANJA FULL)
                ========================================================================= */}
-            <div className="flex-1 flex flex-col h-full p-4 overflow-hidden">
-                
-                {/* TAMPILAN SCREEN 1: GRID PRODUK UTAMA */}
-                {leftContentView === 'grid' && (
-                    <>
-                        <div className="mb-4 flex-shrink-0">
-                            <div className="relative">
-                                <span className="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-400">🔍</span>
-                                <input 
-                                    type="text"
-                                    placeholder="Cari nama barang..."
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    className="w-full bg-white border border-gray-200 pl-9 pr-4 py-2.5 rounded-xl text-xs font-medium focus:outline-none focus:border-[#009664] transition shadow-sm"
-                                />
-                            </div>
-                        </div>
+            <div className="flex-1 overflow-y-auto pb-4 px-6 pt-6">
+    <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
+        {filteredProducts.map((product) => {
+            // Menjumlahkan semua stock dari seluruh varian produk ini
+            const totalStock = product.variants?.reduce((sum, v) => sum + (Number(v.stock) || 0), 0) || 0;
 
-                        <div className="flex-1 overflow-y-auto pb-4">
-                            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-3 gap-4">
-                                {filteredProducts.map((product) => (
-                                    <div 
-                                        key={product.id}
-                                        onClick={() => handleCardClick(product)}
-                                        className="bg-white border border-gray-200 rounded-2xl p-4 flex flex-col justify-between cursor-pointer hover:border-[#009664] hover:shadow-md transition group h-44"
-                                    >
-                                        <div className="w-full h-24 bg-[#f4f6f9] rounded-xl flex items-center justify-center mb-3 text-gray-300 font-bold text-xs group-hover:bg-emerald-50 group-hover:text-[#009664] transition uppercase">
-                                            FOTO KATEGORI
-                                        </div>
-                                        <div>
-                                            <h3 className="text-xs font-bold text-gray-700 tracking-wide line-clamp-1">{product.name}</h3>
-                                            <span className="text-xs font-bold text-[#009664] block mt-0.5">{formatRupiah(product.price)}</span>
-                                            {product.variants && (
-                                                (() => {
-                                                    const totalStock = product.variants.reduce((s, v) => s + (v.stok_outlet || 0), 0);
-                                                    return totalStock > 0
-                                                        ? <span className="text-[9px] font-bold text-green-600 block mt-0.5">Stok Outlet: {totalStock}</span>
-                                                        : <span className="text-[9px] font-bold text-red-500 block mt-0.5">Habis</span>;
-                                                })()
-                                            )}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    </>
-                )}
-
-                {/* TAMPILAN SCREEN 2: TABEL DAFTAR BELANJA FULL SCREEN */}
-                {leftContentView === 'saved_list' && (
-                    <div className="flex-1 flex flex-col bg-white border border-gray-200 rounded-2xl overflow-hidden shadow-sm animate-in fade-in duration-150">
-                        <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-                            <div className="flex items-center space-x-2">
-                                <span className="text-base">📋</span>
-                                <h2 className="text-xs font-black text-gray-800 uppercase tracking-wider">Manajemen Tabel Daftar Belanja Tersimpan</h2>
-                            </div>
-                            <button 
-                                onClick={() => setLeftContentView('grid')}
-                                className="bg-[#009664] text-white font-bold px-3 py-1.5 rounded-xl text-[11px] hover:bg-emerald-700 transition flex items-center space-x-1"
-                            >
-                                <span>⬅</span> <span>Kembali ke Katalog Produk</span>
-                            </button>
-                        </div>
-
-                        <div className="flex-1 overflow-auto">
-                            <table className="w-full text-left border-collapse text-xs">
-                                <thead>
-                                    <tr className="bg-gray-100/70 border-b border-gray-200 text-gray-400 font-bold uppercase tracking-wider text-[10px]">
-                                        <th className="p-4">Nama Pelanggan</th>
-                                        <th className="p-4">Rincian Item & Variasi Kategori</th>
-                                        <th className="p-4 text-right">Total Tagihan</th>
-                                        <th className="p-4 text-center">Aksi</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-100 font-medium text-gray-700">
-                                    {savedBills.length === 0 ? (
-                                        <tr>
-                                            <td colSpan="4" className="p-8 text-center text-gray-400 font-semibold italic">
-                                                Tidak ada antrean daftar belanja yang disimpan saat ini.
-                                            </td>
-                                        </tr>
-                                    ) : (
-                                        savedBills.map((bill) => (
-                                            <tr 
-                                                key={bill.id}
-                                                onClick={() => handleRecallBill(bill)}
-                                                className="hover:bg-emerald-50/40 cursor-pointer transition"
-                                            >
-                                                <td className="p-4 font-black text-gray-800 uppercase">{bill.customerName}</td>
-                                                <td className="p-4 text-gray-500 max-w-xs truncate">
-                                                    {bill.items.map(item => `${item.customName} (${item.varianWarna}/${item.varianUkuran}) x${item.quantity || 1}`).join(', ')}
-                                                </td>
-                                                <td className="p-4 text-right font-black text-[#009664]">{formatRupiah(bill.total)}</td>
-                                                <td className="p-4 text-center">
-                                                    <span className="bg-amber-100 text-amber-700 font-bold px-2.5 py-1 rounded-full text-[10px]">Buka & Bayar ➜</span>
-                                                </td>
-                                            </tr>
-                                        ))
-                                    )}
-                                </tbody>
-                            </table>
+            return (
+                <div
+                    key={product.id}
+                    onClick={() => handleCardClick(product)}
+                    className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group"
+                >
+                    {/* FOTO */}
+                    <div className="relative h-48 bg-slate-50">
+                        {product.image ? (
+                            <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                        ) : (
+                            <div className="w-full h-full flex items-center justify-center text-slate-300 text-xs font-bold uppercase">No Image</div>
+                        )}
+                        <div className="absolute top-3 left-3">
+                            <span className="bg-white/90 backdrop-blur px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                                {product.category?.name || 'Produk'}
+                            </span>
                         </div>
                     </div>
-                )}
-            </div>
+
+                    {/* INFO */}
+                    <div className="p-3">
+                        <h3 className="font-bold text-slate-800 text-xs uppercase line-clamp-2 min-h-[32px]">
+                            {product.name}
+                        </h3>
+                        <div className="mt-3 flex items-end justify-between">
+                            <div>
+                                <div className="text-sm font-black text-[#009664]">{formatRupiah(product.price)}</div>
+                                <div className={`text-[10px] font-bold ${totalStock > 0 ? 'text-green-600' : 'text-red-500'}`}>
+                                    Stock: {totalStock}
+                                </div>
+                            </div>
+                            <div className="w-8 h-8 rounded-full bg-[#009664] text-white flex items-center justify-center font-bold">
+                                +
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            );
+        })}
+    </div>
+</div>
 
             {/* =========================================================================
                 AREA KANAN: BOX PEMBAYARAN UTAMA
@@ -426,107 +361,88 @@ export default function KasirPosView({
                 POP-UP MODAL MULTI-VARIASI (+ ANGKA -)
                ========================================================================= */}
             {isModalOpen && selectedProduct && (
-                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl max-w-4xl w-full shadow-2xl overflow-hidden text-xs font-medium animate-in fade-in zoom-in-95 duration-150 flex flex-col h-[85vh]">
-                        
-                        <div className="p-4 bg-gray-50 border-b border-gray-200 flex justify-between items-center flex-shrink-0">
-                            <div>
-                                <span className="text-[10px] uppercase font-black tracking-wider text-gray-400">Pilih Banyak Variasi & Jumlah Sekaligus</span>
-                                <h3 className="text-base font-black text-gray-800 uppercase tracking-wide mt-0.5">{selectedProduct.name} - <span className="text-[#009664]">{formatRupiah(selectedProduct.price)}</span></h3>
-                            </div>
-                            <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-gray-700 font-bold text-lg px-2">✕</button>
-                        </div>
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+        <div className="bg-white rounded-3xl w-full max-w-2xl flex flex-col max-h-[90vh] shadow-2xl overflow-hidden">
+            
+            {/* HEADER */}
+            <div className="p-6 border-b flex items-center gap-5 bg-white">
+                <div className="w-20 h-20 bg-slate-100 rounded-2xl flex items-center justify-center border border-slate-200 overflow-hidden flex-shrink-0">
+                    {selectedProduct.image ? (
+                        <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
+                    ) : (
+                        <span className="text-[9px] font-bold text-slate-400">FOTO</span>
+                    )}
+                </div>
+                <div className="flex-1">
+                    <p className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">Kategori: {selectedProduct.category?.name}</p>
+                    <h2 className="text-lg font-black uppercase text-slate-800 leading-tight mt-1">{selectedProduct.name}</h2>
+                    <p className="text-[#009664] font-black">{formatRupiah(selectedProduct.price)}</p>
+                </div>
+                <button onClick={() => setIsModalOpen(false)} className="text-xl font-black text-slate-400 hover:text-slate-800">✕</button>
+            </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6 bg-gray-50/50">
-                            {(() => {
-                            if (!selectedProduct.variants || selectedProduct.variants.length === 0) {
+            {/* CONTENT */}
+            <div className="p-6 overflow-y-auto flex-1 bg-[#f9f9f9]">
+                {(() => {
+                    const isKebaya = selectedProduct.category?.name?.toLowerCase().includes('kebaya');
+                    
+                    return isKebaya ? (
+                        <div className="space-y-6">
+                            {selectedProduct.variants?.map((v, i) => {
+                                const colorObj = typeof v.color === 'string' ? JSON.parse(v.color) : v.color;
                                 return (
-                                    <div className="text-center py-10 text-gray-400 font-semibold text-xs">
-                                        Produk ini belum memiliki varian. Silakan atur varian di menu Produk.
-                                    </div>
-                                );
-                            }
-
-                            const grouped = {};
-                            selectedProduct.variants.forEach(v => {
-                                const colorName = getColorName(v.color);
-                                if (!grouped[colorName]) grouped[colorName] = [];
-                                grouped[colorName].push(v);
-                            });
-
-                            return (
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {Object.entries(grouped).map(([colorName, variants]) => (
-                                        <div key={colorName} className="bg-white border border-gray-200 rounded-xl p-4 shadow-sm flex flex-col space-y-3">
-                                            <div className="flex items-center space-x-3 border-b border-gray-100 pb-2">
-                                                <div className="w-12 h-12 bg-gray-100 border border-gray-200 rounded-lg flex items-center justify-center font-bold text-[9px] text-gray-400 uppercase text-center flex-shrink-0">
-                                                    FOTO VARIAN
-                                                </div>
-                                                <div>
-                                                    <h4 className="font-black text-gray-800 text-xs uppercase tracking-wide">{colorName}</h4>
-                                                    <p className="text-[10px] text-gray-400 font-semibold">Tentukan jumlah per-ukuran:</p>
-                                                </div>
-                                            </div>
-
-                                            <div className="space-y-2 pt-1">
-                                                {variants.map(v => {
-                                                    const key = `${colorName}-${v.size}`;
-                                                    const currentQty = variantSelection[key] || 0;
-                                                    const stok = v.stok_outlet || 0;
-
-                                                    return (
-                                                        <div key={v.size} className="flex items-center justify-between bg-gray-50 border border-gray-100 p-2 rounded-lg">
-                                                            <div>
-                                                                <span className="font-black text-gray-700 text-[11px]">Size {v.size}</span>
-                                                                <span className="text-[9px] text-gray-400 font-semibold ml-2">Stok: {stok} pcs</span>
-                                                            </div>
-                                                            
-                                                            <div className="flex items-center gap-2">
-                                                                <div className="flex items-center border border-gray-200 rounded-lg overflow-hidden bg-white shadow-sm">
-                                                                    <button 
-                                                                        type="button"
-                                                                        onClick={() => handleUpdateQuantityInModal(colorName, v.size, -1)}
-                                                                        className="w-7 h-7 flex items-center justify-center font-bold text-gray-500 hover:bg-red-50 hover:text-red-500 border-r border-gray-200 transition"
-                                                                    >
-                                                                        -
-                                                                    </button>
-                                                                    <div className={`w-8 h-7 flex items-center justify-center font-black text-xs ${currentQty > 0 ? 'text-[#009664] bg-emerald-50/50' : 'text-gray-400'}`}>
-                                                                        {currentQty}
-                                                                    </div>
-                                                                    <button 
-                                                                        type="button"
-                                                                        onClick={() => handleUpdateQuantityInModal(colorName, v.size, 1)}
-                                                                        disabled={currentQty >= stok}
-                                                                        className="w-7 h-7 flex items-center justify-center font-bold text-gray-500 hover:bg-emerald-50 hover:text-[#009664] border-l border-gray-200 transition disabled:opacity-30 disabled:cursor-not-allowed"
-                                                                    >
-                                                                        +
-                                                                    </button>
-                                                                </div>
-                                                            </div>
-                                                        </div>
-                                                    );
-                                                })}
+                                    <div key={i} className="bg-white p-4 rounded-2xl border flex items-center justify-between shadow-sm">
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-14 h-14 bg-slate-100 rounded-lg" />
+                                            <div>
+                                                <div className="font-black text-sm">{colorObj?.nama || 'Varian'}</div>
+                                                <div className="text-[10px] text-slate-400">Stok: {v.stock ?? 0}</div>
                                             </div>
                                         </div>
-                                    ))}
-                                </div>
-                            );
-                        })()}
+                                        <div className="flex gap-1">
+                                            {['S','M','L','XL','XXL'].map(size => (
+                                                <button key={size} className={`w-8 h-8 rounded-lg border text-[10px] font-bold ${v.size === size ? 'bg-[#009664] text-white' : 'bg-white'}`}>{size}</button>
+                                            ))}
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <button className="w-8 h-8 bg-slate-100 rounded-lg font-black">-</button>
+                                            <span className="w-6 text-center font-black">1</span>
+                                            <button className="w-8 h-8 bg-[#009664] text-white rounded-lg font-black">+</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
-
-                        <div className="p-4 border-t border-gray-200 bg-white flex items-center justify-between flex-shrink-0">
-                            <div className="text-xs text-gray-400 font-bold">
-                                Total Varian Terpilih: <span className="text-gray-800 font-black">{Object.values(variantSelection).reduce((a, b) => a + b, 0)} Pcs</span>
-                            </div>
-                            <div className="flex gap-2">
-                                <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 bg-white border border-gray-200 rounded-xl font-bold text-gray-500 hover:bg-gray-50 transition">Batal</button>
-                                <button type="button" onClick={handleKonfirmasiMultiVarian} className="px-6 py-2 bg-[#009664] hover:bg-emerald-700 text-white rounded-xl font-black shadow-md transition uppercase tracking-wide">Masukkan Ke Keranjang</button>
-                            </div>
+                    ) : (
+                        <div className="grid grid-cols-2 gap-4">
+                            {selectedProduct.variants?.map((v, i) => {
+                                const colorObj = typeof v.color === 'string' ? JSON.parse(v.color) : v.color;
+                                return (
+                                    <div key={i} className="bg-white border rounded-2xl p-4 flex flex-col items-center">
+                                        <div className="w-full h-24 bg-slate-100 rounded-xl mb-3" />
+                                        <div className="font-black text-sm mb-1">{colorObj?.nama || 'Varian'}</div>
+                                        <div className="text-[10px] text-slate-400 mb-2">Stok: {v.stock ?? 0}</div>
+                                        <div className="flex items-center gap-3 mt-1">
+                                            <button className="w-8 h-8 bg-slate-100 rounded-lg font-black">-</button>
+                                            <span className="w-6 text-center font-black">0</span>
+                                            <button className="w-8 h-8 bg-[#009664] text-white rounded-lg font-black">+</button>
+                                        </div>
+                                    </div>
+                                );
+                            })}
                         </div>
+                    );
+                })()}
+            </div>
 
-                    </div>
-                </div>
-            )}
+            {/* FOOTER */}
+            <div className="p-6 border-t bg-white grid grid-cols-2 gap-4">
+                <button onClick={() => setIsModalOpen(false)} className="py-3 rounded-xl border font-bold text-slate-600">Cancel</button>
+                <button onClick={() => setIsModalOpen(false)} className="py-3 rounded-xl bg-[#009664] font-black text-white">Tambah</button>
+            </div>
+        </div>
+    </div>
+)}
 
             {/* =========================================================================
                 CUSTOM SYSTEM COMPONENT: CHROMELESS MINIMALIST DIALOGS (ALERT & CONFIRM)

@@ -79,27 +79,27 @@ export default function PengaturanNotaView({ formatRupiah }) {
             `}} />
 
             {/* PANEL KIRI: FORM EDIT (Disembunyikan total saat cetak menggunakan 'print:hidden') */}
-            <div className="flex-1 bg-white border border-gray-200 rounded-2xl flex overflow-hidden shadow-sm print:hidden">
+            <div className="flex-1 bg-white border border-gray-200 rounded-l flex overflow-hidden shadow-sm print:hidden">
                 <div className="flex-1 p-6 overflow-y-auto space-y-6">
                     {/* SEKSI 1: EDIT DATA IDENTITAS TOKO */}
-                    <div className="space-y-3 bg-gray-50/40 p-4 rounded-xl border border-gray-100">
+                    <div className="space-y-3 bg-gray-50/40 p-4 rounded-l border border-gray-100">
                         <h4 className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Identitas Atas Nota</h4>
                         <div className="space-y-1">
                             <label className="text-[10px] text-gray-500">Nama Toko</label>
-                            <input type="text" value={notaConfig.namaToko} onChange={(e) => setNotaConfig({...notaConfig, namaToko: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 font-bold text-gray-800 focus:outline-none focus:border-emerald-500"/>
+                            <input type="text" value={notaConfig.namaToko} onChange={(e) => setNotaConfig({...notaConfig, namaToko: e.target.value})} className="w-full border border-gray-200 rounded-l px-3 py-2 font-bold text-gray-800 focus:outline-none focus:border-emerald-500"/>
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] text-gray-500">Alamat Toko</label>
-                            <input type="text" value={notaConfig.alamatToko} onChange={(e) => setNotaConfig({...notaConfig, alamatToko: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 font-bold text-gray-800 focus:outline-none focus:border-emerald-500"/>
+                            <input type="text" value={notaConfig.alamatToko} onChange={(e) => setNotaConfig({...notaConfig, alamatToko: e.target.value})} className="w-full border border-gray-200 rounded-l px-3 py-2 font-bold text-gray-800 focus:outline-none focus:border-emerald-500"/>
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] text-gray-500">No. Telepon</label>
-                            <input type="text" value={notaConfig.telpToko} onChange={(e) => setNotaConfig({...notaConfig, telpToko: e.target.value})} className="w-full border border-gray-200 rounded-xl px-3 py-2 font-bold text-gray-800 focus:outline-none focus:border-emerald-500"/>
+                            <input type="text" value={notaConfig.telpToko} onChange={(e) => setNotaConfig({...notaConfig, telpToko: e.target.value})} className="w-full border border-gray-200 rounded-l px-3 py-2 font-bold text-gray-800 focus:outline-none focus:border-emerald-500"/>
                         </div>
                     </div>
 
                     {/* SEKSI 2: PENGATURAN CENTANG */}
-                    <div className="space-y-2.5 bg-gray-50/60 p-4 rounded-xl border border-gray-100">
+                    <div className="space-y-2.5 bg-gray-50/60 p-4 rounded-l border border-gray-100">
                         <h4 className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Komponen Yang Ditampilkan</h4>
                         
                         <label className="flex items-center space-x-3 cursor-pointer select-none">
@@ -146,11 +146,11 @@ export default function PengaturanNotaView({ formatRupiah }) {
                         </div>
                         <div className="space-y-1">
                             <label className="text-[10px] text-gray-400 font-bold uppercase">Teks Catatan Ketentuan Toko (Rata Tengah)</label>
-                            <textarea rows="3" value={notaConfig.teksFooterNote} onChange={(e) => setNotaConfig({...notaConfig, teksFooterNote: e.target.value})} className="w-full border border-gray-200 rounded-xl p-3 font-bold focus:outline-none focus:border-emerald-500 text-gray-800 text-center resize-none leading-normal"/>
+                            <textarea rows="3" value={notaConfig.teksFooterNote} onChange={(e) => setNotaConfig({...notaConfig, teksFooterNote: e.target.value})} className="w-full border border-gray-200 rounded-l p-3 font-bold focus:outline-none focus:border-emerald-500 text-gray-800 text-center resize-none leading-normal"/>
                         </div>
                     </div>
 
-                    <button onClick={handleSimpanDanCetak} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-xl uppercase tracking-wide transition shadow-sm">
+                    <button onClick={handleSimpanDanCetak} className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-black py-3 rounded-l uppercase tracking-wide transition shadow-sm">
                         💾 Simpan & Test Cetak Nota
                     </button>
                 </div>

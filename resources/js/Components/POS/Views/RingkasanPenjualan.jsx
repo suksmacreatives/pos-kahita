@@ -293,7 +293,7 @@ console.log("Data Pertama:", salesHistory[0]);
                         <select 
                             value={periodeMakro}
                             onChange={(e) => setPeriodeMakro(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
                         >
                             <option value="hari">Hari ini</option>
                             <option value="bulan">Bulan ini</option>
@@ -302,7 +302,7 @@ console.log("Data Pertama:", salesHistory[0]);
                     </div>
 
                     {/* Filter Tengah: Date Range Picker Interaktif */}
-                    <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden h-[33px] min-w-[300px] flex-1 relative">
+                    <div className="flex items-center bg-white border border-slate-200 rounded-l overflow-hidden h-[33px] min-w-[300px] flex-1 relative">
                         <button 
                             type="button"
                             onClick={() => geserTanggal(-1)}
@@ -340,7 +340,7 @@ console.log("Data Pertama:", salesHistory[0]);
                         <select 
                             value={selectedOutlet}
                             onChange={(e) => setSelectedOutlet(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
                         >
                             <option value="all">Semua Outlet</option>
                             {Array.isArray(outlets) && outlets.map((out, idx) => (
@@ -359,36 +359,36 @@ console.log("Data Pertama:", salesHistory[0]);
                 
                 {/* 1. CARDS METRIK UTAMA */}
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
+                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Omset</span>
                         <span className="text-sm font-bold text-slate-800 mt-1 block font-mono">
                             {renderRupiah(dataProses.omset)}
                         </span>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
+                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Transaksi</span>
                         <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.transaksi} Nota</span>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
+                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Produk Terjual</span>
                         <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.produkTerjual} Item</span>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
+                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pelanggan</span>
                         <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.pelanggan} Orang</span>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
+                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rata Belanja</span>
                         <span className="text-sm font-bold text-slate-800 mt-1 block font-mono">
                             {renderRupiah(dataProses.rataBelanja || 0 )}
                         </span>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-4 shadow-2xs">
+                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
                         <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Refund/Void</span>
                         <span className="text-sm font-bold text-rose-600 mt-1 block">{dataProses.refundVoid} Kasus</span>
                     </div>
@@ -398,7 +398,7 @@ console.log("Data Pertama:", salesHistory[0]);
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                     
                     {/* CORE GRAFIK */}
-                    <div className="lg:col-span-2 bg-white border border-slate-200/60 rounded-xl p-5 flex flex-col justify-between min-h-[270px] shadow-2xs">
+                    <div className="lg:col-span-2 bg-white border border-slate-200/60 rounded-l p-5 flex flex-col justify-between min-h-[270px] shadow-2xs">
                         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                             <div>
                                 <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
@@ -407,7 +407,7 @@ console.log("Data Pertama:", salesHistory[0]);
                                 <p className="text-[10px] text-slate-400">Gunakan filter disamping untuk merubah sumbu penyajian data</p>
                             </div>
                             
-                            <div className="bg-slate-100 p-0.5 rounded-lg flex text-[9px] font-bold">
+                            <div className="bg-slate-100 p-0.5 rounded-l flex text-[9px] font-bold">
                                 {[["hari", "Hari"], ["minggu", "Minggu"], ["bulan", "Bulan"]].map(([key, label]) => (
                                     <button 
                                         key={key}
@@ -440,7 +440,7 @@ console.log("Data Pertama:", salesHistory[0]);
                     </div>
 
                     {/* METODE PEMBAYARAN */}
-                    <div className="bg-white border border-slate-200/60 rounded-xl p-5 flex flex-col justify-between shadow-2xs">
+                    <div className="bg-white border border-slate-200/60 rounded-l p-5 flex flex-col justify-between shadow-2xs">
                         <div className="border-b border-slate-100 pb-2">
                             <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Metode Pembayaran</h4>
                             <p className="text-[10px] text-slate-400">Distribusi jalur penyelesaian transaksi</p>
@@ -466,7 +466,7 @@ console.log("Data Pertama:", salesHistory[0]);
                 </div>
 
                 {/* 3. PRODUCT INSIGHTS */}
-                <div className="bg-white border border-slate-200/60 rounded-xl p-5 shadow-2xs">
+                <div className="bg-white border border-slate-200/60 rounded-l p-5 shadow-2xs">
                     <div className="border-b border-slate-100 pb-3 mb-4">
                         <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Produk Terlaris</h4>
                         <p className="text-[10px] text-slate-400">Daftar item dengan volume penjualan tertinggi</p>
@@ -486,7 +486,7 @@ console.log("Data Pertama:", salesHistory[0]);
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <span className={`text-[9px] px-2 py-0.5 rounded font-bold border ${
+                                        <span className={`text-[9px] px-2 py-0.5 rounded-l font-bold border ${
                                             (item.stok || 0) <= 7 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-slate-50 text-slate-500 border-slate-200'
                                         }`}>
                                             Sisa Stok: {item.stok}

@@ -247,7 +247,7 @@ export default function AktivitasSesiKasir({
                             onChange={(e) =>
                                 setPeriodeMakro(e.target.value)
                             }
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full shadow-2xs"
+                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full shadow-2xs"
                         >
                             <option value="hari">Hari ini</option>
                             <option value="bulan">Bulan ini</option>
@@ -258,7 +258,7 @@ export default function AktivitasSesiKasir({
                         </select>
                     </div>
 
-                    <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden h-[33px] min-w-[300px] flex-1 relative shadow-2xs">
+                    <div className="flex items-center bg-white border border-slate-200 rounded-l overflow-hidden h-[33px] min-w-[300px] flex-1 relative shadow-2xs">
 
                         <button
                             type="button"
@@ -309,7 +309,7 @@ export default function AktivitasSesiKasir({
                             onChange={(e) =>
                                 setStatusFilter(e.target.value)
                             }
-                            className="bg-white border border-slate-200 rounded-lg px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full shadow-2xs"
+                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full shadow-2xs"
                         >
                             <option value="all">
                                 Semua Status
@@ -331,7 +331,7 @@ export default function AktivitasSesiKasir({
             {/* TABLE */}
             <div className="flex-1 overflow-y-auto p-5">
 
-                <div className="bg-white border border-slate-200/80 rounded-xl overflow-hidden shadow-2xs">
+                <div className="bg-white border border-slate-200/80 rounded-l overflow-hidden shadow-2xs">
 
                     <table className="w-full text-left border-collapse">
 
