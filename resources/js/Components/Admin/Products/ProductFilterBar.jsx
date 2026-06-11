@@ -108,7 +108,7 @@ export default function ProductFilterBar({
               <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isCatOpen ? 'rotate-180' : ''}`} />
             </button>
             {isCatOpen && (
-              <ul className="absolute left-0 mt-1.5 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-35 py-1 text-xs">
+              <ul className="absolute left-0 mt-1.5 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
                 {categoryList.map((cat) => (
                   <li
                     key={cat}
@@ -137,7 +137,7 @@ export default function ProductFilterBar({
               <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isStatusOpen ? 'rotate-180' : ''}`} />
             </button>
             {isStatusOpen && (
-              <ul className="absolute left-0 mt-1.5 w-40 bg-white border border-gray-100 rounded-xl shadow-lg z-35 py-1 text-xs">
+              <ul className="absolute left-0 mt-1.5 w-40 bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
                 {statuses.map((st) => (
                   <li
                     key={st.value}
@@ -166,7 +166,7 @@ export default function ProductFilterBar({
               <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOutletOpen ? 'rotate-180' : ''}`} />
             </button>
             {isOutletOpen && (
-              <ul className="absolute left-0 mt-1.5 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-35 py-1 text-xs">
+              <ul className="absolute left-0 mt-1.5 w-48 bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
                 {outlets.map((out) => (
                   <li
                     key={out.value}

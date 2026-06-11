@@ -14,9 +14,18 @@ use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
+    public function create()
+    {
+        return Inertia::render('Admin/Products', [
+            'products' => [],
+            'outlets' => Outlet::all(),
+            'categories' => ProductCategory::all(),
+        ]);
+    }
+
     public function index()
     {
-        $products = Product::with(['category', 'variants.outletStocks', 'outlet'])
+        $products = Product::with(['category', 'variants.outletStocks', 'outlet', 'outlets'])
             ->orderBy('created_at', 'desc')
             ->get();
 
@@ -26,7 +35,7 @@ class ProductController extends Controller
 
         $mapped = $products->map(function ($p) use ($salesData) {
             $variants = $p->variants->map(fn ($v) => [
-                'ukuran' => $v->size,
+                'ukuran' => in_array($v->size, ['', null], true) ? null : $v->size,
                 'warna' => is_string($v->color) ? json_decode($v->color, true) : ($v->color ?? ['nama' => '', 'hex' => '#000000']),
                 'stok' => (int) $v->stock,
                 'sku' => $v->sku,
@@ -43,13 +52,14 @@ class ProductController extends Controller
                 'id' => $p->id,
                 'kode_produk' => $p->sku,
                 'nama_produk' => $p->name,
+                'category_id' => $p->category_id ?? null,
                 'kategori' => $p->category?->name ?? '',
                 'sub_kategori' => $p->sub_kategori ?? '',
                 'deskripsi' => $p->description ?? '',
                 'harga_beli' => (int) $p->cost_price,
                 'harga_jual' => (int) $p->price,
                 'status' => $p->status ?? 'aktif',
-                'outlet_tersedia' => $p->outlet_ids ?? [],
+                'outlet_tersedia' => $p->outlets ? $p->outlets->pluck('id')->toArray() : ($p->outlet_ids ?? []),
                 'varian' => $variants->toArray(),
                 'total_stok' => $total_stok,
                 'stok_gudang' => $stok_gudang,
@@ -76,29 +86,20 @@ class ProductController extends Controller
             'harga_jual' => 'required|numeric|min:0',
             'harga_beli' => 'required|numeric|min:0',
             'deskripsi' => 'nullable|string',
-            'kategori' => 'nullable|string',
+            'category_id' => 'nullable|integer|exists:product_categories,id',
             'sub_kategori' => 'nullable|string',
-            'status' => 'nullable|string',
+            'status' => 'nullable|string|in:aktif,nonaktif',
+            'variants' => 'nullable|array',
+            'variants.*.ukuran' => 'nullable|string',
+            'variants.*.warna' => 'nullable|array',
+            'variants.*.warna.nama' => 'nullable|string',
+            'variants.*.warna.hex' => 'nullable|string',
+            'variants.*.stok' => 'nullable|integer|min:0',
+            'variants.*.sku' => 'nullable|string',
             'outlet_tersedia' => 'nullable|array',
             'outlet_tersedia.*' => 'string',
-            'varian' => 'nullable|array',
-            'varian.*.ukuran' => 'required|string',
-            'varian.*.warna' => 'required|array',
-            'varian.*.warna.nama' => 'required|string',
-            'varian.*.warna.hex' => 'required|string',
-            'varian.*.stok' => 'required|integer|min:0',
-            'varian.*.sku' => 'required|string',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
-
-        $categoryId = null;
-        if (!empty($validated['kategori'])) {
-            $category = ProductCategory::firstOrCreate(
-                ['name' => $validated['kategori']],
-                ['name' => $validated['kategori']]
-            );
-            $categoryId = $category->id;
-        }
 
         $imagePath = null;
         if ($request->hasFile('image')) {
@@ -113,21 +114,23 @@ class ProductController extends Controller
             'price' => $validated['harga_jual'],
             'cost_price' => $validated['harga_beli'],
             'description' => $validated['deskripsi'] ?? null,
-            'category_id' => $categoryId,
+            'category_id' => $validated['category_id'] ?? null,
             'sub_kategori' => $validated['sub_kategori'] ?? null,
             'status' => $validated['status'] ?? 'aktif',
             'outlet_id' => !empty($outletTersedia) ? (int) $outletTersedia[0] : null,
-            'outlet_ids' => $outletTersedia,
             'image' => $imagePath,
         ]);
 
-        if (!empty($validated['varian'])) {
-            foreach ($validated['varian'] as $v) {
+        $product->outlets()->sync($outletTersedia);
+
+        if (!empty($validated['variants'])) {
+            foreach ($validated['variants'] as $v) {
+                $size = $v['ukuran'] ?? null;
                 $variant = $product->variants()->create([
-                    'size' => $v['ukuran'],
-                    'color' => $v['warna'],
-                    'stock' => $v['stok'],
-                    'sku' => $v['sku'],
+                    'size' => $size !== '' ? $size : null,
+                    'color' => $v['warna'] ?? ['nama' => 'Universal', 'hex' => '#FFFFFF'],
+                    'stock' => $v['stok'] ?? 0,
+                    'sku' => $v['sku'] ?? $validated['kode_produk'] . '-ALL',
                 ]);
 
                 foreach ($outletTersedia as $outletId) {
@@ -150,29 +153,20 @@ class ProductController extends Controller
             'harga_jual' => 'required|numeric|min:0',
             'harga_beli' => 'required|numeric|min:0',
             'deskripsi' => 'nullable|string',
-            'kategori' => 'nullable|string',
+            'category_id' => 'nullable|integer|exists:product_categories,id',
             'sub_kategori' => 'nullable|string',
-            'status' => 'nullable|string',
+            'status' => 'nullable|string|in:aktif,nonaktif',
+            'variants' => 'nullable|array',
+            'variants.*.ukuran' => 'nullable|string',
+            'variants.*.warna' => 'nullable|array',
+            'variants.*.warna.nama' => 'nullable|string',
+            'variants.*.warna.hex' => 'nullable|string',
+            'variants.*.stok' => 'nullable|integer|min:0',
+            'variants.*.sku' => 'nullable|string',
             'outlet_tersedia' => 'nullable|array',
             'outlet_tersedia.*' => 'string',
-            'varian' => 'nullable|array',
-            'varian.*.ukuran' => 'required|string',
-            'varian.*.warna' => 'required|array',
-            'varian.*.warna.nama' => 'required|string',
-            'varian.*.warna.hex' => 'required|string',
-            'varian.*.stok' => 'required|integer|min:0',
-            'varian.*.sku' => 'required|string',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
-
-        $categoryId = null;
-        if (!empty($validated['kategori'])) {
-            $category = ProductCategory::firstOrCreate(
-                ['name' => $validated['kategori']],
-                ['name' => $validated['kategori']]
-            );
-            $categoryId = $category->id;
-        }
 
         $outletTersedia = $validated['outlet_tersedia'] ?? [];
 
@@ -182,11 +176,10 @@ class ProductController extends Controller
             'price' => $validated['harga_jual'],
             'cost_price' => $validated['harga_beli'],
             'description' => $validated['deskripsi'] ?? null,
-            'category_id' => $categoryId,
+            'category_id' => $validated['category_id'] ?? null,
             'sub_kategori' => $validated['sub_kategori'] ?? null,
             'status' => $validated['status'] ?? 'aktif',
             'outlet_id' => !empty($outletTersedia) ? (int) $outletTersedia[0] : null,
-            'outlet_ids' => $outletTersedia,
         ];
 
         if ($request->hasFile('image')) {
@@ -198,14 +191,18 @@ class ProductController extends Controller
 
         $product->update($updateData);
 
-        if (!empty($validated['varian'])) {
-            $product->variants()->delete();
-            foreach ($validated['varian'] as $v) {
+        $product->outlets()->sync($outletTersedia);
+
+        $product->variants()->delete();
+
+        if (!empty($validated['variants'])) {
+            foreach ($validated['variants'] as $v) {
+                $size = $v['ukuran'] ?? null;
                 $variant = $product->variants()->create([
-                    'size' => $v['ukuran'],
-                    'color' => $v['warna'],
-                    'stock' => $v['stok'],
-                    'sku' => $v['sku'],
+                    'size' => $size !== '' ? $size : null,
+                    'color' => $v['warna'] ?? ['nama' => 'Universal', 'hex' => '#FFFFFF'],
+                    'stock' => $v['stok'] ?? 0,
+                    'sku' => $v['sku'] ?? $validated['kode_produk'] . '-ALL',
                 ]);
 
                 foreach ($outletTersedia as $outletId) {
