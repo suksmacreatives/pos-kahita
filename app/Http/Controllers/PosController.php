@@ -57,23 +57,30 @@ class PosController extends Controller
                         ? Storage::url($p->image)
                         : null,
                     'variants' => $p->variants->map(function ($v) use ($outletId) {
-                        $outletStock = OutletStock::where('outlet_id', $outletId)
-                            ->where('product_variant_id', $v->id)
-                            ->value('stock') ?? 0;
+                    // Mencoba mencari stok di tabel outlet_stocks
+                    $outletStock = OutletStock::where('outlet_id', $outletId)
+                        ->where('product_variant_id', $v->id)
+                        ->value('stock');
 
+                    // Jika di outlet_stocks tidak ada (null), kita ambil dari v->stock (gudang)
+                    $finalOutletStock = $outletStock !== null
+                    ? (int) $outletStock
+                    : (int) $v->stock;
+                    
                         return [
                             'id' => $v->id,
                             'size' => $v->size,
                             'color' => $v->color,
                             'sku' => $v->sku,
+                            'stock' => $finalOutletStock,
                             'stok_gudang' => (int) $v->stock,
-                            'stok_outlet' => (int) $outletStock,
-                            'total_stok' => (int) $v->stock + (int) $outletStock,
+                            'stok_outlet' => $finalOutletStock,
+                            'total_stok' => (int) $v->stock + $finalOutletStock,
                         ];
                     }),
                 ];
             });
-
+            
         return Inertia::render('Pos/Index', [
             'is_shift_open_db' => $activeShift ? true : false,
             'active_shift_details' => $activeShift,
