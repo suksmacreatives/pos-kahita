@@ -21,6 +21,7 @@ class TransactionController extends Controller
             'subtotal' => 'required|numeric',
             'discount' => 'nullable|numeric',
             'grand_total' => 'required|numeric',
+            'promo_id' => 'nullable|exists:promos,id',
             'payment_method' => 'required|string', // Tunai, QRIS, Debit, Kredit
             'cart_items' => 'required|array|min:1',
             'cart_items.*.product_id' => 'required|exists:products,id',
@@ -72,6 +73,7 @@ class TransactionController extends Controller
                 'discount' => $request->discount ?? 0,
                 'grand_total' => $request->grand_total,
                 'payment_method' => $request->payment_method,
+                'promo_id' => $request->promo_id,
                 'status' => 'completed',
             ]);
 

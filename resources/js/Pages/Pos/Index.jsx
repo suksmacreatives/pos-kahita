@@ -19,6 +19,7 @@ import PengaturanTokoView from '@/Components/POS/Views/PengaturanTokoView';
 export default function Index({
     auth,
     products_from_db = [],
+    promos = [],
     is_shift_open_db = false,
     active_shift_details = null,
     attendances = [],
@@ -30,8 +31,19 @@ export default function Index({
     // =========================================================
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [activeMenu, setActiveMenu] = useState('kasir');
-
-    const [cart, setCart] = useState([]);
+    const [selectedPromo, setSelectedPromo] = useState(null);
+    const [cart, setCart] = useState(() => {
+    try {
+        const saved = localStorage.getItem("my_cart");
+        if (saved) {
+            console.log("LOG: Berhasil memuat dari storage");
+            return JSON.parse(saved);
+        }
+    } catch (e) {
+        console.error("Gagal parse JSON dari storage");
+    }
+    return [];
+    });
     const [savedBills, setSavedBills] = useState([]);
     const [searchQuery, setSearchQuery] = useState('');
     const [customerName, setCustomerName] = useState('');
@@ -46,7 +58,7 @@ export default function Index({
 
     const [loadingSidebar, setLoadingSidebar] = useState(false);
     const [showModalTutup, setShowModalTutup] = useState(false);
-
+    const [isProcessing, setIsProcessing] = useState(false);
     // STATE BARU UNTUK MODAL
     const [appNotification, setAppNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
     const [successModal, setSuccessModal] = useState({ isOpen: false, data: null });
@@ -57,11 +69,8 @@ export default function Index({
     const formBukaKasir = useForm({ starting_cash: '' });
     const formTutupKasir = useForm({ physical_cash: '' });
 
-    const displayProducts = products_from_db.length > 0 ? products_from_db : [
-        { id: 1, name: 'ALAS BIRU', price: 175000, code: 'E3' },
-        { id: 2, name: 'Aruna biru', price: 175000, code: 'E3' },
-    ];
-
+    const [displayProducts, setDisplayProducts] = useState(products_from_db);
+    const [productsVersion, setProductsVersion] = useState(0); // Tambahkan baris ini
     const loadSidebarData = async () => {
         try {
             setLoadingSidebar(true);
@@ -112,278 +121,191 @@ export default function Index({
         });
     };
 
-    const cetakStrukLangsung = (transaksiData) => {
-
-    const notaConfig =
-        JSON.parse(
-            localStorage.getItem('master_nota_config')
-        ) || {};
+const cetakStrukLangsung = (transaksiData) => {
+    // 1. Ambil konfigurasi dari localStorage (sama seperti di PengaturanNotaView)
+    const savedConfig = localStorage.getItem('master_nota_config');
+    const notaConfig = savedConfig ? JSON.parse(savedConfig) : {
+        namaToko: 'KAHITA BUSANA',
+        alamatToko: 'JL. BYPASS DHARMA GIRI',
+        telpToko: '082189833575',
+        showNamaToko: true, showAlamat: true, showTelp: true,
+        showNoStruk: true, showWaktu: true,
+        showHeaderTerimakasih: true, showFooterNote: true,
+        teksTerimakasih: 'Terima Kasih',
+        teksFooterNote: 'Mohon diperiksa kembali pembelian anda...'
+    };
 
     const iframe = document.createElement('iframe');
-
-    iframe.style.position = 'fixed';
-    iframe.style.right = '0';
-    iframe.style.bottom = '0';
+    iframe.style.position = 'absolute';
     iframe.style.width = '0';
     iframe.style.height = '0';
-    iframe.style.border = '0';
-
     document.body.appendChild(iframe);
 
     const doc = iframe.contentWindow.document;
-
     const waktu = new Date().toLocaleString('id-ID');
 
-    const htmlStruk = `
-    <html>
-    <head>
-        <style>
-    @page{
-        margin:0;
-        size:58mm auto;
-    }
-
-    body{
-    width:58mm;
-    margin:0;
-    padding:10mm 4mm;
-    box-sizing:border-box;
-}
-    .header{
-    text-align:center;
-    line-height:1.3;
-    margin-bottom:2px;
-}
-
-    .center{
-        text-align:center;
-    }
-
-    .divider{
-        border-top:1px dashed #000;
-        margin:6px 0;
-    }
-
-    .item{
-        margin-bottom:6px;
-    }
-
-    .item-name{
-        font-weight:bold;
-        word-break:break-word;
-    }
-
-    .item-varian{
-    margin-left:4px;
-}
-    .row{
-    display:flex;
-    justify-content:space-between;
-    width:100%;
-}
-
-    .item-row{
-        display:flex;
-        justify-content:space-between;
-        width:100%;
-    }
-
-    .summary{
-        margin-top:6px;
-    }
-    .summary .row{
-    margin-bottom:3px;
-}
-
-    .footer{
-        text-align:center;
-        font-size:10px;
-        line-height:1.4;
-        margin-top:8px;
-        word-break:break-word;
-        white-space:normal;
-    }
-
-    .thanks{
-        text-align:center;
-        font-weight:bold;
-        margin:8px 0;
-    }
-</style>
-    </head>
-
-    <body>
-
-        ${
-    notaConfig.showNamaToko
-        ? `<div class="header"><b>${notaConfig.namaToko}</b></div>`
-        : ''
-}
-
-${
-    notaConfig.showAlamat
-        ? `<div class="header">${notaConfig.alamatToko}</div>`
-        : ''
-}
-
-${
-    notaConfig.showTelp
-        ? `<div class="header">${notaConfig.telpToko}</div>`
-        : ''
-}
-
-${
-    notaConfig.showNoStruk
-        ? `<div class="header">No Struk : ${transaksiData.kode || transaksiData.id || '-'}</div>`
-        : ''
-}
-
-${
-    notaConfig.showWaktu
-        ? `<div class="header">${waktu}</div>`
-        : ''
-}
-
-<div class="divider"></div>
-
-        ${(transaksiData.items || [])
-            .map(item => `
-<div class="item">
-
-    <div class="item-name">
-        ${item.name}
-    </div>
-
-    <div class="item-varian">
-        ${item.varianWarna || ''}
-        ${item.varianUkuran || ''}
-    </div>
-
-    <div class="item-row">
-        <span>
-            ${item.quantity} x ${item.price.toLocaleString('id-ID')}
-        </span>
-
-        <span>
-            ${(item.quantity * item.price).toLocaleString('id-ID')}
-        </span>
-    </div>
-
-</div>
-`)
-            .join('')}
-
-        <div class="divider"></div>
-
-<div class="summary">
-
-    <div class="row">
-        <span>TOTAL</span>
-        <span>
-            ${transaksiData.total.toLocaleString('id-ID')}
-        </span>
-    </div>
-
-    ${
-        transaksiData.metode === 'Tunai'
-        ? `
-            <div class="row">
-                <span>TUNAI</span>
-                <span>
-                    ${transaksiData.bayar.toLocaleString('id-ID')}
-                </span>
+    doc.write(`
+        <html>
+        <head>
+            <style>
+                body { font-family: 'Courier New', monospace; width: 70mm; font-size: 11px; line-height: 1.4; color: #000; }
+                .text-center { text-align: center; }
+                .font-bold { font-weight: bold; }
+                .uppercase { text-transform: uppercase; }
+                .border-b { border-bottom: 1px dashed #000; margin: 5px 0; }
+                table { width: 100%; border-collapse: collapse; }
+                .flex-between { display: flex; justify-content: space-between; }
+            </style>
+        </head>
+        <body>
+            <div class="text-center">
+                ${notaConfig.showNamaToko ? `<h4 class="font-bold uppercase">${notaConfig.namaToko}</h4>` : ''}
+                ${notaConfig.showAlamat ? `<p class="uppercase">${notaConfig.alamatToko}</p>` : ''}
+                ${notaConfig.showTelp ? `<p>TELP: ${notaConfig.telpToko}</p>` : ''}
+                ${notaConfig.showNoStruk ? `<p class="font-bold">NO.STRUK: ${transaksiData.noStruk || '100505'}</p>` : ''}
+                ${notaConfig.showWaktu ? `<p>${waktu}</p>` : ''}
             </div>
 
-            <div class="row">
-                <span>KEMBALI</span>
-                <span>
-                    ${transaksiData.kembalian.toLocaleString('id-ID')}
-                </span>
+            <div class="border-b"></div>
+
+            <table>
+                ${transaksiData.items.map(item => `
+                    <tr>
+                        <td colspan="2" class="font-bold uppercase">${item.name || item.customName}</td>
+                    </tr>
+                    <tr>
+                        <td>${item.quantity} x ${formatRupiah(item.price || 0)}</td>
+                        <td style="text-align:right">${formatRupiah((item.price * item.quantity) || 0)}</td>
+                    </tr>
+                `).join('')}
+            </table>
+
+            <div class="border-b"></div>
+
+            <div class="font-bold">
+                <div class="flex-between"><span>TOTAL RP. =</span><span>${formatRupiah(transaksiData.total || 0)}</span></div>
+                <div class="flex-between">
+                    <span>${transaksiData.metode || 'TUNAI'} =</span>
+                    <span>${formatRupiah(transaksiData.tunai || 0)}</span>
+                </div>
             </div>
-        `
-        : ''
-    }
 
-</div>
+            ${(transaksiData.metode === 'TUNAI' || !transaksiData.metode) ? `
+                <div class="border-b"></div>
+                <div class="font-bold flex-between">
+                    <span>KEMBALI RP. =</span><span>${formatRupiah(transaksiData.kembali || 0)}</span>
+                </div>
+            ` : ''}
 
-<div class="divider"></div>
+            <div class="border-b"></div>
 
-        ${
-    notaConfig.showHeaderTerimakasih
-    ? `
-        <div class="thanks">
-            ${notaConfig.teksTerimakasih}
-        </div>
-    `
-    : ''
-}
-
-${
-    notaConfig.showFooterNote
-    ? `
-        <div class="footer">
-            ${notaConfig.teksFooterNote}
-        </div>
-    `
-    : ''
-}
-
-    </body>
-    </html>
-    `;
-
-    doc.open();
-    doc.write(htmlStruk);
+            ${notaConfig.showHeaderTerimakasih ? `<div class="text-center font-bold" style="margin: 10px 0;">${notaConfig.teksTerimakasih}</div>` : ''}
+            
+            ${notaConfig.showFooterNote ? `<div class="text-center" style="font-size: 10px;">${notaConfig.teksFooterNote}</div>` : ''}
+        </body>
+        </html>
+    `);
     doc.close();
-
-    iframe.onload = () => {
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
-
-        setTimeout(() => {
-            document.body.removeChild(iframe);
-        }, 1000);
-    };
+    iframe.contentWindow.focus();
+    iframe.contentWindow.print();
+    setTimeout(() => document.body.removeChild(iframe), 1000);
 };
 
-    const handleProsesBayarFinal = async () => {
-        if (cart.length === 0) {
-            setAppNotification({ isOpen: true, type: 'error', title: 'Keranjang Kosong', message: 'Belum ada produk dipilih' });
-            return;
-        }
-
-        try {
-            const response = await fetch('/pos/transaksi', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') },
-                body: JSON.stringify({
-                    customer_name: customerName || 'Umum', payment_method: selectedPayment, subtotal, grand_total: subtotal,
-                    paid_amount: selectedPayment === 'Tunai' ? Number(inputUangDiterima) : subtotal,
-                    change_amount: selectedPayment === 'Tunai' ? uangKembalian : 0,
-                    items: cart.map((item) => ({ product_id: item.product_id || item.id, product_name: item.customName || item.name, variant_color: item.varianWarna || null, variant_size: item.varianUkuran || null, price: item.price, quantity: item.quantity, total_price: item.price * item.quantity })),
-                }),
-            });
-            const result = await response.json();
-            if (result.success) {
-                await loadSidebarData();
-                setSuccessModal({
-    isOpen: true,
-    data: {
-        total: subtotal,
-        metode: selectedPayment,
-        bayar: Number(inputUangDiterima || subtotal),
-        kembalian: uangKembalian,
-        items: cart
+useEffect(() => {
+    const saved = localStorage.getItem("my_cart");
+    if (saved) {
+        setCart(JSON.parse(saved));
     }
-});
-                setCart([]); setCustomerName(''); setInputUangDiterima(''); setSelectedPayment('Tunai'); setIsCheckoutView(false);
-            } else {
-                setAppNotification({ isOpen: true, type: 'error', title: 'Transaksi Gagal', message: result.message || 'Gagal transaksi' });
+}, []); 
+
+const handleProsesBayarFinal = async () => {
+    if (isProcessing) return; 
+    if (cart.length === 0) {
+        setAppNotification({ isOpen: true, type: 'error', title: 'Keranjang Kosong', message: 'Belum ada produk dipilih' });
+        return;
+    }
+    setIsProcessing(true);
+
+    try {
+        const response = await fetch('/pos/transaksi', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Accept': 'application/json', 
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]').getAttribute('content') 
+            },
+            body: JSON.stringify({
+                customer_name: customerName || 'Umum', 
+                payment_method: selectedPayment, 
+                promo_id: selectedPromo?.id || null,
+                subtotal, 
+                grand_total: subtotal,
+                paid_amount: selectedPayment === 'Tunai' ? Number(inputUangDiterima) : subtotal,
+                change_amount: selectedPayment === 'Tunai' ? uangKembalian : 0,
+                items: cart.map((item) => ({ 
+                    product_id: item.product_id || item.id, 
+                    product_name: item.customName || item.name, 
+                    variant_color: item.varianWarna || null, 
+                    variant_size: item.varianUkuran || null, 
+                    price: item.price, 
+                    quantity: item.quantity, 
+                    total_price: item.price * item.quantity 
+                })),
+            }),
+        });
+        
+        const result = await response.json();
+
+        // LOGIKA HARUS DI DALAM SINI
+        if (result.success) {
+            // 1. Update stok di layar secara instan
+            setDisplayProducts(prevProducts => 
+                prevProducts.map(p => {
+                    const itemInCart = cart.find(c => (c.product_id || c.id) === (p.product_id || p.id));
+                    if (itemInCart) {
+                        return { ...p, stock: Math.max(0, p.stock - itemInCart.quantity) };
+                    }
+                    return p;
+                })
+            );
+            setProductsVersion(prev => prev + 1);
+
+            // 2. Jika server mengembalikan data produk terbaru, timpa dengan data dari server
+            if (result.products) {
+                setDisplayProducts(result.products);
             }
-        } catch (error) {
-            setAppNotification({ isOpen: true, type: 'error', title: 'Server Error', message: 'Terjadi kesalahan server' });
+
+            // 3. Update data sidebar
+            await loadSidebarData();
+            
+            // 4. Tampilkan modal sukses
+            setSuccessModal({
+                isOpen: true,
+                data: {
+                    total: subtotal,
+                    metode: selectedPayment,
+                    bayar: Number(inputUangDiterima || subtotal),
+                    kembalian: uangKembalian,
+                    items: cart
+                }
+            });
+
+            // 5. Reset form
+            setCart([]); 
+            setCustomerName(''); 
+            setInputUangDiterima(''); 
+            setSelectedPayment('Tunai'); 
+            setIsCheckoutView(false);
+        } else {
+            // Jika transaksi gagal dari sisi server
+            setAppNotification({ isOpen: true, type: 'error', title: 'Transaksi Gagal', message: result.message || 'Gagal transaksi' });
         }
-    };
+    } catch (error) {
+        setAppNotification({ isOpen: true, type: 'error', title: 'Server Error', message: 'Terjadi kesalahan server' });
+    } finally {
+        setIsProcessing(false);
+    }
+};
 
     const handleTutupKasir = () => {
     formTutupKasir.post(route('pos.tutup-kasir'), {
@@ -402,6 +324,7 @@ console.log(
         payment_method: trx.payment_method
     }))
 );
+console.log("DEBUG_INDEX: Isi cart di Index saat ini:", cart);
     return (
         <div className="bg-[#f4f6f9] h-screen w-screen flex flex-col font-sans overflow-hidden select-none text-gray-700">
             <Head title={`Kasa POS - ${outlet_name || 'Outlet'}`} />
@@ -572,7 +495,7 @@ console.log(
                         <div className="text-xs font-bold tracking-wider opacity-90">{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     </header>
                     <div className="flex-1 flex overflow-hidden w-full h-full">
-                        {activeMenu === 'kasir' && (<KasirPosView filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'kasir' && (<KasirPosView  promos={promos} selectedPromo={selectedPromo} setSelectedPromo={setSelectedPromo} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} />)}
                         {/* ... (Menu lainnya tetap sama) */}
                         {activeMenu === 'penjualan' && (<DataPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} onPrint={cetakStrukLangsung} onVoid={(sale) => { console.log('VOID:', sale); }} />)}
                         {activeMenu === 'laporan-ringkasan' && (<RingkasanPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
