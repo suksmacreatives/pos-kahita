@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save } from 'lucide-react';
+import { X, Save, ChevronDown } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
 export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] }) {
@@ -8,6 +8,12 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
 
     const isEditMode = !!kasir;
     const [isSaving, setIsSaving] = useState(false);
+    const [isOutletOpen, setIsOutletOpen] = useState(false);
+    const [isShiftOpen, setIsShiftOpen] = useState(false);
+    const [isStatusOpen, setIsStatusOpen] = useState(false);
+    const outletRef = useRef(null);
+    const shiftRef = useRef(null);
+    const statusRef = useRef(null);
     
     const [formData, setFormData] = useState({
         nama: '',
@@ -46,8 +52,22 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
         }
     }, [kasir, isEditMode, isOpen, outlets]);
 
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (outletRef.current && !outletRef.current.contains(e.target)) setIsOutletOpen(false);
+            if (shiftRef.current && !shiftRef.current.contains(e.target)) setIsShiftOpen(false);
+            if (statusRef.current && !statusRef.current.contains(e.target)) setIsStatusOpen(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
+    };
+
+    const handleSelect = (name, value) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     const handleSubmit = (e) => {
@@ -66,12 +86,20 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
         }
     };
 
+    const shiftOptions = [
+        { value: 'pagi', label: 'Pagi (08:00 - 15:00)' },
+        { value: 'siang', label: 'Siang (14:00 - 21:00)' },
+        { value: 'malam', label: 'Malam (20:00 - 23:00)' },
+    ];
+
+    const statusOptions = [
+        { value: 'aktif', label: 'Aktif' },
+        { value: 'nonaktif', label: 'Nonaktif' },
+    ];
+
     return createPortal(
-        <>
-            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-                <div className="min-h-full flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
                             <h3 className="font-extrabold text-gray-900">
                                 {isEditMode ? 'Edit Data Kasir' : 'Tambah Kasir Baru'}
@@ -153,45 +181,80 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
 
                     <div className="pt-2">
                         <label className="block text-[11px] font-bold text-gray-700 mb-1">Tugaskan ke Outlet *</label>
-                        <select
-                            name="outlet_id"
-                            required
-                            value={formData.outlet_id}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none bg-slate-50 font-medium text-slate-800"
-                        >
-                                        <option value="">Pilih Outlet</option>
-                                        {outlets.map(out => (
-                                            <option key={out.id} value={out.id}>{out.nama || out.name}</option>
-                                        ))}
-                        </select>
+                        <div className="relative z-10" ref={outletRef}>
+                            <button
+                                type="button"
+                                onClick={() => setIsOutletOpen(!isOutletOpen)}
+                                className="flex items-center justify-between w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                            >
+                                <span className="truncate">{outlets.find(o => o.id == formData.outlet_id)?.nama || outlets.find(o => o.id == formData.outlet_id)?.name || 'Pilih Outlet'}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOutletOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isOutletOpen && (
+                                <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs max-h-48 overflow-y-auto">
+                                    {outlets.map(out => (
+                                        <li key={out.id}
+                                            onClick={() => { handleSelect('outlet_id', out.id); setIsOutletOpen(false); }}
+                                            className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.outlet_id == out.id ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                        >
+                                            {out.nama || out.name}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">Shift Default</label>
-                            <select
-                                name="shift_default"
-                                value={formData.shift_default}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                            >
-                                <option value="pagi">Pagi (08:00 - 15:00)</option>
-                                <option value="siang">Siang (14:00 - 21:00)</option>
-                                <option value="malam">Malam (20:00 - 23:00)</option>
-                            </select>
+                            <div className="relative z-10" ref={shiftRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsShiftOpen(!isShiftOpen)}
+                                    className="flex items-center justify-between w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                >
+                                    <span className="truncate">{shiftOptions.find(o => o.value === formData.shift_default)?.label || 'Pilih Shift'}</span>
+                                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isShiftOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {isShiftOpen && (
+                                    <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
+                                        {shiftOptions.map(opt => (
+                                            <li key={opt.value}
+                                                onClick={() => { handleSelect('shift_default', opt.value); setIsShiftOpen(false); }}
+                                                className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.shift_default === opt.value ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                            >
+                                                {opt.label}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
                         </div>
                         <div>
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">Status Akun</label>
-                            <select
-                                name="status"
-                                value={formData.status}
-                                onChange={handleChange}
-                                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                            >
-                                <option value="aktif">Aktif</option>
-                                <option value="nonaktif">Nonaktif</option>
-                            </select>
+                            <div className="relative z-10" ref={statusRef}>
+                                <button
+                                    type="button"
+                                    onClick={() => setIsStatusOpen(!isStatusOpen)}
+                                    className="flex items-center justify-between w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                >
+                                    <span className="truncate">{statusOptions.find(o => o.value === formData.status)?.label || 'Pilih Status'}</span>
+                                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isStatusOpen ? 'rotate-180' : ''}`} />
+                                </button>
+                                {isStatusOpen && (
+                                    <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
+                                        {statusOptions.map(opt => (
+                                            <li key={opt.value}
+                                                onClick={() => { handleSelect('status', opt.value); setIsStatusOpen(false); }}
+                                                className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.status === opt.value ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                            >
+                                                {opt.label}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -222,10 +285,7 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                     </div>
                 </form>
                     </div>
-                </div>
-            </div>
-        </>
+        </div>
         , document.body
     );
 }
-

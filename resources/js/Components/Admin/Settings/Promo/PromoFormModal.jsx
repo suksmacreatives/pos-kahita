@@ -1,10 +1,22 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Percent, DollarSign, PackagePlus, Package } from 'lucide-react';
+import { X, Percent, DollarSign, PackagePlus, Package, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 
-export default function PromoFormModal({ isOpen, mode, data, onClose, onSave }) {
+export default function PromoFormModal({ isOpen, mode, data, onClose, onSave, outletList = [], kategoriList = [] }) {
     const isEdit = mode === 'edit';
+    const fallbackOutlets = [
+        { id: 'semua', name: 'Semua Outlet' },
+        { id: 'denpasar', name: 'Denpasar' },
+        { id: 'jakarta', name: 'Jakarta' },
+    ];
+    const fallbackKategori = [
+        { id: 'semua', name: 'Semua Produk' },
+        { id: 'Atasan', name: 'Atasan' },
+        { id: 'Bawahan', name: 'Bawahan' },
+    ];
+    const outlets = outletList.length > 0 ? [{ id: 'semua', name: 'Semua Outlet' }, ...outletList] : fallbackOutlets;
+    const kategoriItems = kategoriList.length > 0 ? [{ id: 'semua', name: 'Semua Produk' }, ...kategoriList] : fallbackKategori;
     const [formData, setFormData] = useState({
         nama_promo: '',
         kode_promo: '',
@@ -60,6 +72,24 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave }) 
         }
     };
 
+    const [isBerlakuDiOpen, setIsBerlakuDiOpen] = useState(false);
+    const [isBerlakuUntukOpen, setIsBerlakuUntukOpen] = useState(false);
+    const berlakuDiRef = useRef(null);
+    const berlakuUntukRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (berlakuDiRef.current && !berlakuDiRef.current.contains(e.target)) setIsBerlakuDiOpen(false);
+            if (berlakuUntukRef.current && !berlakuUntukRef.current.contains(e.target)) setIsBerlakuUntukOpen(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (name, value) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
     const generateKode = () => {
         const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
         let result = '';
@@ -75,11 +105,8 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave }) 
     if (!isOpen) return null;
 
     return createPortal(
-        <>
-            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-                <div className="min-h-full flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white z-10 shrink-0">
                     <h2 className="text-xl font-bold text-gray-900">
                         {isEdit ? 'Edit Promo' : 'Buat Promo Baru'}
@@ -230,19 +257,57 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave }) 
                                 <h4 className="text-sm font-bold text-gray-900">Cakupan</h4>
                                 <div>
                                     <label className="block text-xs text-gray-500 mb-1">Berlaku di Outlet</label>
-                                    <select name="berlaku_di" value={formData.berlaku_di} onChange={handleChange} className="block w-full rounded-lg border-gray-300 px-2 py-1.5 text-sm">
-                                        <option value="semua">Semua Outlet</option>
-                                        <option value="denpasar">Denpasar</option>
-                                        <option value="jakarta">Jakarta</option>
-                                    </select>
+                                    <div className="relative" ref={berlakuDiRef}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsBerlakuDiOpen(!isBerlakuDiOpen)}
+                                            className="flex items-center justify-between w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        >
+                                            <span className="truncate text-gray-700 font-medium">
+                                                {outlets.find(o => o.id === formData.berlaku_di)?.name || 'Semua Outlet'}
+                                            </span>
+                                            <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isBerlakuDiOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        {isBerlakuDiOpen && (
+                                            <ul className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-40 py-1 text-sm">
+                                                {outlets.map(o => (
+                                                    <li key={o.id}
+                                                        onClick={() => { handleSelect('berlaku_di', o.id); setIsBerlakuDiOpen(false); }}
+                                                        className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.berlaku_di === o.id ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                                    >
+                                                        {o.name}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
                                 </div>
                                 <div>
                                     <label className="block text-xs text-gray-500 mb-1">Berlaku untuk Kategori</label>
-                                    <select name="berlaku_untuk" value={formData.berlaku_untuk} onChange={handleChange} className="block w-full rounded-lg border-gray-300 px-2 py-1.5 text-sm">
-                                        <option value="semua">Semua Produk</option>
-                                        <option value="Atasan">Atasan</option>
-                                        <option value="Bawahan">Bawahan</option>
-                                    </select>
+                                    <div className="relative" ref={berlakuUntukRef}>
+                                        <button
+                                            type="button"
+                                            onClick={() => setIsBerlakuUntukOpen(!isBerlakuUntukOpen)}
+                                            className="flex items-center justify-between w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-emerald-500/20"
+                                        >
+                                            <span className="truncate text-gray-700 font-medium">
+                                                {kategoriItems.find(k => k.id === formData.berlaku_untuk)?.name || 'Semua Produk'}
+                                            </span>
+                                            <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isBerlakuUntukOpen ? 'rotate-180' : ''}`} />
+                                        </button>
+                                        {isBerlakuUntukOpen && (
+                                            <ul className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-40 py-1 text-sm">
+                                                {kategoriItems.map(k => (
+                                                    <li key={k.id}
+                                                        onClick={() => { handleSelect('berlaku_untuk', k.id); setIsBerlakuUntukOpen(false); }}
+                                                        className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.berlaku_untuk === k.id ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                                    >
+                                                        {k.name}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -268,9 +333,7 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave }) 
                     </div>
                 </form>
             </div>
-                </div>
-            </div>
-        </>
+        </div>
         , document.body
     );
 }

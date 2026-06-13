@@ -11,15 +11,8 @@ export default function TabStok({ outlet, stats, stok }) {
         stok_habis: stats?.stok_habis || stok?.stok_habis || 0,
     };
 
-    const produkMenipis = stok?.produk_menipis || [
-        { id: 1, nama: 'Blouse Batik Prada', ukuran: 'M', warna: 'Maroon', stok: 3, min: 5, img: 'bg-rose-100 text-rose-500' },
-        { id: 2, nama: 'Kemeja Slimfit Pria', ukuran: 'L', warna: 'Navy', stok: 2, min: 10, img: 'bg-blue-100 text-blue-500' },
-        { id: 3, nama: 'Tunik Katun Jepang', ukuran: 'XL', warna: 'Olive', stok: 1, min: 5, img: 'bg-emerald-100 text-emerald-500' },
-    ].slice(0, statsData.stok_menipis);
-
-    const produkHabis = stok?.produk_habis || [
-        { id: 4, nama: 'Cardigan Rajut Premium', ukuran: 'All Size', warna: 'Mustard', stok: 0, min: 5, img: 'bg-amber-100 text-amber-500' },
-    ].slice(0, statsData.stok_habis);
+    const produkMenipis = stok?.produk_menipis || [];
+    const produkHabis = stok?.produk_habis || [];
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -175,7 +168,7 @@ export default function TabStok({ outlet, stats, stok }) {
 
             {/* Footer Action */}
             <Link 
-                href={route('admin.inventory.outlet', { outlet: outlet.id })}
+                href={route('admin.inventory.outlet', { outlet: outlet.slug || outlet.id })}
                 className="w-full p-4 bg-slate-50 hover:bg-slate-100 border border-gray-200 rounded-2xl flex items-center justify-center gap-2 text-slate-700 font-bold transition-all hover:border-slate-300 group"
             >
                 Kelola Inventory Lengkap {outlet.nama}

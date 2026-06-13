@@ -33,6 +33,8 @@ class OutletResource extends JsonResource
             'email' => $this->email ?? '-',
             'alamat' => $this->address ?? '-',
             'luas_m2' => $this->luas_m2 ?? 0,
+            'latitude' => $this->latitude,
+            'longitude' => $this->longitude,
             'foto_color' => $this->foto_color ?? '#10B981',
             'foto_icon' => $this->foto_icon ?? 'Store',
             'jam_operasional' => $this->jam_operasional,

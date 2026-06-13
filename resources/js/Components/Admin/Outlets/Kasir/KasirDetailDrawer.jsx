@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Calendar, MapPin, Mail, Phone, TrendingUp, AlertTriangle, CreditCard, UserCheck, BarChart3 } from 'lucide-react';
 import KasirAvatar from '../Shared/KasirAvatar';
 import OutletBadge from '../Shared/OutletBadge';
@@ -16,16 +17,16 @@ export default function KasirDetailDrawer({ isOpen, onClose, kasir }) {
         malam: 'bg-purple-100 text-purple-700 border-purple-200'
     };
 
-    return (
+    return createPortal(
         <>
             {/* Backdrop */}
             <div 
-                className="fixed inset-0 bg-black/30 backdrop-blur-sm z-40 transition-opacity"
+                className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] transition-opacity"
                 onClick={onClose}
             />
 
             {/* Drawer */}
-            <div className="fixed inset-y-0 right-0 w-full max-w-[400px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-300">
+            <div className="fixed inset-y-0 right-0 w-full max-w-[400px] bg-white shadow-2xl z-[70] flex flex-col animate-in slide-in-from-right duration-300">
                 
                 {/* Header Profile Area (with background pattern) */}
                 <div className="relative bg-slate-900 overflow-hidden shrink-0">
@@ -108,30 +109,27 @@ export default function KasirDetailDrawer({ isOpen, onClose, kasir }) {
                         <h3 className="text-xs font-bold text-gray-900 mb-3 flex items-center gap-2">
                             <Calendar className="w-4 h-4 text-gray-400" /> Jadwal Shift Minggu Ini
                         </h3>
-                        <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-gray-100 text-[10px] font-bold text-center">
-                            {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((hari, i) => {
-                                // Dummy shift pattern logic
-                                const isOff = i === 5; // Sab libur
-                                const isMorning = i < 5;
-                                const isNight = i === 6;
-                                
-                                let label = 'P';
-                                let color = 'bg-blue-100 text-blue-700';
-                                
-                                if (isOff) { label = 'L'; color = 'bg-gray-200 text-gray-500'; }
-                                else if (isNight) { label = 'M'; color = 'bg-purple-100 text-purple-700'; }
-
-                                return (
-                                    <div key={hari} className="flex flex-col gap-1 w-8">
-                                        <span className="text-gray-400">{hari}</span>
-                                        <span className={`w-8 h-8 flex items-center justify-center rounded-lg ${color}`}>
-                                            {label}
-                                        </span>
-                                    </div>
-                                );
-                            })}
-                        </div>
-                        <p className="text-[9px] text-gray-400 text-center mt-2">P=Pagi, S=Siang, M=Malam, L=Libur</p>
+                        {Array.isArray(kasir.shifts) && kasir.shifts.length > 0 ? (
+                            <>
+                                <div className="flex justify-between items-center bg-slate-50 p-2 rounded-xl border border-gray-100 text-[10px] font-bold text-center">
+                                    {['Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab', 'Min'].map((hariLabel, i) => {
+                                        const hariFull = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'][i];
+                                        const shift = kasir.shifts.find(s => s.hari === hariFull)?.shift || kasir.shift_default || 'pagi';
+                                        const shiftMap = { pagi: { label: 'P', color: 'bg-blue-100 text-blue-700' }, siang: { label: 'S', color: 'bg-amber-100 text-amber-700' }, malam: { label: 'M', color: 'bg-purple-100 text-purple-700' }, libur: { label: 'L', color: 'bg-gray-200 text-gray-500' } };
+                                        const s = shiftMap[shift] || { label: '?', color: 'bg-gray-100 text-gray-500' };
+                                        return (
+                                            <div key={hariLabel} className="flex flex-col gap-1 w-8">
+                                                <span className="text-gray-400">{hariLabel}</span>
+                                                <span className={`w-8 h-8 flex items-center justify-center rounded-lg ${s.color}`}>{s.label}</span>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                                <p className="text-[9px] text-gray-400 text-center mt-2">P=Pagi, S=Siang, M=Malam, L=Libur</p>
+                            </>
+                        ) : (
+                            <p className="text-xs text-gray-400 text-center py-3">Tidak ada data jadwal shift.</p>
+                        )}
                     </div>
 
                 </div>
@@ -151,6 +149,7 @@ export default function KasirDetailDrawer({ isOpen, onClose, kasir }) {
                     </button>
                 </div>
             </div>
-        </>
+        </>,
+        document.body
     );
 }

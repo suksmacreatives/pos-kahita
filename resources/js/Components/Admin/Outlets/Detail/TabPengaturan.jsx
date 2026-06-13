@@ -1,10 +1,23 @@
-import React, { useState } from 'react';
-import { Save, AlertTriangle } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Save, AlertTriangle, ChevronDown } from 'lucide-react';
 
 export default function TabPengaturan({ outlet, onSave, onDelete }) {
     if (!outlet) return null;
 
     const [isSaving, setIsSaving] = useState(false);
+    const [isTipeOpen, setIsTipeOpen] = useState(false);
+    const [isStatusOpen, setIsStatusOpen] = useState(false);
+    const tipeRef = useRef(null);
+    const statusRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (tipeRef.current && !tipeRef.current.contains(e.target)) setIsTipeOpen(false);
+            if (statusRef.current && !statusRef.current.contains(e.target)) setIsStatusOpen(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
     const konfig = outlet.konfigurasi || {};
     const [formData, setFormData] = useState({
         nama: outlet.nama,
@@ -31,11 +44,26 @@ export default function TabPengaturan({ outlet, onSave, onDelete }) {
         }));
     };
 
+    const handleSelect = (name, value) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
+
+    const tipeOptions = [
+        { value: 'flagship', label: 'Flagship' },
+        { value: 'cabang', label: 'Cabang' },
+        { value: 'kiosk', label: 'Kiosk' },
+    ];
+
+    const statusOptions = [
+        { value: 'aktif', label: 'Aktif' },
+        { value: 'nonaktif', label: 'Nonaktif' },
+    ];
+
     const handleSubmit = (e) => {
         e.preventDefault();
         setIsSaving(true);
         setTimeout(() => {
-            onSave(formData);
+            onSave?.(formData);
             setIsSaving(false);
         }, 800);
     };
@@ -72,28 +100,53 @@ export default function TabPengaturan({ outlet, onSave, onDelete }) {
                     </div>
                     <div>
                         <label className="block text-[11px] font-bold text-gray-700 mb-1">Tipe Outlet</label>
-                        <select
-                            name="tipe"
-                            value={formData.tipe}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                        >
-                            <option value="flagship">Flagship</option>
-                            <option value="cabang">Cabang</option>
-                            <option value="kiosk">Kiosk</option>
-                        </select>
+                        <div className="relative z-10" ref={tipeRef}>
+                            <button
+                                type="button"
+                                onClick={() => setIsTipeOpen(!isTipeOpen)}
+                                className="flex items-center justify-between w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                            >
+                                <span className="truncate">{tipeOptions.find(o => o.value === formData.tipe)?.label || 'Pilih Tipe'}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isTipeOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isTipeOpen && (
+                                <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
+                                    {tipeOptions.map(opt => (
+                                        <li key={opt.value}
+                                            onClick={() => { handleSelect('tipe', opt.value); setIsTipeOpen(false); }}
+                                            className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.tipe === opt.value ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                        >
+                                            {opt.label}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     </div>
                     <div>
                         <label className="block text-[11px] font-bold text-gray-700 mb-1">Status Operasional</label>
-                        <select
-                            name="status"
-                            value={formData.status}
-                            onChange={handleChange}
-                            className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
-                        >
-                            <option value="aktif">Aktif</option>
-                            <option value="nonaktif">Nonaktif</option>
-                        </select>
+                        <div className="relative z-10" ref={statusRef}>
+                            <button
+                                type="button"
+                                onClick={() => setIsStatusOpen(!isStatusOpen)}
+                                className="flex items-center justify-between w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                            >
+                                <span className="truncate">{statusOptions.find(o => o.value === formData.status)?.label || 'Pilih Status'}</span>
+                                <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isStatusOpen ? 'rotate-180' : ''}`} />
+                            </button>
+                            {isStatusOpen && (
+                                <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
+                                    {statusOptions.map(opt => (
+                                        <li key={opt.value}
+                                            onClick={() => { handleSelect('status', opt.value); setIsStatusOpen(false); }}
+                                            className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.status === opt.value ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                        >
+                                            {opt.label}
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>

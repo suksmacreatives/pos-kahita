@@ -1,7 +1,7 @@
 import React from 'react';
 import { Store, TrendingUp, CreditCard, AlertTriangle } from 'lucide-react';
 
-export default function OutletStatBar({ totalAktif, totalOmset, transaksiHariIni, stokMenipis }) {
+export default function OutletStatBar({ totalAktif = 0, totalOmset = 0, transaksiHariIni = 0, stokMenipis = 0 }) {
     const formatRupiah = (num) => 'Rp ' + Number(num).toLocaleString('id-ID');
 
     return (

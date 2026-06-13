@@ -1,6 +1,8 @@
 import React, { useState, useMemo } from "react";
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2, Search } from "lucide-react";
+import { X, Search } from "lucide-react";
+import VariantTableGrid from "./VariantTableGrid";
+
 export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouseProducts = [] }) {
   const [supplierNama, setSupplierNama] = useState("");
   const [tanggalPO, setTanggalPO] = useState(new Date().toISOString().split("T")[0]);
@@ -15,41 +17,63 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouse
   }, [productSearch]);
 
   const addItem = (produk) => {
-    setItems(prev => [...prev, {
-      produk_id: produk.id,
-      nama: produk.nama_produk,
-      kode: produk.kode_produk,
-      ukuran: produk.varian[0]?.ukuran || "M",
-      varianOptions: produk.varian,
-      qty_pesan: 1,
-      harga_beli: produk.harga_beli,
-    }]);
+    setItems(prev => {
+      if (prev.some(i => i.produk_id === produk.id)) return prev;
+      return [...prev, {
+        produk_id: produk.id,
+        nama: produk.nama_produk,
+        kode: produk.kode_produk,
+        variants: produk.varian.map(v => ({
+          ukuran: v.ukuran,
+          warna: v.warna || '',
+          warna_hex: v.warna_hex || '#6b7280',
+          stok: v.stok,
+          harga_beli: produk.harga_beli || 0,
+          qty: 0,
+        })),
+      }];
+    });
     setProductSearch("");
   };
 
   const removeItem = (idx) => setItems(prev => prev.filter((_, i) => i !== idx));
-  const updateItem = (idx, field, val) => {
-    setItems(prev => { const c = [...prev]; c[idx] = { ...c[idx], [field]: val }; return c; });
+
+  const handleQtyChange = (itemIdx, variantIdx, val) => {
+    setItems(prev => {
+      const c = [...prev];
+      c[itemIdx] = { ...c[itemIdx], variants: c[itemIdx].variants.map((v, i) => i === variantIdx ? { ...v, qty: val } : v) };
+      return c;
+    });
   };
 
-  const totalQty = useMemo(() => items.reduce((a, it) => a + (parseInt(it.qty_pesan) || 0), 0), [items]);
-  const totalNilai = useMemo(() => items.reduce((a, it) => a + ((parseInt(it.qty_pesan) || 0) * (parseInt(it.harga_beli) || 0)), 0), [items]);
+  const handleHargaChange = (itemIdx, variantIdx, val) => {
+    setItems(prev => {
+      const c = [...prev];
+      c[itemIdx] = { ...c[itemIdx], variants: c[itemIdx].variants.map((v, i) => i === variantIdx ? { ...v, harga_beli: val } : v) };
+      return c;
+    });
+  };
+
+  const flatItems = useMemo(() => items.flatMap(it => it.variants.filter(v => parseInt(v.qty) > 0).map(v => ({ ...v, produk_id: it.produk_id, nama: it.nama }))), [items]);
+  const totalQty = useMemo(() => flatItems.reduce((a, v) => a + (parseInt(v.qty) || 0), 0), [flatItems]);
+  const totalNilai = useMemo(() => flatItems.reduce((a, v) => a + ((parseInt(v.qty) || 0) * (parseInt(v.harga_beli) || 0)), 0), [flatItems]);
 
   if (!open) return null;
 
   const handleSubmit = (e, mode) => {
     e.preventDefault();
-    if (!supplierNama.trim() || items.length === 0) return;
+    if (!supplierNama.trim() || flatItems.length === 0) return;
     onSubmit({
       supplier_nama: supplierNama.trim(),
       tanggal_po: tanggalPO,
       tanggal_estimasi: tanggalEstimasi || null,
-      items: items.map(it => ({
-        produk_id: it.produk_id,
-        nama: it.nama,
-        ukuran: it.ukuran,
-        qty_pesan: parseInt(it.qty_pesan),
-        harga_beli: parseInt(it.harga_beli),
+      items: flatItems.map(v => ({
+        produk_id: v.produk_id,
+        nama: v.nama,
+        ukuran: v.ukuran,
+        warna: v.warna,
+        qty_pesan: parseInt(v.qty),
+        harga_beli: parseInt(v.harga_beli),
       })),
       status: mode === 'draft' ? 'draft' : 'menunggu',
     });
@@ -59,10 +83,7 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouse
   };
 
   return createPortal(
-    <>
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="min-h-full flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div>
@@ -108,18 +129,16 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouse
               )}
               {items.length === 0 && <p className="text-center py-6 text-xs text-gray-400 italic">Belum ada item. Cari produk di atas.</p>}
               {items.map((it, idx) => (
-                <div key={idx} className="flex items-center gap-2 mb-2 p-3 bg-gray-50 rounded-xl border border-gray-200">
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-gray-800 truncate">{it.nama}</p>
-                    <p className="text-[10px] text-gray-400 font-mono">{it.kode}</p>
-                  </div>
-                  <select className="w-14 px-2 py-1.5 border border-gray-200 rounded-lg text-xs outline-none focus:border-emerald-500" value={it.ukuran} onChange={e => updateItem(idx, "ukuran", e.target.value)}>
-                    {it.varianOptions.map(v => <option key={v.ukuran} value={v.ukuran}>{v.ukuran}</option>)}
-                  </select>
-                  <input type="number" min="1" className="w-16 px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-right font-bold outline-none focus:border-emerald-500" value={it.qty_pesan} onChange={e => updateItem(idx, "qty_pesan", parseInt(e.target.value) || 1)} />
-                  <input type="number" min="0" className="w-20 px-2 py-1.5 border border-gray-200 rounded-lg text-xs text-right outline-none focus:border-emerald-500" value={it.harga_beli} onChange={e => updateItem(idx, "harga_beli", parseInt(e.target.value) || 0)} />
-                  <span className="text-xs font-bold text-gray-600 w-20 text-right">{(parseInt(it.qty_pesan) * parseInt(it.harga_beli)).toLocaleString()}</span>
-                  <button type="button" onClick={() => removeItem(idx)} className="p-1.5 text-rose-500 hover:bg-rose-50 rounded-lg cursor-pointer"><Trash2 className="w-4 h-4" /></button>
+                <div key={it.produk_id} className="mb-3">
+                  <VariantTableGrid
+                    nama={it.nama}
+                    kode={it.kode}
+                    variants={it.variants}
+                    onRemove={() => removeItem(idx)}
+                    onQtyChange={(vi, val) => handleQtyChange(idx, vi, val)}
+                    onHargaChange={(vi, val) => handleHargaChange(idx, vi, val)}
+                    showHarga
+                  />
                 </div>
               ))}
             </div>
@@ -128,23 +147,21 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouse
           {items.length > 0 && (
             <div className="px-6 py-3 border-t bg-gray-50 flex items-center justify-between">
               <div className="flex gap-6 text-xs">
-                <span className="text-gray-500">Total Item: <strong className="text-gray-800">{items.length}</strong></span>
+                <span className="text-gray-500">Produk: <strong className="text-gray-800">{items.length}</strong></span>
+                <span className="text-gray-500">Item: <strong className="text-gray-800">{flatItems.length}</strong></span>
                 <span className="text-gray-500">Total Qty: <strong className="text-gray-800">{totalQty}</strong></span>
                 <span className="text-gray-500">Total Nilai: <strong className="text-gray-800">Rp {totalNilai.toLocaleString()}</strong></span>
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setItems([])} className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer">Reset</button>
                 <button type="button" onClick={(e) => handleSubmit(e, 'draft')} className="px-4 py-2 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold hover:bg-emerald-50 cursor-pointer">Simpan Draft</button>
-                <button type="submit" disabled={!supplierNama.trim() || items.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-50">Kirim PO</button>
+                <button type="submit" disabled={!supplierNama.trim() || flatItems.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-50">Kirim PO</button>
               </div>
             </div>
           )}
         </form>
       </div>
-        </div>
-      </div>
-    </>
+    </div>
     , document.body
   );
 }
-

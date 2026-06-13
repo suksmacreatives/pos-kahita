@@ -5,10 +5,7 @@ import { X, Package } from "lucide-react";
 export default function DetailProdukModal({ data, onClose }) {
   if (!data) return null;
   return createPortal(
-    <>
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="min-h-full flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div className="flex items-center gap-3">
@@ -50,9 +47,12 @@ export default function DetailProdukModal({ data, onClose }) {
                 <tbody className="divide-y divide-gray-100">
                   {data.varian?.map((v, i) => (
                     <tr key={i} className="hover:bg-gray-50">
-                      <td className="px-3 py-2 font-medium text-gray-700">{v.ukuran}</td>
+                      <td className="px-3 py-2 font-medium text-gray-700">{v.ukuran || '\u2014'}</td>
                       <td className="px-3 py-2">
-                        <span className="w-3 h-3 rounded-full inline-block border border-gray-200 align-middle" style={{ backgroundColor: v.warna }} />
+                        <div className="flex items-center gap-1.5">
+                          {v.warna && <span className="w-3 h-3 rounded-full inline-block border border-gray-200 shrink-0" style={{ backgroundColor: v.warna_hex || '#6b7280' }} />}
+                          <span className="text-gray-600">{v.warna || '\u2014'}</span>
+                        </div>
                       </td>
                       <td className="px-3 py-2 text-right font-bold text-gray-800">{v.stok}</td>
                       <td className="px-3 py-2 font-mono text-gray-500">{v.sku}</td>
@@ -73,9 +73,7 @@ export default function DetailProdukModal({ data, onClose }) {
           <button onClick={onClose} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold cursor-pointer">Tutup</button>
         </div>
       </div>
-        </div>
-      </div>
-    </>
+    </div>
     , document.body
   );
 }

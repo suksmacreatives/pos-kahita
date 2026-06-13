@@ -1,13 +1,29 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, ArrowRightLeft, ShieldAlert } from 'lucide-react';
 
-export default function TransferOutletTable({ selectedOutlet, onCancelTransfer, onConfirmReceive, transferList = [] }) {
+export default function TransferOutletTable({ selectedOutlet, onCancelTransfer, onConfirmReceive, transferList = [], outletList = [] }) {
   const [subView, setSubView] = useState('keluar'); // 'keluar' | 'masuk'
   const [search, setSearch] = useState('');
   const [outletFilter, setOutletFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
   const [alasanFilter, setAlasanFilter] = useState('all');
   const [expandedRows, setExpandedRows] = useState({});
+  const [isOutletOpen, setIsOutletOpen] = useState(false);
+  const [isStatusOpen, setIsStatusOpen] = useState(false);
+  const [isAlasanOpen, setIsAlasanOpen] = useState(false);
+  const outletFilterRef = useRef(null);
+  const statusFilterRef = useRef(null);
+  const alasanFilterRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (outletFilterRef.current && !outletFilterRef.current.contains(e.target)) setIsOutletOpen(false);
+      if (statusFilterRef.current && !statusFilterRef.current.contains(e.target)) setIsStatusOpen(false);
+      if (alasanFilterRef.current && !alasanFilterRef.current.contains(e.target)) setIsAlasanOpen(false);
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const toggleRow = (id) => {
     setExpandedRows(prev => ({ ...prev, [id]: !prev[id] }));
@@ -141,42 +157,65 @@ export default function TransferOutletTable({ selectedOutlet, onCancelTransfer, 
 
           {/* Destination/Source Outlet filter (Only in 'all' view) */}
           {selectedOutlet === 'all' && (
-            <select
-              className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
-              value={outletFilter}
-              onChange={e => setOutletFilter(e.target.value)}
-            >
-              <option value="all">Semua Lokasi</option>
-              <option value="denpasar">Denpasar</option>
-              <option value="jakarta">Jakarta</option>
-              <option value="bandung">Bandung</option>
-              <option value="surabaya">Surabaya</option>
-            </select>
+            <div className="relative" ref={outletFilterRef}>
+              <button type="button" onClick={() => setIsOutletOpen(!isOutletOpen)}
+                className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 hover:bg-gray-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 min-w-[140px]"
+              >
+                <span className="truncate">{outletFilter === 'all' ? 'Semua Lokasi' : (outletList.find(o => o.id === outletFilter)?.name || outletFilter)}</span>
+                <ChevronDown className={'w-3 h-3 text-gray-400 shrink-0 transition-transform ' + (isOutletOpen ? 'rotate-180' : '')} />
+              </button>
+              {isOutletOpen && (
+                <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
+                  <li onClick={() => { setOutletFilter('all'); setIsOutletOpen(false); }}
+                    className={'px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ' + (outletFilter === 'all' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600')}
+                  >Semua Lokasi</li>
+                  {outletList.map(o => (
+                    <li key={o.id} onClick={() => { setOutletFilter(o.id); setIsOutletOpen(false); }}
+                      className={'px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ' + (outletFilter === o.id ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600')}
+                    >{o.name}</li>
+                  ))}
+                </ul>
+              )}
+            </div>
           )}
 
           {/* Status filter */}
-          <select
-            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
-            value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-          >
-            <option value="all">Semua Status</option>
-            <option value="menunggu_konfirmasi">Menunggu Konfirmasi</option>
-            <option value="dikirim">Dikirim</option>
-            <option value="diterima">Diterima</option>
-          </select>
+          <div className="relative" ref={statusFilterRef}>
+            <button type="button" onClick={() => setIsStatusOpen(!isStatusOpen)}
+              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 hover:bg-gray-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 min-w-[120px]"
+            >
+              <span className="truncate">{statusFilter === 'all' ? 'Semua Status' : statusFilter === 'menunggu_konfirmasi' ? 'Menunggu Konfirmasi' : statusFilter === 'dikirim' ? 'Dikirim' : 'Diterima'}</span>
+              <ChevronDown className={'w-3 h-3 text-gray-400 shrink-0 transition-transform ' + (isStatusOpen ? 'rotate-180' : '')} />
+            </button>
+            {isStatusOpen && (
+              <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
+                {[{ value: 'all', label: 'Semua Status' }, { value: 'menunggu_konfirmasi', label: 'Menunggu Konfirmasi' }, { value: 'dikirim', label: 'Dikirim' }, { value: 'diterima', label: 'Diterima' }].map(opt => (
+                  <li key={opt.value} onClick={() => { setStatusFilter(opt.value); setIsStatusOpen(false); }}
+                    className={'px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ' + (statusFilter === opt.value ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600')}
+                  >{opt.label}</li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {/* Alasan filter */}
-          <select
-            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
-            value={alasanFilter}
-            onChange={e => setAlasanFilter(e.target.value)}
-          >
-            <option value="all">Semua Alasan</option>
-            <option value="permintaan">Permintaan</option>
-            <option value="kelebihan stok">Kelebihan Stok</option>
-            <option value="darurat">Darurat</option>
-          </select>
+          <div className="relative" ref={alasanFilterRef}>
+            <button type="button" onClick={() => setIsAlasanOpen(!isAlasanOpen)}
+              className="flex items-center justify-between gap-2 px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 hover:bg-gray-50 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 min-w-[120px]"
+            >
+              <span className="truncate">{alasanFilter === 'all' ? 'Semua Alasan' : alasanFilter}</span>
+              <ChevronDown className={'w-3 h-3 text-gray-400 shrink-0 transition-transform ' + (isAlasanOpen ? 'rotate-180' : '')} />
+            </button>
+            {isAlasanOpen && (
+              <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs">
+                {[{ value: 'all', label: 'Semua Alasan' }, { value: 'permintaan', label: 'Permintaan' }, { value: 'kelebihan stok', label: 'Kelebihan Stok' }, { value: 'darurat', label: 'Darurat' }].map(opt => (
+                  <li key={opt.value} onClick={() => { setAlasanFilter(opt.value); setIsAlasanOpen(false); }}
+                    className={'px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ' + (alasanFilter === opt.value ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600')}
+                  >{opt.label}</li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
       </div>
 

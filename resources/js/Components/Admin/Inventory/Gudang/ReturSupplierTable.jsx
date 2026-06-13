@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Eye, Printer, XCircle } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 function DetailReturModal({ data, onClose }) {
   if (!data) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div>
@@ -92,16 +93,26 @@ export default function ReturSupplierTable({ data = [], onCetak, onBatalReturSup
           <h3 className="text-lg font-semibold text-gray-800">Retur Supplier</h3>
         </div>
         <div className="flex flex-wrap items-center gap-2 mb-4">
-          <select value={filterAlasan} onChange={e => setFilterAlasan(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-            {alasanList.map(a => <option key={a} value={a}>{a === 'semua' ? 'Semua Alasan' : a}</option>)}
-          </select>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-            <option value="semua">Semua Status</option>
-            <option value="diajukan">Diajukan</option>
-            <option value="diproses">Diproses</option>
-            <option value="diterima">Diterima</option>
-            <option value="ditolak">Ditolak</option>
-          </select>
+          <SelectDropdown
+            value={filterAlasan}
+            onChange={(v) => setFilterAlasan(v)}
+            options={alasanList.map(a => ({ value: a, label: a === 'semua' ? 'Semua Alasan' : a }))}
+            placeholder="Semua Alasan"
+            className="w-44"
+          />
+          <SelectDropdown
+            value={filterStatus}
+            onChange={(v) => setFilterStatus(v)}
+            options={[
+              { value: 'semua', label: 'Semua Status' },
+              { value: 'diajukan', label: 'Diajukan' },
+              { value: 'diproses', label: 'Diproses' },
+              { value: 'diterima', label: 'Diterima' },
+              { value: 'ditolak', label: 'Ditolak' },
+            ]}
+            placeholder="Semua Status"
+            className="w-40"
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">

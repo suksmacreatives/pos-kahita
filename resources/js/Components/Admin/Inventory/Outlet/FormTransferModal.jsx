@@ -237,11 +237,8 @@ export default function FormTransferModal({ isOpen, onClose, selectedOutlet, onS
   };
 
   return createPortal(
-    <>
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="min-h-full flex items-center justify-center p-4">
-          <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100 max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+          <div className="relative bg-white rounded-2xl shadow-xl border border-gray-100 max-w-4xl w-full flex flex-col max-h-[90vh] overflow-hidden animate-in fade-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
 
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-150 flex items-center justify-between bg-gray-50/50 shrink-0">
@@ -566,9 +563,7 @@ export default function FormTransferModal({ isOpen, onClose, selectedOutlet, onS
             </div>
 
           </div>
-        </div>
-      </div>
-    </>,
+    </div>,
     document.body
   );
 }

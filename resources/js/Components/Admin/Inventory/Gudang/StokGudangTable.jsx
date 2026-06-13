@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { ChevronDown, ChevronUp, Eye, Plus, Search, ArrowUpDown } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 export default function StokGudangTable({ data = [], onDetail, onTambahStok, onLihatMutasi }) {
   const [search, setSearch] = useState('');
@@ -48,11 +49,17 @@ export default function StokGudangTable({ data = [], onDetail, onTambahStok, onL
       <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
         <h3 className="text-lg font-semibold text-gray-800">Stok Gudang</h3>
         <div className="flex items-center gap-2">
-          <select value={sortBy} onChange={e => setSortBy(e.target.value)} className="px-2.5 py-1.5 border border-gray-200 rounded-lg text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-            <option value="nama">Sort: Nama</option>
-            <option value="stok">Sort: Stok</option>
-            <option value="kode">Sort: Kode</option>
-          </select>
+          <SelectDropdown
+            value={sortBy}
+            onChange={setSortBy}
+            options={[
+              { value: 'nama', label: 'Sort: Nama' },
+              { value: 'stok', label: 'Sort: Stok' },
+              { value: 'kode', label: 'Sort: Kode' },
+            ]}
+            placeholder="Sort: Nama"
+            className="w-36"
+          />
         </div>
       </div>
 
@@ -61,15 +68,25 @@ export default function StokGudangTable({ data = [], onDetail, onTambahStok, onL
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="Cari nama/kode produk..." className="w-full pl-9 pr-4 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select value={filterKategori} onChange={e => { setFilterKategori(e.target.value); setPage(1); }} className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-          {kategoriList.map(k => <option key={k} value={k}>{k === 'semua' ? 'Semua Kategori' : k}</option>)}
-        </select>
-        <select value={filterStatus} onChange={e => { setFilterStatus(e.target.value); setPage(1); }} className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-          <option value="semua">Semua Status</option>
-          <option value="normal">Normal</option>
-          <option value="menipis">Menipis</option>
-          <option value="habis">Habis</option>
-        </select>
+        <SelectDropdown
+          value={filterKategori}
+          onChange={(v) => { setFilterKategori(v); setPage(1); }}
+          options={kategoriList.map(k => ({ value: k, label: k === 'semua' ? 'Semua Kategori' : k }))}
+          placeholder="Semua Kategori"
+          className="w-44"
+        />
+        <SelectDropdown
+          value={filterStatus}
+          onChange={(v) => { setFilterStatus(v); setPage(1); }}
+          options={[
+            { value: 'semua', label: 'Semua Status' },
+            { value: 'normal', label: 'Normal' },
+            { value: 'menipis', label: 'Menipis' },
+            { value: 'habis', label: 'Habis' },
+          ]}
+          placeholder="Semua Status"
+          className="w-40"
+        />
       </div>
 
       <div className="overflow-x-auto">
@@ -139,9 +156,12 @@ export default function StokGudangTable({ data = [], onDetail, onTambahStok, onL
                             <tbody className="divide-y divide-gray-100">
                               {p.varian.map((v, vi) => (
                                 <tr key={vi} className="hover:bg-gray-50">
-                                  <td className="px-3 py-1.5 font-medium text-gray-700">{v.ukuran}</td>
+                                  <td className="px-3 py-1.5 font-medium text-gray-700">{v.ukuran || '\u2014'}</td>
                                   <td className="px-3 py-1.5">
-                                    <span className="w-3.5 h-3.5 rounded-full inline-block border border-gray-200 align-middle" style={{ backgroundColor: v.warna }} />
+                                    <div className="flex items-center gap-1.5">
+                                      {v.warna && <span className="w-3.5 h-3.5 rounded-full inline-block border border-gray-200 shrink-0" style={{ backgroundColor: v.warna_hex || '#6b7280' }} />}
+                                      <span className="text-gray-600">{v.warna || '\u2014'}</span>
+                                    </div>
                                   </td>
                                   <td className="px-3 py-1.5 text-right font-bold text-gray-800">{v.stok}</td>
                                   <td className="px-3 py-1.5 font-mono text-gray-500 text-[10px]">{v.sku}</td>

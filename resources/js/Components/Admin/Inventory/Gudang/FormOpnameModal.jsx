@@ -39,10 +39,10 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
     }
   };
 
-  const setAktual = (produkId, ukuran, val) => {
+  const setAktual = (produkId, ukuran, warna, val) => {
     setAktualValues(prev => ({
       ...prev,
-      [`${produkId}-${ukuran}`]: parseInt(val) || 0,
+      [`${produkId}-${warna}-${ukuran}`]: parseInt(val) || 0,
     }));
   };
 
@@ -50,7 +50,8 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
     return selectedProducts.map(p => {
       let totalSistem = 0, totalAktual = 0, totalSelisih = 0;
       const varian = p.varian.map(v => {
-        const akt = aktualValues[`${p.id}-${v.ukuran}`] ?? v.stok;
+        const key = `${p.id}-${v.warna || ''}-${v.ukuran}`;
+        const akt = aktualValues[key] ?? v.stok;
         const selisih = akt - v.stok;
         totalSistem += v.stok;
         totalAktual += akt;
@@ -73,6 +74,7 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
         produk_id: r.id,
         nama: r.nama_produk,
         ukuran: v.ukuran,
+        warna: v.warna,
         qty_sistem: v.stok,
         qty_aktual: v.aktual,
         selisih: v.selisih,
@@ -104,10 +106,7 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
   };
 
   return createPortal(
-    <>
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={handleClose} />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="min-h-full flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={handleClose}>
       <div className={`bg-white rounded-2xl shadow-xl w-full max-h-[90vh] flex flex-col overflow-hidden ${step === 2 ? 'max-w-4xl' : 'max-w-2xl'}`} onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div className="flex items-center gap-4">
@@ -154,7 +153,7 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
                         <span className="font-mono text-gray-400">{p.kode_produk}</span>
                         <span className="font-semibold text-gray-800">{p.nama_produk}</span>
                       </div>
-                      <span className="text-gray-400">{p.varian.length} varian • {p.total_stok} stok</span>
+                      <span className="text-gray-400">{p.varian.length} varian ï¿½ {p.total_stok} stok</span>
                     </button>
                   );
                 })}
@@ -175,12 +174,16 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
                   <div key={p.id} className="p-3 bg-gray-50 rounded-xl border border-gray-200">
                     <p className="text-xs font-bold text-gray-800 mb-2">{p.nama_produk} <span className="font-mono text-gray-400 font-normal">{p.kode_produk}</span></p>
                     <div className="space-y-1.5">
-                      {p.varian.map(v => {
-                        const akt = aktualValues[`${p.id}-${v.ukuran}`] ?? v.stok;
+                      {p.varian.map((v, vi) => {
+                        const key = `${p.id}-${v.warna || ''}-${v.ukuran}`;
+                        const akt = aktualValues[key] ?? v.stok;
                         const selisih = akt - v.stok;
                         return (
-                          <div key={v.ukuran} className="flex items-center gap-3">
-                            <span className="text-[11px] font-semibold text-gray-600 w-12">{v.ukuran}</span>
+                          <div key={`${v.warna}-${v.ukuran}-${vi}`} className="flex items-center gap-3">
+                            <div className="flex items-center gap-1.5 w-24">
+                              {v.warna && <span className="w-2.5 h-2.5 rounded-full shrink-0 border border-gray-300" style={{ backgroundColor: v.warna_hex || '#6b7280' }} />}
+                              <span className="text-[11px] font-semibold text-gray-600 truncate">{v.warna ? `${v.warna} / ${v.ukuran}` : v.ukuran}</span>
+                            </div>
                             <div className="flex items-center gap-2 flex-1">
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-gray-400">Sistem:</span>
@@ -189,7 +192,7 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
                               <span className="text-gray-300">?</span>
                               <div className="flex items-center gap-1.5">
                                 <span className="text-[10px] text-gray-400">Aktual:</span>
-                                <input type="number" min="0" className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs text-right font-bold outline-none focus:border-emerald-500" value={akt} onChange={e => setAktual(p.id, v.ukuran, e.target.value)} />
+                                <input type="number" min="0" className="w-16 px-2 py-1 border border-gray-200 rounded-lg text-xs text-right font-bold outline-none focus:border-emerald-500" value={akt} onChange={e => setAktual(p.id, v.ukuran, v.warna, e.target.value)} />
                               </div>
                               <span className={`text-[11px] font-bold ${selisih > 0 ? 'text-emerald-600' : selisih < 0 ? 'text-rose-600' : 'text-gray-400'}`}>
                                 {selisih > 0 ? `+${selisih}` : selisih}
@@ -215,7 +218,7 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
                 <ClipboardList className="w-5 h-5 text-emerald-600" />
                 <div>
                   <p className="text-xs font-bold text-emerald-700">Ringkasan Stock Opname</p>
-                  <p className="text-[10px] text-emerald-600">{results.length} produk • Total Sistem: <strong>{grandTotalSistem}</strong> • Total Aktual: <strong>{grandTotalAktual}</strong> • Selisih: <strong className={grandTotalSelisih > 0 ? 'text-emerald-700' : grandTotalSelisih < 0 ? 'text-rose-600' : ''}>{grandTotalSelisih > 0 ? `+${grandTotalSelisih}` : grandTotalSelisih}</strong></p>
+                  <p className="text-[10px] text-emerald-600">{results.length} produk ï¿½ Total Sistem: <strong>{grandTotalSistem}</strong> ï¿½ Total Aktual: <strong>{grandTotalAktual}</strong> ï¿½ Selisih: <strong className={grandTotalSelisih > 0 ? 'text-emerald-700' : grandTotalSelisih < 0 ? 'text-rose-600' : ''}>{grandTotalSelisih > 0 ? `+${grandTotalSelisih}` : grandTotalSelisih}</strong></p>
                 </div>
               </div>
               <div className="space-y-3">
@@ -228,9 +231,12 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
                       </span>
                     </div>
                     <div className="space-y-1">
-                      {r.varian.map(v => (
-                        <div key={v.ukuran} className="flex items-center gap-2 text-[11px]">
-                          <span className="text-gray-500 w-10">{v.ukuran}</span>
+                      {r.varian.map((v, vi) => (
+                        <div key={`${v.warna}-${v.ukuran}-${vi}`} className="flex items-center gap-2 text-[11px]">
+                          <div className="flex items-center gap-1.5 w-20">
+                            {v.warna && <span className="w-2 h-2 rounded-full shrink-0 border border-gray-300" style={{ backgroundColor: v.warna_hex || '#6b7280' }} />}
+                            <span className="text-gray-500 truncate">{v.warna ? `${v.warna}/${v.ukuran}` : v.ukuran}</span>
+                          </div>
                           <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
                             <div className={`h-full rounded-full ${v.selisih === 0 ? 'bg-gray-300' : v.selisih > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} style={{ width: `${Math.min(100, (v.aktual / (v.stok || 1)) * 100)}%` }} />
                           </div>
@@ -254,9 +260,7 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
           )}
         </div>
       </div>
-        </div>
-      </div>
-    </>
+    </div>
     , document.body
   );
 }

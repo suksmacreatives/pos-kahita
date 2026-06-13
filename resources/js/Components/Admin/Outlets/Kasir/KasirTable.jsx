@@ -131,13 +131,13 @@ export default function KasirTable({ kasirs = [], outletId = null, onOpenDetail,
                                         <td className="px-5 py-3 text-center">
                                             <div className="flex items-center justify-center gap-1 opacity-60 group-hover:opacity-100 transition-opacity">
                                                 <button 
-                                                    onClick={() => onOpenDetail(kasir)}
+                                                    onClick={() => onOpenDetail?.(kasir)}
                                                     className="p-1.5 rounded bg-white hover:bg-slate-100 text-gray-600 transition-colors border border-transparent hover:border-gray-200" title="Detail"
                                                 >
                                                     <Eye className="w-3.5 h-3.5" />
                                                 </button>
                                                 <button 
-                                                    onClick={() => onEditKasir(kasir)}
+                                                    onClick={() => onEditKasir?.(kasir)}
                                                     className="p-1.5 rounded bg-white hover:bg-blue-50 text-blue-600 transition-colors border border-transparent hover:border-blue-200" title="Edit"
                                                 >
                                                     <Edit className="w-3.5 h-3.5" />

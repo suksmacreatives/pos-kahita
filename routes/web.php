@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\UserController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\POS\DashboardPosController;
 use App\Http\Controllers\ProductController;
+use App\Http\Controllers\Admin\CategoryController;
 // Menambahkan import Controller Baru yang kita buat
 use App\Http\Controllers\POS\ShiftController;
 use App\Http\Controllers\Api\TransactionController;
@@ -88,7 +89,13 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/admin/products/{product}', [ProductController::class, 'update'])->name('admin.products.update');
         Route::delete('/admin/products/{product}', [ProductController::class, 'destroy'])->name('admin.products.destroy');
 
-        // --- MENU 4: KELOLA PROMO ---
+        // --- MENU 4: KATEGORI PRODUK ---
+        Route::get('/admin/categories', [CategoryController::class, 'index'])->name('admin.categories.index');
+        Route::post('/admin/categories', [CategoryController::class, 'store'])->name('admin.categories.store');
+        Route::patch('/admin/categories/{category}', [CategoryController::class, 'update'])->name('admin.categories.update');
+        Route::delete('/admin/categories/{category}', [CategoryController::class, 'destroy'])->name('admin.categories.destroy');
+
+        // --- MENU 5: KELOLA PROMO ---
         Route::get('/admin/promos', function () { 
             return Inertia::render('Admin/Placeholder', ['title' => 'Kelola Promo']); 
         })->name('admin.promos.index');

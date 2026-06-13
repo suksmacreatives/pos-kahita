@@ -3,7 +3,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Store, Plus, ChevronRight } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import OutletStatBar from '@/Components/Admin/Outlets/Index/OutletStatBar';
-import OutletMapPlaceholder from '@/Components/Admin/Outlets/Index/OutletMapPlaceholder';
+import OutletMap from '@/Components/Admin/Outlets/Index/OutletMap';
 import OutletGrid from '@/Components/Admin/Outlets/Index/OutletGrid';
 import OutletFormModal from '@/Components/Admin/Outlets/Index/OutletFormModal';
 
@@ -80,7 +80,7 @@ export default function OutletIndex({ outlets, stats }) {
             />
 
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
-                <OutletMapPlaceholder outlets={outletData} />
+                <OutletMap outlets={outletData} />
             </div>
 
             <OutletGrid outlets={outletData} />

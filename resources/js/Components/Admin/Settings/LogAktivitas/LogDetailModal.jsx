@@ -51,11 +51,8 @@ export default function LogDetailModal({ isOpen, data, onClose }) {
     };
 
     return createPortal(
-        <>
-            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-                <div className="min-h-full flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="p-5 border-b border-gray-100 flex items-start justify-between bg-white z-10 shrink-0">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
@@ -142,9 +139,7 @@ export default function LogDetailModal({ isOpen, data, onClose }) {
                     </button>
                 </div>
             </div>
-                </div>
-            </div>
-        </>
+        </div>
         , document.body
     );
 }

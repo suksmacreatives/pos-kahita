@@ -16,6 +16,7 @@ import {
     Package,
     Users2,
     Wallet,
+    Tag,
     ChevronDown,
 } from "lucide-react";
 
@@ -115,6 +116,12 @@ export default function Sidebar({ isOpen, onClose }) {
             icon: Shirt,
             href: getRoute("admin.products.index", "/admin/products"),
             pattern: /^\/admin\/products/,
+        },
+        {
+            label: "Categories",
+            icon: Tag,
+            href: getRoute("admin.categories.index", "/admin/categories"),
+            pattern: /^\/admin\/categories/,
         },
         {
             label: "Inventory",

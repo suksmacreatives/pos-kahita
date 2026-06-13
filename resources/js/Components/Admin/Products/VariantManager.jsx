@@ -419,7 +419,7 @@ export default function VariantManager({
       )}
 
       {confirmToggle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl shadow-xl p-5 w-80 space-y-3">
             <p className="text-sm font-bold text-gray-900">
               Hapus semua data {confirmToggle === "color" ? "warna" : "ukuran"}?

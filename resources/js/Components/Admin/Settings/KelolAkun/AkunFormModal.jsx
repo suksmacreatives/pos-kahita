@@ -1,12 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X } from 'lucide-react';
+import { X, ChevronDown } from 'lucide-react';
 import RolePermissionMatrix from './RolePermissionMatrix';
 import { roles as fallbackRoles } from '@/data/settingsData';
 
 export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, roles: propRoles, outletList = [] }) {
     const roles = propRoles || fallbackRoles;
     const isEdit = mode === 'edit';
+    const defaultOutletId = outletList[0]?.id || '';
     const [formData, setFormData] = useState({
         nama: '',
         email: '',
@@ -14,7 +15,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
         password: '',
         password_confirmation: '',
         role: 'cashier',
-        outlet_id: 'denpasar',
+        outlet_id: defaultOutletId,
         status: 'aktif'
     });
 
@@ -27,12 +28,12 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                 password: '',
                 password_confirmation: '',
                 role: data.role || 'cashier',
-                outlet_id: data.outlet_id || 'denpasar',
+                outlet_id: data.outlet_id || defaultOutletId,
                 status: data.status || 'aktif'
             });
         } else if (isOpen && !isEdit) {
             setFormData({
-                nama: '', email: '', telp: '', password: '', password_confirmation: '', role: 'cashier', outlet_id: 'denpasar', status: 'aktif'
+                nama: '', email: '', telp: '', password: '', password_confirmation: '', role: 'cashier', outlet_id: defaultOutletId, status: 'aktif'
             });
         }
     }, [isOpen, isEdit, data]);
@@ -60,14 +61,39 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
 
     const selectedRoleData = roles.find(r => r.id === formData.role);
 
+    const [isRoleOpen, setIsRoleOpen] = useState(false);
+    const [isOutletOpen, setIsOutletOpen] = useState(false);
+    const roleRef = useRef(null);
+    const outletRef = useRef(null);
+
+    useEffect(() => {
+        function handleClickOutside(e) {
+            if (roleRef.current && !roleRef.current.contains(e.target)) setIsRoleOpen(false);
+            if (outletRef.current && !outletRef.current.contains(e.target)) setIsOutletOpen(false);
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const handleSelect = (name, value) => {
+        setFormData(prev => {
+            const next = { ...prev, [name]: value };
+            if (name === 'role') {
+                if (value === 'admin') {
+                    next.outlet_id = '';
+                } else if (prev.outlet_id === '') {
+                    next.outlet_id = outletList[0]?.id || '';
+                }
+            }
+            return next;
+        });
+    };
+
     if (!isOpen) return null;
 
     return createPortal(
-        <>
-            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-                <div className="min-h-full flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-gray-100 flex items-center justify-between sticky top-0 bg-white z-10">
                     <h2 className="text-xl font-bold text-gray-900">
                         {isEdit ? 'Edit Akun' : 'Tambah Akun Baru'}
@@ -128,27 +154,60 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Role *</label>
-                                <select 
-                                    name="role" value={formData.role} onChange={handleChange}
-                                    className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
-                                >
-                                    {roles.map(r => (
-                                        <option key={r.id} value={r.id}>{r.label}</option>
-                                    ))}
-                                </select>
+                                <div className="relative" ref={roleRef}>
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsRoleOpen(!isRoleOpen)}
+                                        className="flex items-center justify-between w-full rounded-lg border border-gray-300 px-3 py-2 text-sm hover:bg-gray-50 bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
+                                    >
+                                        <span className="truncate text-gray-700 font-medium">{roles.find(r => r.id === formData.role)?.label || 'Pilih Role'}</span>
+                                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isRoleOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {isRoleOpen && (
+                                        <ul className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-40 py-1 text-sm">
+                                            {roles.map(r => (
+                                                <li key={r.id}
+                                                    onClick={() => { handleSelect('role', r.id); setIsRoleOpen(false); }}
+                                                    className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.role === r.id ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                                >
+                                                    {r.label}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Outlet *</label>
-                                <select 
-                                    name="outlet_id" value={formData.outlet_id} onChange={handleChange}
-                                    disabled={formData.role === 'admin'}
-                                    className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500 disabled:bg-gray-100 disabled:text-gray-500"
-                                >
-                                    <option value="">Semua Outlet</option>
-                                    {outletList.map(o => (
-                                        <option key={o.id} value={o.id}>{o.name}</option>
-                                    ))}
-                                </select>
+                                <div className="relative" ref={outletRef}>
+                                    <button
+                                        type="button"
+                                        onClick={() => formData.role !== 'admin' && setIsOutletOpen(!isOutletOpen)}
+                                        className="flex items-center justify-between w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 disabled:bg-gray-100 disabled:text-gray-500"
+                                        style={{ pointerEvents: formData.role === 'admin' ? 'none' : 'auto', opacity: formData.role === 'admin' ? 0.5 : 1 }}
+                                    >
+                                        <span className="truncate text-gray-700 font-medium">{formData.outlet_id ? (outletList.find(o => o.id === formData.outlet_id)?.name || formData.outlet_id) : 'Semua Outlet'}</span>
+                                        <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOutletOpen ? 'rotate-180' : ''}`} />
+                                    </button>
+                                    {isOutletOpen && formData.role !== 'admin' && (
+                                        <ul className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-40 py-1 text-sm">
+                                            <li
+                                                onClick={() => { handleSelect('outlet_id', ''); setIsOutletOpen(false); }}
+                                                className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.outlet_id === '' ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                            >
+                                                Semua Outlet
+                                            </li>
+                                            {outletList.map(o => (
+                                                <li key={o.id}
+                                                    onClick={() => { handleSelect('outlet_id', o.id); setIsOutletOpen(false); }}
+                                                    className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${formData.outlet_id === o.id ? 'bg-emerald-50 text-emerald-700 font-semibold' : 'text-gray-600'}`}
+                                                >
+                                                    {o.name}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    )}
+                                </div>
                             </div>
                         </div>
 
@@ -192,9 +251,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                     </div>
                 </form>
             </div>
-                </div>
-            </div>
-        </>
+        </div>
         , document.body
     );
 }

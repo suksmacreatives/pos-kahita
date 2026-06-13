@@ -217,11 +217,12 @@ function Gudang() {
     });
   };
 
-  const handleTambahStokSubmit = ({ produk_id, qty, catatan }) => {
-    const item = produkStok.find(p => p.id === produk_id);
+  const handleTambahStokSubmit = ({ produk_id, nama, ukuran, warna, qty, catatan }) => {
     router.post(route('admin.inventory.gudang.tambah-stok'), {
       produk_id,
-      nama: item?.nama_produk || '',
+      nama,
+      ukuran,
+      warna,
       qty,
       catatan: catatan || '',
     }, {

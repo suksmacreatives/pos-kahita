@@ -158,10 +158,7 @@ export default function StokOutletTable({ selectedOutlet, onAction, outletStok =
 
       {/* Detail Product Modal */}
       {detailItem && createPortal(
-        <>
-          <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={() => setDetailItem(null)} />
-          <div className="fixed inset-0 z-50 overflow-y-auto">
-            <div className="min-h-full flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={() => setDetailItem(null)}>
               <div className="bg-white rounded-2xl w-full max-w-lg shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
                 {/* Header */}
                 <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
@@ -240,9 +237,7 @@ export default function StokOutletTable({ selectedOutlet, onAction, outletStok =
                   </button>
                 </div>
               </div>
-            </div>
-          </div>
-        </>,
+            </div>,
         document.body
       )}
       {/* Table Header / Action Bar */}

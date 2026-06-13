@@ -1,5 +1,6 @@
 // resources/js/Components/Admin/Products/ProductDetailDrawer.jsx
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { X, Edit, Power, DollarSign, ShoppingBag, Store, Warehouse, MapPin } from 'lucide-react';
 import { categoryConfig, formatRupiah } from './ProductTable';
 import ProductBadge from './ProductBadge';
@@ -34,16 +35,16 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
   const totalTerjual = product.terjual ?? 0;
   const totalOmset = product.omset ?? 0;
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop overlay */}
       <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-xs z-40 transition-opacity duration-300"
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[60] transition-opacity duration-300"
         onClick={onClose}
       />
 
       {/* Drawer Container */}
-      <div className="fixed top-0 right-0 h-full w-full sm:w-[480px] bg-white shadow-2xl z-50 flex flex-col animate-in slide-in-from-right duration-350 ease-out border-l border-gray-100">
+      <div className="fixed top-0 right-0 h-full w-full sm:w-[480px] bg-white shadow-2xl z-[70] flex flex-col animate-in slide-in-from-right duration-350 ease-out border-l border-gray-100">
         
         {/* Header Drawer */}
         <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
@@ -251,6 +252,7 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
         </div>
 
       </div>
-    </>
+    </>,
+    document.body
   );
 }

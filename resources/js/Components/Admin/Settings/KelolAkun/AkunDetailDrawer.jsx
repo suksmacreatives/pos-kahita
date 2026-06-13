@@ -1,4 +1,5 @@
 import React from 'react';
+import { createPortal } from 'react-dom';
 import { X, Mail, Phone, Calendar, AlertTriangle, KeyRound, Edit } from 'lucide-react';
 import AvatarInitials from './AvatarInitials';
 import RolePermissionMatrix from './RolePermissionMatrix';
@@ -27,10 +28,10 @@ export default function AkunDetailDrawer({ isOpen, data, onClose, onEdit, roles:
         return mapping[roleId] || 'bg-gray-100 text-gray-800';
     };
 
-    return (
-        <div className="fixed inset-0 z-50 overflow-hidden flex justify-end">
-            <div className="absolute inset-0 bg-gray-900/40 backdrop-blur-sm transition-opacity" onClick={onClose} />
-            <div className="relative w-full max-w-[420px] bg-white h-full shadow-2xl flex flex-col animate-in slide-in-from-right duration-300">
+    return createPortal(
+        <>
+            <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[60] transition-opacity" onClick={onClose} />
+            <div className="fixed inset-y-0 right-0 w-full max-w-[420px] bg-white h-full shadow-2xl z-[70] flex flex-col animate-in slide-in-from-right duration-300">
                 <div className="p-4 border-b border-gray-100 flex items-center justify-between">
                     <h2 className="text-lg font-bold text-gray-900">Detail Akun</h2>
                     <button onClick={onClose} className="p-2 text-gray-400 hover:bg-gray-100 hover:text-gray-900 rounded-full transition-colors">
@@ -118,6 +119,7 @@ export default function AkunDetailDrawer({ isOpen, data, onClose, onEdit, roles:
                     </button>
                 </div>
             </div>
-        </div>
+        </>,
+        document.body
     );
 }

@@ -302,7 +302,7 @@ export default function Products({ products: initialProducts, outlets, categorie
       />
 
       {deleteConfirmTarget && (
-        <div className="fixed inset-0 z-[55] flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
           <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-2xl max-w-sm w-full space-y-4 animate-in zoom-in-95 duration-150">
             <div className="flex items-center gap-3 text-red-500">
               <AlertCircle className="w-6 h-6 shrink-0" />

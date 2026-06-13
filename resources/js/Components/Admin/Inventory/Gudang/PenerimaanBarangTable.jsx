@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
 import { Eye, CheckSquare, Printer, Send, XCircle } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 function DetailPenerimaanModal({ data, onClose }) {
   if (!data) return null;
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-900/60 backdrop-blur-sm p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
           <div>
@@ -96,16 +97,27 @@ export default function PenerimaanBarangTable({ data = [], onTandaiTerima, onPro
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Penerimaan Barang</h3>
         <div className="flex flex-wrap items-center gap-2 mb-4">
           <input type="text" placeholder="Cari PO / Supplier..." className="flex-1 min-w-[200px] max-w-xs px-3 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500" value={search} onChange={e => setSearch(e.target.value)} />
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-            <option value="semua">Semua Status</option>
-            <option value="draft">Draft</option>
-            <option value="menunggu">Menunggu</option>
-            <option value="sebagian">Sebagian</option>
-            <option value="lengkap">Lengkap</option>
-          </select>
-          <select value={filterSupplier} onChange={e => setFilterSupplier(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-            {supplierList.map(s => <option key={s} value={s}>{s === 'semua' ? 'Semua Supplier' : s}</option>)}
-          </select>
+          <SelectDropdown
+            value={filterStatus}
+            onChange={(v) => setFilterStatus(v)}
+            options={[
+              { value: 'semua', label: 'Semua Status' },
+              { value: 'draft', label: 'Draft' },
+              { value: 'menunggu', label: 'Menunggu' },
+              { value: 'sebagian', label: 'Sebagian' },
+              { value: 'lengkap', label: 'Lengkap' },
+            ]}
+            placeholder="Semua Status"
+            className="w-40"
+          />
+          <SelectDropdown
+            value={filterSupplier}
+            onChange={(v) => setFilterSupplier(v)}
+            options={supplierList.map(s => ({ value: s, label: s === 'semua' ? 'Semua Supplier' : s }))}
+            placeholder="Semua Supplier"
+            className="w-44"
+            searchable
+          />
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">

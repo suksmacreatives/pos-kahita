@@ -525,6 +525,7 @@ function OutletInventory() {
             onCancelTransfer={handleCancelTransfer}
             onConfirmReceive={handleConfirmReceiveTransfer}
             transferList={transferList}
+            outletList={outlets.map(o => ({ id: o.id, name: o.nama }))}
           />
         )}
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Save } from 'lucide-react';
 import { router } from '@inertiajs/react';
@@ -17,16 +17,24 @@ export default function ShiftFormModal({ isOpen, onClose, outletId = null, kasir
     
     const hariList = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
     
-    // State default shift (semua pagi kecuali sabtu-minggu)
-    const [shifts, setShifts] = useState({
-        Senin: 'pagi',
-        Selasa: 'pagi',
-        Rabu: 'pagi',
-        Kamis: 'pagi',
-        Jumat: 'pagi',
-        Sabtu: 'siang',
-        Minggu: 'libur',
-    });
+    const defaultShifts = {
+        Senin: 'pagi', Selasa: 'pagi', Rabu: 'pagi',
+        Kamis: 'pagi', Jumat: 'pagi', Sabtu: 'siang', Minggu: 'libur',
+    };
+
+    const [shifts, setShifts] = useState(defaultShifts);
+
+    useEffect(() => {
+        if (!isOpen || !selectedKasir) return;
+        const kasir = availableKasirs.find(k => k.id === selectedKasir);
+        if (kasir?.shifts?.length) {
+            const shiftMap = {};
+            kasir.shifts.forEach(s => { shiftMap[s.hari] = s.shift; });
+            setShifts(prev => ({ ...prev, ...shiftMap }));
+        } else {
+            setShifts(defaultShifts);
+        }
+    }, [selectedKasir, isOpen]);
 
     const handleShiftChange = (hari, value) => {
         setShifts(prev => ({ ...prev, [hari]: value }));
@@ -47,11 +55,8 @@ export default function ShiftFormModal({ isOpen, onClose, outletId = null, kasir
     const activeKasir = availableKasirs.find(k => k.id === selectedKasir);
 
     return createPortal(
-        <>
-            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-                <div className="min-h-full flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-white rounded-2xl w-full max-w-xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
                             <h3 className="font-extrabold text-gray-900">
                                 Atur Jadwal Shift
@@ -72,7 +77,7 @@ export default function ShiftFormModal({ isOpen, onClose, outletId = null, kasir
                             <select
                                 value={selectedKasir}
                                 onChange={(e) => setSelectedKasir(e.target.value)}
-                                className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl text-sm font-medium focus:ring-emerald-500/20 focus:border-emerald-500 outline-none appearance-none"
+                                className="w-full pl-12 pr-4 py-2 bg-white border border-gray-100 rounded-xl text-xs font-semibold text-gray-700 shadow-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 appearance-none"
                             >
                                 {availableKasirs.map(k => (
                                     <option key={k.id} value={k.id}>{k.nama} — {k.outlet_nama || '-'}</option>
@@ -164,9 +169,7 @@ export default function ShiftFormModal({ isOpen, onClose, outletId = null, kasir
 
                 </form>
                     </div>
-                </div>
-            </div>
-        </>
+        </div>
         , document.body
     );
 }

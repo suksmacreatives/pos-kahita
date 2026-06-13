@@ -144,19 +144,15 @@ export default function TabPerforma({ outlet, stats, target }) {
                         </h3>
                     </div>
                     <div className="p-0">
-                        {[
-                            { rank: 1, ...statsData.produk_terlaris },
-                            { rank: 2, nama: 'Tunik Katun Jepang', qty_terjual: 85, revenue: 12750000 },
-                            { rank: 3, nama: 'Kemeja Slimfit Navy', qty_terjual: 70, revenue: 10500000 }
-                        ].map(p => (
-                            <div key={p.rank} className="flex items-center justify-between p-4 border-b border-gray-50 last:border-0 hover:bg-slate-50 transition-colors">
+                        {(Array.isArray(stats?.top_produk) ? stats.top_produk : (stats?.produk_terlaris ? [{ ...stats.produk_terlaris }] : [])).map((p, idx) => (
+                            <div key={idx} className="flex items-center justify-between p-4 border-b border-gray-50 last:border-0 hover:bg-slate-50 transition-colors">
                                 <div className="flex items-center gap-4">
                                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center font-bold text-xs ${
-                                        p.rank === 1 ? 'bg-amber-100 text-amber-700' :
-                                        p.rank === 2 ? 'bg-gray-100 text-gray-600' :
-                                        p.rank === 3 ? 'bg-orange-100 text-orange-700' : 'bg-slate-50 text-slate-500'
+                                        idx === 0 ? 'bg-amber-100 text-amber-700' :
+                                        idx === 1 ? 'bg-gray-100 text-gray-600' :
+                                        'bg-orange-100 text-orange-700'
                                     }`}>
-                                        #{p.rank}
+                                        #{idx + 1}
                                     </div>
                                     <div>
                                         <p className="font-bold text-gray-900 text-sm">{p.nama}</p>
@@ -180,44 +176,26 @@ export default function TabPerforma({ outlet, stats, target }) {
                         </h3>
                     </div>
                     <div className="p-6 flex flex-col justify-center h-[260px]">
-                        <div className="space-y-4">
-                            <div>
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span className="font-medium text-gray-700">QRIS / E-Wallet</span>
-                                    <span className="font-bold">45%</span>
-                                </div>
-                                <div className="w-full bg-gray-100 rounded-full h-2.5">
-                                    <div className="bg-blue-500 h-full rounded-full" style={{ width: '45%' }}></div>
-                                </div>
+                        {Array.isArray(stats?.metode_bayar) && stats.metode_bayar.length > 0 ? (
+                            <div className="space-y-4">
+                                {stats.metode_bayar.map((m, i) => {
+                                    const warnaList = ['bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500', 'bg-rose-500'];
+                                    return (
+                                        <div key={i}>
+                                            <div className="flex justify-between text-xs mb-1">
+                                                <span className="font-medium text-gray-700">{m.nama}</span>
+                                                <span className="font-bold">{m.persen}%</span>
+                                            </div>
+                                            <div className="w-full bg-gray-100 rounded-full h-2.5">
+                                                <div className={`${warnaList[i % warnaList.length]} h-full rounded-full`} style={{ width: `${m.persen}%` }}></div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
-                            <div>
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span className="font-medium text-gray-700">Cash / Tunai</span>
-                                    <span className="font-bold">30%</span>
-                                </div>
-                                <div className="w-full bg-gray-100 rounded-full h-2.5">
-                                    <div className="bg-emerald-500 h-full rounded-full" style={{ width: '30%' }}></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span className="font-medium text-gray-700">Transfer Bank</span>
-                                    <span className="font-bold">15%</span>
-                                </div>
-                                <div className="w-full bg-gray-100 rounded-full h-2.5">
-                                    <div className="bg-purple-500 h-full rounded-full" style={{ width: '15%' }}></div>
-                                </div>
-                            </div>
-                            <div>
-                                <div className="flex justify-between text-xs mb-1">
-                                    <span className="font-medium text-gray-700">Debit / Kredit Card</span>
-                                    <span className="font-bold">10%</span>
-                                </div>
-                                <div className="w-full bg-gray-100 rounded-full h-2.5">
-                                    <div className="bg-amber-500 h-full rounded-full" style={{ width: '10%' }}></div>
-                                </div>
-                            </div>
-                        </div>
+                        ) : (
+                            <p className="text-sm text-gray-400 text-center">Data distribusi pembayaran tidak tersedia.</p>
+                        )}
                     </div>
                 </div>
 

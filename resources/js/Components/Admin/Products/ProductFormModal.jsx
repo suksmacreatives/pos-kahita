@@ -100,7 +100,7 @@ export default function ProductFormModal({
       initialVariantData.current = converted;
       setVariantData(converted);
     } else {
-      const autoKode = "KHT-" + String(Date.now()).slice(-4);
+      const autoKode = "KHT-" + crypto.randomUUID().slice(0, 8).toUpperCase();
       reset();
       setData("kode_produk", autoKode);
       setImagePreview(null);
@@ -193,11 +193,8 @@ export default function ProductFormModal({
   };
 
   return createPortal(
-    <>
-      <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-      <div className="fixed inset-0 z-50 overflow-y-auto">
-        <div className="min-h-full flex items-center justify-center p-4">
-          <div className="relative bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+          <div className="relative bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
               <h3 className="text-base font-extrabold text-gray-900">
                 {isEditMode ? `Edit Produk: ${product.kode_produk}` : "Tambah Produk Baru"}
@@ -320,12 +317,6 @@ export default function ProductFormModal({
                 </div>
                 {fieldError("category_id")}
               </div>
-              {/* <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Sub-Kategori</label>
-                <input type="text" value={data.sub_kategori} onChange={(e) => setData("sub_kategori", e.target.value)}
-                  placeholder="Misal: Kemeja"
-                  className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
-              </div> */}
             </div>
 
             <div>
@@ -401,9 +392,7 @@ export default function ProductFormModal({
           </button>
         </div>
       </div>
-    </div>
-      </div>
-  </>,
+  </div>,
   document.body
 );
 }

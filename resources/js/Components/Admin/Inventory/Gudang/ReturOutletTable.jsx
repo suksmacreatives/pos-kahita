@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, CheckCircle, XCircle } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 export default function ReturOutletTable({ data, onTerimaRetur, onBatalRetur }) {
   const [search, setSearch] = useState('');
@@ -48,12 +49,18 @@ export default function ReturOutletTable({ data, onTerimaRetur, onBatalRetur }) 
           <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
           <input type="text" placeholder="Cari nomor retur / outlet..." className="pl-9 pr-4 py-1.5 w-56 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500 transition-colors" value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <select className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none" value={statusFilter} onChange={e => setStatusFilter(e.target.value)}>
-          <option value="all">Semua Status</option>
-          <option value="diajukan">Menunggu</option>
-          <option value="diterima_gudang">Diterima</option>
-          <option value="dibatalkan">Dibatalkan</option>
-        </select>
+        <SelectDropdown
+          value={statusFilter}
+          onChange={(v) => setStatusFilter(v)}
+          options={[
+            { value: 'all', label: 'Semua Status' },
+            { value: 'diajukan', label: 'Menunggu' },
+            { value: 'diterima_gudang', label: 'Diterima' },
+            { value: 'dibatalkan', label: 'Dibatalkan' },
+          ]}
+          placeholder="Semua Status"
+          className="w-40"
+        />
       </div>
       <table className="w-full text-left border-collapse">
         <thead>

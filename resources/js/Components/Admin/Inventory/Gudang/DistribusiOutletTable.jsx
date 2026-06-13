@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Eye, CheckSquare, Printer, Send, XCircle } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 export default function DistribusiOutletTable({ data = [], onLihat, onKonfirmasiTerima, onCetak, onProses, onBatalDO }) {
   const [search, setSearch] = useState('');
@@ -33,15 +34,25 @@ export default function DistribusiOutletTable({ data = [], onLihat, onKonfirmasi
       <h3 className="text-lg font-semibold text-gray-800 mb-4">Distribusi Outlet</h3>
       <div className="flex flex-wrap items-center gap-2 mb-4">
         <input type="text" placeholder="Cari DO / Outlet..." className="flex-1 min-w-[200px] max-w-xs px-3 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500" value={search} onChange={e => setSearch(e.target.value)} />
-        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-          <option value="semua">Semua Status</option>
-          <option value="draft">Draft</option>
-          <option value="dikirim">Dikirim</option>
-          <option value="diterima">Diterima</option>
-        </select>
-        <select value={filterOutlet} onChange={e => setFilterOutlet(e.target.value)} className="px-3 py-2 border border-gray-200 rounded-xl text-xs font-medium text-gray-600 outline-none focus:border-emerald-500 cursor-pointer">
-          {outletList.map(o => <option key={o} value={o}>{o === 'semua' ? 'Semua Outlet' : o}</option>)}
-        </select>
+        <SelectDropdown
+          value={filterStatus}
+          onChange={(v) => setFilterStatus(v)}
+          options={[
+            { value: 'semua', label: 'Semua Status' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'dikirim', label: 'Dikirim' },
+            { value: 'diterima', label: 'Diterima' },
+          ]}
+          placeholder="Semua Status"
+          className="w-40"
+        />
+        <SelectDropdown
+          value={filterOutlet}
+          onChange={(v) => setFilterOutlet(v)}
+          options={outletList.map(o => ({ value: o, label: o === 'semua' ? 'Semua Outlet' : o }))}
+          placeholder="Semua Outlet"
+          className="w-44"
+        />
       </div>
       <div className="overflow-x-auto">
         <table className="min-w-full text-sm">

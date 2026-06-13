@@ -57,11 +57,8 @@ export default function TargetFormModal({ isOpen, onClose, outlets = [] }) {
     const daysInMonth = 31;
 
     return createPortal(
-        <>
-            <div className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" onClick={onClose} />
-            <div className="fixed inset-0 z-50 overflow-y-auto">
-                <div className="min-h-full flex items-center justify-center p-4">
-                    <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
+                    <div className="bg-white rounded-2xl w-full max-w-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
                         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
                             <h3 className="font-extrabold text-gray-900">
                                 Set Target Bulanan — {new Date().toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}
@@ -172,9 +169,7 @@ export default function TargetFormModal({ isOpen, onClose, outlets = [] }) {
                     </button>
                 </div>
             </div>
-                </div>
-            </div>
-        </>
+        </div>
         , document.body
     );
 }

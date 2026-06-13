@@ -11,6 +11,7 @@ use App\Models\TransactionItem;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\Rule;
 
 class ProductController extends Controller
 {
@@ -97,7 +98,10 @@ class ProductController extends Controller
             'variants.*.stok' => 'nullable|integer|min:0',
             'variants.*.harga_jual' => 'nullable|integer|min:0',
             'variants.*.harga_beli' => 'nullable|integer|min:0',
-            'variants.*.sku' => 'nullable|string',
+            'variants.*.sku' => [
+                'nullable', 'string',
+                Rule::unique('product_variants', 'sku'),
+            ],
             'outlet_tersedia' => 'nullable',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
@@ -125,16 +129,40 @@ class ProductController extends Controller
 
         $product->outlets()->sync($outletTersedia);
 
+        $usedSkus = [];
         if (!empty($validated['variants'])) {
             foreach ($validated['variants'] as $v) {
-                $variant = $product->variants()->create([
-                    'color' => $v['color_name'] ?? null,
-                    'size' => $v['size_label'] ?? null,
-                    'stock' => $v['stok'] ?? 0,
-                    'price' => $v['harga_jual'] ?? $validated['harga_jual'],
-                    'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
-                    'sku' => $v['sku'] ?? $validated['kode_produk'] . '-ALL',
-                ]);
+                $sku = $v['sku'] ?? $validated['kode_produk'] . '-ALL';
+
+                if (in_array($sku, $usedSkus)) {
+                    $sku = $sku . '-' . uniqid();
+                }
+                $usedSkus[] = $sku;
+
+                try {
+                    $variant = $product->variants()->create([
+                        'color' => $v['color_name'] ?? null,
+                        'size' => $v['size_label'] ?? null,
+                        'stock' => $v['stok'] ?? 0,
+                        'price' => $v['harga_jual'] ?? $validated['harga_jual'],
+                        'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
+                        'sku' => $sku,
+                    ]);
+                } catch (\Illuminate\Database\QueryException $e) {
+                    if ($e->getCode() == 23000) {
+                        $sku = $sku . '-' . uniqid();
+                        $variant = $product->variants()->create([
+                            'color' => $v['color_name'] ?? null,
+                            'size' => $v['size_label'] ?? null,
+                            'stock' => $v['stok'] ?? 0,
+                            'price' => $v['harga_jual'] ?? $validated['harga_jual'],
+                            'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
+                            'sku' => $sku,
+                        ]);
+                    } else {
+                        throw $e;
+                    }
+                }
 
                 foreach ($outletTersedia as $outletId) {
                     OutletStock::firstOrCreate(
@@ -165,7 +193,11 @@ class ProductController extends Controller
             'variants.*.stok' => 'nullable|integer|min:0',
             'variants.*.harga_jual' => 'nullable|integer|min:0',
             'variants.*.harga_beli' => 'nullable|integer|min:0',
-            'variants.*.sku' => 'nullable|string',
+            'variants.*.sku' => [
+                'nullable', 'string',
+                Rule::unique('product_variants', 'sku')
+                    ->ignore($product->id, 'product_id'),
+            ],
             'outlet_tersedia' => 'nullable',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
@@ -197,16 +229,40 @@ class ProductController extends Controller
 
         $product->variants()->delete();
 
+        $usedSkus = [];
         if (!empty($validated['variants'])) {
             foreach ($validated['variants'] as $v) {
-                $variant = $product->variants()->create([
-                    'color' => $v['color_name'] ?? null,
-                    'size' => $v['size_label'] ?? null,
-                    'stock' => $v['stok'] ?? 0,
-                    'price' => $v['harga_jual'] ?? $validated['harga_jual'],
-                    'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
-                    'sku' => $v['sku'] ?? $validated['kode_produk'] . '-ALL',
-                ]);
+                $sku = $v['sku'] ?? $validated['kode_produk'] . '-ALL';
+
+                if (in_array($sku, $usedSkus)) {
+                    $sku = $sku . '-' . uniqid();
+                }
+                $usedSkus[] = $sku;
+
+                try {
+                    $variant = $product->variants()->create([
+                        'color' => $v['color_name'] ?? null,
+                        'size' => $v['size_label'] ?? null,
+                        'stock' => $v['stok'] ?? 0,
+                        'price' => $v['harga_jual'] ?? $validated['harga_jual'],
+                        'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
+                        'sku' => $sku,
+                    ]);
+                } catch (\Illuminate\Database\QueryException $e) {
+                    if ($e->getCode() == 23000) {
+                        $sku = $sku . '-' . uniqid();
+                        $variant = $product->variants()->create([
+                            'color' => $v['color_name'] ?? null,
+                            'size' => $v['size_label'] ?? null,
+                            'stock' => $v['stok'] ?? 0,
+                            'price' => $v['harga_jual'] ?? $validated['harga_jual'],
+                            'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
+                            'sku' => $sku,
+                        ]);
+                    } else {
+                        throw $e;
+                    }
+                }
 
                 foreach ($outletTersedia as $outletId) {
                     OutletStock::firstOrCreate(

@@ -77,7 +77,7 @@ export default function LeaderboardTable({ leaderboard }) {
                                         <p className="text-[9px] text-gray-400 mt-1 truncate max-w-[150px]">Top: {item.top_produk || '-'}</p>
                                     </td>
                                     <td className="px-6 py-4 font-bold text-gray-900 text-sm">
-                                        {formatRupiah(item.omset)}
+                                        {formatRupiah(item.omset || 0)}
                                     </td>
                                     <td className="px-6 py-4">
                                         {growthDisplay}
@@ -87,7 +87,7 @@ export default function LeaderboardTable({ leaderboard }) {
                                         <span className="text-[10px] text-gray-400 ml-1">trx</span>
                                     </td>
                                     <td className="px-6 py-4 text-right font-medium text-gray-700">
-                                        {formatRupiah(item.rata_transaksi)}
+                                        {formatRupiah(item.rata_transaksi || 0)}
                                     </td>
                                 </tr>
                             );
