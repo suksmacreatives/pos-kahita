@@ -308,7 +308,7 @@ export default function FormTransferModal({ isOpen, onClose, selectedOutlet, onS
                   <input
                     type="date"
                     required
-                    className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 font-semibold focus:border-emerald-500 outline-none"
+                    className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-500 outline-none"
                     value={tanggal}
                     onChange={e => setTanggal(e.target.value)}
                   />

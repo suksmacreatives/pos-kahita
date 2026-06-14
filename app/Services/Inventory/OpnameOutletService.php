@@ -13,16 +13,21 @@ use Illuminate\Support\Facades\DB;
 
 class OpnameOutletService
 {
-    public function getOpnameList(int $outletId): array
+    public function getOpnameList(?int $outletId = null): array
     {
-        return StockOpname::with('items')
-            ->where('outlet_id', $outletId)
-            ->latest()
-            ->get()
-            ->map(fn ($o) => [
+        $query = StockOpname::with('items');
+
+        if ($outletId) {
+            $query->where('outlet_id', $outletId);
+        }
+
+        $result = [];
+        foreach ($query->latest()->get() as $o) {
+            $slug = $o->outlet?->slug ?? 'unknown';
+            $result[$slug][] = [
                 'id' => $o->id,
                 'nomor_opname' => $o->nomor_opname,
-                'outlet_id' => $o->outlet?->slug ?? $o->outlet_id,
+                'outlet_id' => $slug,
                 'tgl_mulai' => $o->tanggal_mulai?->format('Y-m-d'),
                 'tgl_selesai' => $o->tanggal_selesai?->format('Y-m-d'),
                 'status' => $o->status,
@@ -40,7 +45,10 @@ class OpnameOutletService
                 'total_selisih_plus' => (int) $o->total_selisih_plus,
                 'total_selisih_minus' => (int) $o->total_selisih_minus,
                 'dilakukan_oleh' => $o->petugas ?? '',
-            ])->toArray();
+            ];
+        }
+
+        return $result;
     }
 
     public function startOpname(array $data): array
