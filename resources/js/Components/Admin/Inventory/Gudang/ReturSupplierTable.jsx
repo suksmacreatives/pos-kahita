@@ -73,6 +73,8 @@ export default function ReturSupplierTable({ data = [], onCetak, onBatalReturSup
   }, [data, filterAlasan, filterStatus]);
 
   const statusConfig = {
+    selesai: { label: 'Selesai', class: 'bg-emerald-200 text-emerald-800' },
+    dibatalkan: { label: 'Dibatalkan', class: 'bg-rose-200 text-rose-800' },
     diajukan: { label: 'Diajukan', class: 'bg-gray-200 text-gray-800' },
     diproses: { label: 'Diproses', class: 'bg-amber-200 text-amber-800' },
     diterima: { label: 'Diterima', class: 'bg-emerald-200 text-emerald-800' },
@@ -100,11 +102,13 @@ export default function ReturSupplierTable({ data = [], onCetak, onBatalReturSup
             placeholder="Semua Alasan"
             className="w-44"
           />
-          <SelectDropdown
+          {/* <SelectDropdown
             value={filterStatus}
             onChange={(v) => setFilterStatus(v)}
             options={[
               { value: 'semua', label: 'Semua Status' },
+              { value: 'selesai', label: 'Selesai' },
+              { value: 'dibatalkan', label: 'Dibatalkan' },
               { value: 'diajukan', label: 'Diajukan' },
               { value: 'diproses', label: 'Diproses' },
               { value: 'diterima', label: 'Diterima' },
@@ -112,7 +116,7 @@ export default function ReturSupplierTable({ data = [], onCetak, onBatalReturSup
             ]}
             placeholder="Semua Status"
             className="w-40"
-          />
+          /> */}
         </div>
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
@@ -155,7 +159,7 @@ export default function ReturSupplierTable({ data = [], onCetak, onBatalReturSup
                     <td className="px-4 py-2 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <button onClick={() => setDetailItem(r)} className="p-1.5 text-gray-400 hover:text-sky-600 hover:bg-sky-50 rounded-lg cursor-pointer" title="Detail"><Eye className="w-3.5 h-3.5" /></button>
-                        {r.status === 'diajukan' && (
+                        {r.status === 'selesai' && Date.now() - new Date(r.created_at).getTime() <= 2 * 24 * 60 * 60 * 1000 && (
                           <button onClick={() => onBatalReturSupplier?.(r)} className="p-1.5 text-gray-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg cursor-pointer" title="Batalkan"><XCircle className="w-3.5 h-3.5" /></button>
                         )}
                         <button onClick={() => onCetak?.(r)} className="p-1.5 text-gray-400 hover:text-purple-600 hover:bg-purple-50 rounded-lg cursor-pointer" title="Cetak"><Printer className="w-3.5 h-3.5" /></button>

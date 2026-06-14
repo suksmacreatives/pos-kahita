@@ -75,7 +75,6 @@ export default function FormReturModal({ open, onClose, onSubmit, suppliers = []
       })),
       total_qty: totalQty,
       total_item: flatItems.length,
-      status: 'diajukan',
     });
     setItems([]);
     setSupplierId("");
