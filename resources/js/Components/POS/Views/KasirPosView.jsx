@@ -231,6 +231,26 @@ const handleRemoveCartItem = (cartId) => {
 
     return subtotal - selectedPromo.nilai_diskon;
 }, [subtotal, selectedPromo]);
+const nilaiDiskon = useMemo(() => {
+    if (!selectedPromo) return 0;
+
+    if (selectedPromo.tipe === 'persentase') {
+        let diskon =
+            subtotal *
+            (selectedPromo.nilai_diskon / 100);
+
+        if (
+            selectedPromo.max_diskon &&
+            diskon > selectedPromo.max_diskon
+        ) {
+            diskon = selectedPromo.max_diskon;
+        }
+
+        return diskon;
+    }
+
+    return selectedPromo.nilai_diskon;
+}, [subtotal, selectedPromo]);
 
 
     return (
@@ -589,11 +609,16 @@ const handleRemoveCartItem = (cartId) => {
                                     <div>
                                         {selectedPromo.nama_promo}
                                     </div>
+                                    <div className="flex justify-between items-center text-xs text-red-500 font-bold">
+                                        <span>Potongan Promo</span>
+                                        <span>- {formatRupiah(nilaiDiskon)}</span>
+                                    </div>
                                 </div>
+                                
                             )}
                             <div className="flex justify-between items-center text-xs">
                                 <span className="font-bold text-gray-400 uppercase">Total Tagihan</span>
-                                <span className="text-base font-black text-gray-800">{formatRupiah(subtotal)}</span>
+                                <span className="text-base font-black text-gray-800">{formatRupiah(totalSetelahDiskon)}</span>
                             </div>
 
                             <div className="grid grid-cols-3 gap-2">
@@ -649,7 +674,22 @@ const handleRemoveCartItem = (cartId) => {
                                 </div>
                             )}
                             <div className="bg-gray-50 p-3 rounded-xl space-y-2 border border-gray-100 text-[11px] font-bold">
-                                <div className="flex justify-between text-gray-500"><span>Total Belanja:</span><span>{formatRupiah(subtotal)}</span></div>
+                                <div className="flex justify-between text-gray-500">
+    <span>Subtotal:</span>
+    <span>{formatRupiah(subtotal)}</span>
+</div>
+
+{selectedPromo && (
+    <div className="flex justify-between text-red-500">
+        <span>Diskon:</span>
+        <span>- {formatRupiah(nilaiDiskon)}</span>
+    </div>
+)}
+
+<div className="flex justify-between font-black text-[#009664]">
+    <span>Total Bayar:</span>
+    <span>{formatRupiah(totalSetelahDiskon)}</span>
+</div>
                                 <div className="flex justify-between text-emerald-600"><span>Kembalian:</span><span>{formatRupiah(uangKembalian)}</span></div>
                             </div>
                         </div>

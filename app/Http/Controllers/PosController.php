@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Attendance;
 use App\Models\Outlet;
+use App\Models\Promo;
 use Inertia\Inertia;
 
 class PosController extends Controller
@@ -80,11 +81,13 @@ class PosController extends Controller
                     }),
                 ];
             });
+            $promos = Promo::where('status', 'aktif')->get();
             
         return Inertia::render('Pos/Index', [
             'is_shift_open_db' => $activeShift ? true : false,
             'active_shift_details' => $activeShift,
             'products_from_db' => $products,
+            'promos' => $promos,
             'attendances' => $attendances,
             'outlet_name' => $outlet?->name,
         ]);

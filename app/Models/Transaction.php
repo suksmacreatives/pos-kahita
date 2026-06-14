@@ -20,6 +20,7 @@ class Transaction extends Model
         'paid_amount',
         'change_amount',
         'payment_method',
+        'promo_id',
         'notes',
         'status'
     ];

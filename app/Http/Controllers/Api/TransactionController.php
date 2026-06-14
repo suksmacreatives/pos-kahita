@@ -58,19 +58,21 @@ if ($existingTransaction) {
         if (!$user) throw new \Exception('User tidak terautentikasi');
 
         $activeShift = CashRegisterShift::where('user_id', $user->id)->where('status', 'open')->first();
-        
+        dd($request->all());
         $transaction = Transaction::create([
-            'invoice_number' => 'INV-' . now()->format('YmdHis'),
-            'outlet_id' => $user->outlet_id,
-            'user_id' => $user->id,
-            'shift_id' => $activeShift?->id,
-            'customer_name' => $request->customer_name ?? 'Umum',
-            'payment_method' => $request->payment_method,
-            'promo_id' => $request->promo_id,
-            'subtotal' => $request->subtotal,
-            'grand_total' => $request->grand_total,
-            'status' => 'completed'
-        ]);
+        'invoice_number' => 'INV-' . now()->format('YmdHis'),
+        'outlet_id' => $user->outlet_id,
+        'user_id' => $user->id,
+        'shift_id' => $activeShift?->id,
+        'customer_name' => $request->customer_name ?? 'Umum',
+        'payment_method' => $request->payment_method,
+        'promo_id' => $request->promo_id,
+        'subtotal' => $request->subtotal,
+        'discount' => $request->discount ?? 0,
+        'grand_total' => $request->grand_total,
+        'change_amount' => $request->change_amount ?? 0,
+        'status' => 'completed'
+    ]);
 
         foreach ($request->items as $item) {
             // 1. Simpan Item

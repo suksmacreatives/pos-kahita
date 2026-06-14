@@ -217,7 +217,18 @@ useEffect(() => {
         setCart(JSON.parse(saved));
     }
 }, []); 
+const nilaiDiskon = selectedPromo
+    ? (
+        selectedPromo.tipe === 'persentase'
+            ? Math.min(
+                subtotal * (selectedPromo.nilai_diskon / 100),
+                selectedPromo.max_diskon || Infinity
+            )
+            : selectedPromo.nilai_diskon
+    )
+    : 0;
 
+const totalSetelahDiskon = subtotal - nilaiDiskon;
 const handleProsesBayarFinal = async () => {
     if (isProcessing) return; 
     if (cart.length === 0) {
@@ -239,8 +250,9 @@ const handleProsesBayarFinal = async () => {
                 payment_method: selectedPayment, 
                 promo_id: selectedPromo?.id || null,
                 subtotal, 
-                grand_total: subtotal,
-                paid_amount: selectedPayment === 'Tunai' ? Number(inputUangDiterima) : subtotal,
+                discount: nilaiDiskon,
+                grand_total: totalSetelahDiskon,
+                paid_amount: selectedPayment === 'Tunai' ? Number(inputUangDiterima): totalSetelahDiskon,
                 change_amount: selectedPayment === 'Tunai' ? uangKembalian : 0,
                 items: cart.map((item) => ({ 
                     product_id: item.product_id || item.id, 
@@ -282,7 +294,9 @@ const handleProsesBayarFinal = async () => {
             setSuccessModal({
                 isOpen: true,
                 data: {
-                    total: subtotal,
+                    subtotal,
+                    discount: nilaiDiskon,
+                    total: totalSetelahDiskon,
                     metode: selectedPayment,
                     bayar: Number(inputUangDiterima || subtotal),
                     kembalian: uangKembalian,
