@@ -58,15 +58,13 @@ class PosController extends Controller
                         ? Storage::url($p->image)
                         : null,
                     'variants' => $p->variants->map(function ($v) use ($outletId) {
-                    // Mencoba mencari stok di tabel outlet_stocks
                     $outletStock = OutletStock::where('outlet_id', $outletId)
                         ->where('product_variant_id', $v->id)
                         ->value('stock');
 
-                    // Jika di outlet_stocks tidak ada (null), kita ambil dari v->stock (gudang)
                     $finalOutletStock = $outletStock !== null
                     ? (int) $outletStock
-                    : (int) $v->stock;
+                    : 0;
                     
                         return [
                             'id' => $v->id,

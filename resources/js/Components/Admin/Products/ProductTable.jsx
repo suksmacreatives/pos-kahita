@@ -41,6 +41,7 @@ export default function ProductTable({
     onOpenDrawer,
     onOpenEdit,
     onDeleteProduct,
+    allOutlets = [],
 }) {
     const [sortField, setSortField] = useState("");
     const [sortDirection, setSortDirection] = useState("asc");
@@ -81,7 +82,7 @@ export default function ProductTable({
                             onClick={() => handleSort("kode_produk")}
                         >
                             <div className="flex items-center gap-1.5">
-                                Kode Produk
+                                Kode & Nama Produk  
                                 <ArrowUpDown className="w-3.5 h-3.5 text-gray-400" />
                             </div>
                         </th>
@@ -186,8 +187,9 @@ export default function ProductTable({
                                         )}
                                     </td>
                                     <td className="py-3 px-4">
-                                        <div className="font-bold text-gray-900 font-mono group-hover:text-emerald-600 transition-colors">
-                                            {product.kode_produk}
+                                        <div>
+                                            <span className="font-bold text-gray-800 text-xs">{product.nama_produk}</span>
+                                            <span className="block text-[9px] text-gray-400 font-semibold">{product.kode_produk}</span>
                                         </div>
                                     </td>
                                     <td className="py-3 px-4">
@@ -208,26 +210,25 @@ export default function ProductTable({
                                         </span>
                                     </td>
                                     <td className="py-3 px-4">
-                                        <div className="flex flex-col gap-1.5 max-w-[80px]">
-                                            <div className="flex items-center justify-between font-semibold text-gray-800">
-                                                <span>
-                                                    {product.total_stok} pcs
-                                                </span>
+                                        <div className="flex flex-col gap-1">
+                                            <div className="font-semibold text-gray-800">
+                                                {product.total_stok} pcs
                                             </div>
-                                            <div className="w-full bg-gray-100 rounded-full h-1.5 overflow-hidden">
-                                                <div
-                                                    className={`h-full rounded-full transition-all duration-300 ${
-                                                        stockStatus === "habis"
-                                                            ? "bg-red-500"
-                                                            : stockStatus ===
-                                                                "menipis"
-                                                              ? "bg-amber-500"
-                                                              : "bg-emerald-500"
-                                                    }`}
-                                                    style={{
-                                                        width: `${stockPercent}%`,
-                                                    }}
-                                                />
+                                            <div className="flex flex-wrap gap-1">
+                                                {(product.stok_gudang ?? 0) > 0 && (
+                                                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-emerald-50 border border-emerald-200 rounded-md text-[9px] font-semibold text-emerald-700">
+                                                        G:{product.stok_gudang}
+                                                    </span>
+                                                )}
+                                                {allOutlets.map((o) => {
+                                                    const stok = product.stok_per_outlet?.[String(o.id)];
+                                                    if (!stok) return null;
+                                                    return (
+                                                        <span key={o.id} className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 border border-blue-200 rounded-md text-[9px] font-semibold text-blue-700">
+                                                            {o.name}:{stok}
+                                                        </span>
+                                                    );
+                                                })}
                                             </div>
                                         </div>
                                     </td>

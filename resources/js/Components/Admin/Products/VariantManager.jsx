@@ -112,6 +112,7 @@ export default function VariantManager({
   productCode,
   hargaDefault,
   hargaBeliDefault,
+  readonlyStok = false,
 }) {
   const { hasColor, hasSize, colors, sizes, variants } = value;
 
@@ -307,7 +308,8 @@ export default function VariantManager({
                   <label className="block text-[10px] font-semibold text-gray-500 mb-0.5">Stok</label>
                   <input type="number" min="0" value={v.stok}
                     onChange={e => handleUpdateVariant(v.id || "v_simple", "stok", Number(e.target.value))}
-                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-center font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+                    disabled={readonlyStok}
+                    className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-center font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-gray-100 disabled:text-gray-400 disabled:cursor-not-allowed" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 mb-0.5">Harga Jual</label>
@@ -381,6 +383,7 @@ export default function VariantManager({
               onRemoveSize={handleRemoveSize}
               onAddColorQuick={handleAddColorQuick}
               onAddSizeQuick={handleAddSizeQuick}
+              readonlyStok={readonlyStok}
             />
           ) : (
             <VariantSimpleList
@@ -392,6 +395,7 @@ export default function VariantManager({
               onToggleSelect={handleToggleSelect}
               onUpdateVariant={handleUpdateVariant}
               formatRupiah={formatRupiah}
+              readonlyStok={readonlyStok}
             />
           )}
         </div>
@@ -405,6 +409,7 @@ export default function VariantManager({
         onApplyBulk={handleApplyBulk}
         onActivateAll={handleActivateAll}
         onClear={handleClearSelected}
+        readonlyStok={readonlyStok}
       />
 
       {(hasColor || hasSize) && (

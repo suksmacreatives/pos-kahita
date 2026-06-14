@@ -4,7 +4,7 @@ function formatNumber(n) {
   return new Intl.NumberFormat("id-ID").format(n || 0);
 }
 
-export default function VariantSimpleList({ mode, colors, sizes, variants, selected, onToggleSelect, onUpdateVariant, formatRupiah }) {
+export default function VariantSimpleList({ mode, colors, sizes, variants, selected, onToggleSelect, onUpdateVariant, formatRupiah, readonlyStok = false }) {
   const items = mode === "color" ? colors : sizes;
   const allSelected = items.length > 0 && items.every(item => {
     const v = variants.find(v => mode === "color" ? v.color_id === item.id : v.size_id === item.id);
@@ -51,7 +51,7 @@ export default function VariantSimpleList({ mode, colors, sizes, variants, selec
                 <td className="py-1.5 px-2">
                   <input type="number" min="0" value={v.stok}
                     onChange={e => onUpdateVariant(v.id, "stok", Number(e.target.value))}
-                    disabled={!v.aktif}
+                    disabled={!v.aktif || readonlyStok}
                     className="w-full p-1 border border-gray-200 rounded-md text-[11px] font-semibold text-center focus:outline-none focus:ring-1 focus:ring-emerald-500 disabled:bg-transparent disabled:text-gray-400" />
                 </td>
                 <td className="py-1.5 px-2">

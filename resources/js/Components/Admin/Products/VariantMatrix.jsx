@@ -10,6 +10,7 @@ export default function VariantMatrix({
   onToggleSelect, onUpdateVariant, onToggleAktif,
   onRemoveColor, onRemoveSize,
   onAddColorQuick, onAddSizeQuick,
+  readonlyStok = false,
 }) {
   const [showAddColor, setShowAddColor] = useState(false);
   const [newColorName, setNewColorName] = useState("");
@@ -118,7 +119,7 @@ export default function VariantMatrix({
                               className="rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 w-3 h-3" />
                             <input type="number" min="0" value={v.stok}
                               onChange={e => onUpdateVariant(v.id, "stok", Number(e.target.value))}
-                              disabled={!v.aktif}
+                              disabled={!v.aktif || readonlyStok}
                               className="w-full p-0.5 border-0 text-[11px] font-semibold text-center focus:outline-none focus:ring-0 bg-transparent disabled:text-gray-400" />
                             <button type="button" onClick={() => onToggleAktif(v.id)}
                               className={`w-3 h-3 rounded-full border transition-colors cursor-pointer ${
