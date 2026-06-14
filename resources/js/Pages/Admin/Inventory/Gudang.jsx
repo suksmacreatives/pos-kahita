@@ -3,7 +3,7 @@ import { usePage, router } from '@inertiajs/react';
 import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import GudangStatCard from '@/Components/Admin/Inventory/Gudang/GudangStatCard';
-import MutasiChart from '@/Components/Admin/Inventory/Gudang/MutasiChart';
+// import MutasiChart from '@/Components/Admin/Inventory/Gudang/MutasiChart';
 import StokGudangTable from '@/Components/Admin/Inventory/Gudang/StokGudangTable';
 import PenerimaanBarangTable from '@/Components/Admin/Inventory/Gudang/PenerimaanBarangTable';
 import DistribusiOutletTable from '@/Components/Admin/Inventory/Gudang/DistribusiOutletTable';
@@ -272,9 +272,9 @@ function Gudang() {
         <GudangStatCard title="Produk Menipis" value={stats.menipis + stats.habis} sub="stok ≤ minimum" color="rose" alert={true} percentage={stats.total_sku > 0 ? Math.round(((stats.menipis + stats.habis) / stats.total_sku) * 100) : 0} />
       </div>
 
-      <div className="bg-white rounded-2xl shadow-sm p-5">
+      {/* <div className="bg-white rounded-2xl shadow-sm p-5">
         <MutasiChart data={mutasiLog} />
-      </div>
+      </div> */}
 
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="border-b border-gray-100 px-5">

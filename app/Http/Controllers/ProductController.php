@@ -49,6 +49,11 @@ class ProductController extends Controller
             $stok_outlet = $p->variants->sum(fn ($v) => $v->outletStocks->sum('stock'));
             $total_stok = $stok_gudang + $stok_outlet;
 
+            $stokPerOutlet = $p->variants
+                ->flatMap(fn ($v) => $v->outletStocks)
+                ->groupBy('outlet_id')
+                ->map(fn ($stocks) => $stocks->sum('stock'));
+
             $terjual = (int) ($salesData[$p->id] ?? 0);
 
             return [
@@ -66,6 +71,7 @@ class ProductController extends Controller
                 'varian' => $variants->toArray(),
                 'total_stok' => $total_stok,
                 'stok_gudang' => $stok_gudang,
+                'stok_per_outlet' => $stokPerOutlet,
                 'image' => $p->image ? Storage::url($p->image) : null,
                 'terjual' => $terjual,
                 'omset' => $terjual * (int) $p->price,
@@ -103,6 +109,7 @@ class ProductController extends Controller
                 Rule::unique('product_variants', 'sku'),
             ],
             'outlet_tersedia' => 'nullable',
+            'distribusi_ke_gudang' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
@@ -112,6 +119,7 @@ class ProductController extends Controller
         }
 
         $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
+        $distribusiKeGudang = filter_var($validated['distribusi_ke_gudang'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
         $product = Product::create([
             'name' => $validated['nama_produk'],
@@ -139,11 +147,13 @@ class ProductController extends Controller
                 }
                 $usedSkus[] = $sku;
 
+                $stokGudang = $distribusiKeGudang ? ($v['stok'] ?? 0) : 0;
+
                 try {
                     $variant = $product->variants()->create([
                         'color' => $v['color_name'] ?? null,
                         'size' => $v['size_label'] ?? null,
-                        'stock' => $v['stok'] ?? 0,
+                        'stock' => $stokGudang,
                         'price' => $v['harga_jual'] ?? $validated['harga_jual'],
                         'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
                         'sku' => $sku,
@@ -154,7 +164,7 @@ class ProductController extends Controller
                         $variant = $product->variants()->create([
                             'color' => $v['color_name'] ?? null,
                             'size' => $v['size_label'] ?? null,
-                            'stock' => $v['stok'] ?? 0,
+                            'stock' => $stokGudang,
                             'price' => $v['harga_jual'] ?? $validated['harga_jual'],
                             'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
                             'sku' => $sku,
@@ -165,10 +175,11 @@ class ProductController extends Controller
                 }
 
                 foreach ($outletTersedia as $outletId) {
-                    OutletStock::firstOrCreate(
-                        ['outlet_id' => $outletId, 'product_variant_id' => $variant->id],
-                        ['stock' => $v['stok'] ?? 0]
-                    );
+                    OutletStock::create([
+                        'outlet_id' => $outletId,
+                        'product_variant_id' => $variant->id,
+                        'stock' => $v['stok'] ?? 0,
+                    ]);
                 }
             }
         }
@@ -199,10 +210,12 @@ class ProductController extends Controller
                     ->ignore($product->id, 'product_id'),
             ],
             'outlet_tersedia' => 'nullable',
+            'distribusi_ke_gudang' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ]);
 
         $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
+        $distribusiKeGudang = filter_var($validated['distribusi_ke_gudang'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
         $updateData = [
             'name' => $validated['nama_produk'],
@@ -227,10 +240,12 @@ class ProductController extends Controller
         $product->update($updateData);
         $product->outlets()->sync($outletTersedia);
 
-        $product->variants()->delete();
+        if ($request->has('variants') && !empty($validated['variants'])) {
+            // Hapus data stok lama secara eksplisit (outlet dulu baru variant)
+            $product->variants->each(fn ($v) => $v->outletStocks()->delete());
+            $product->variants()->delete();
 
-        $usedSkus = [];
-        if (!empty($validated['variants'])) {
+            $usedSkus = [];
             foreach ($validated['variants'] as $v) {
                 $sku = $v['sku'] ?? $validated['kode_produk'] . '-ALL';
 
@@ -239,11 +254,13 @@ class ProductController extends Controller
                 }
                 $usedSkus[] = $sku;
 
+                $stokGudang = $distribusiKeGudang ? ($v['stok'] ?? 0) : 0;
+
                 try {
                     $variant = $product->variants()->create([
                         'color' => $v['color_name'] ?? null,
                         'size' => $v['size_label'] ?? null,
-                        'stock' => $v['stok'] ?? 0,
+                        'stock' => $stokGudang,
                         'price' => $v['harga_jual'] ?? $validated['harga_jual'],
                         'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
                         'sku' => $sku,
@@ -254,7 +271,7 @@ class ProductController extends Controller
                         $variant = $product->variants()->create([
                             'color' => $v['color_name'] ?? null,
                             'size' => $v['size_label'] ?? null,
-                            'stock' => $v['stok'] ?? 0,
+                            'stock' => $stokGudang,
                             'price' => $v['harga_jual'] ?? $validated['harga_jual'],
                             'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
                             'sku' => $sku,
@@ -265,10 +282,11 @@ class ProductController extends Controller
                 }
 
                 foreach ($outletTersedia as $outletId) {
-                    OutletStock::firstOrCreate(
-                        ['outlet_id' => $outletId, 'product_variant_id' => $variant->id],
-                        ['stock' => $v['stok'] ?? 0]
-                    );
+                    OutletStock::create([
+                        'outlet_id' => $outletId,
+                        'product_variant_id' => $variant->id,
+                        'stock' => $v['stok'] ?? 0,
+                    ]);
                 }
             }
         }

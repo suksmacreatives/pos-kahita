@@ -30,7 +30,7 @@ export default function RingkasanOmset({ ringkasan, omset_harian }) {
 
   const chartData = (omset_harian || []).map((d) => ({
     ...d,
-    tanggal: d.tanggal ? format(new Date(d.tanggal), 'dd MMM', { locale: id }) : d.tanggal,
+    tanggal_label: d.tanggal ? format(new Date(d.tanggal), 'dd MMM', { locale: id }) : d.tanggal,
   }));
 
   const tableColumns = [
@@ -132,14 +132,14 @@ export default function RingkasanOmset({ ringkasan, omset_harian }) {
           <ReportChart
             type="bar"
             data={chartData}
-            config={{ xKey: 'tanggal', bars: [{ dataKey: 'omset', fill: '#10b981', name: 'Omset' }] }}
+            config={{ xKey: 'tanggal_label', bars: [{ dataKey: 'omset', fill: '#10b981', name: 'Omset' }] }}
             height={280}
           />
         ) : chartMode === 'transaksi' ? (
           <ReportChart
             type="line"
             data={chartData}
-            config={{ xKey: 'tanggal', lines: [{ dataKey: 'transaksi', stroke: '#3b82f6', name: 'Transaksi' }] }}
+            config={{ xKey: 'tanggal_label', lines: [{ dataKey: 'transaksi', stroke: '#3b82f6', name: 'Transaksi' }] }}
             height={280}
           />
         ) : (
@@ -147,7 +147,7 @@ export default function RingkasanOmset({ ringkasan, omset_harian }) {
             type="composed"
             data={chartData}
             config={{
-              xKey: 'tanggal',
+              xKey: 'tanggal_label',
               bars: [{ dataKey: 'omset', fill: '#10b981', name: 'Omset' }],
               lines: [{ dataKey: 'transaksi', stroke: '#3b82f6', name: 'Transaksi' }],
             }}

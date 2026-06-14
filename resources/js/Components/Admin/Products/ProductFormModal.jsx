@@ -55,17 +55,18 @@ export default function ProductFormModal({
   const isEditMode = !!product;
   const fileInputRef = useRef(null);
   const initialVariantData = useRef(null);
+  const [activeTab, setActiveTab] = useState("info");
 
   const { data, setData, processing, reset } = useForm({
     kode_produk: "",
     nama_produk: "",
     category_id: "",
-    // sub_kategori: "",
     deskripsi: "",
     harga_beli: "",
     harga_jual: "",
     status: "aktif",
     outlet_tersedia: [],
+    distribusi_ke_gudang: true,
     image: null,
   });
 
@@ -83,15 +84,16 @@ export default function ProductFormModal({
 
   useEffect(() => {
     if (!isOpen) return;
+    setActiveTab("info");
     if (isEditMode && product) {
       setData({
         kode_produk: product.kode_produk || "",
         nama_produk: product.nama_produk || "",
         category_id: product.category_id || "",
-        // sub_kategori: product.sub_kategori || "",
         deskripsi: product.deskripsi || "",
         status: product.status || "aktif",
         outlet_tersedia: product.outlet_tersedia ? product.outlet_tersedia.map(String) : [],
+        distribusi_ke_gudang: product.stok_gudang > 0,
         image: null,
       });
       setImagePreview(product.image || null);
@@ -141,10 +143,20 @@ export default function ProductFormModal({
     cat.name.toLowerCase().includes(categorySearch.toLowerCase())
   );
 
+  const hasLocation = data.distribusi_ke_gudang || data.outlet_tersedia.length > 0;
+
   const handleSubmit = (e) => {
     e.preventDefault();
+
     if (!data.nama_produk) {
+      setActiveTab("info");
       alert("Mohon lengkapi Nama Produk");
+      return;
+    }
+
+    if (!hasLocation) {
+      setActiveTab("distribusi");
+      alert("Pilih minimal 1 lokasi distribusi");
       return;
     }
 
@@ -160,7 +172,6 @@ export default function ProductFormModal({
     fd.append("kode_produk", data.kode_produk);
     fd.append("nama_produk", data.nama_produk);
     fd.append("category_id", String(data.category_id));
-    // fd.append("sub_kategori", data.sub_kategori);
     fd.append("deskripsi", data.deskripsi);
     fd.append("harga_beli", String(baseHargaBeli));
     fd.append("harga_jual", String(baseHargaJual));
@@ -176,6 +187,7 @@ export default function ProductFormModal({
     });
 
     fd.append("outlet_tersedia", JSON.stringify(data.outlet_tersedia));
+    fd.append("distribusi_ke_gudang", data.distribusi_ke_gudang ? "1" : "0");
 
     if (data.image) {
       fd.append("image", data.image);
@@ -192,209 +204,307 @@ export default function ProductFormModal({
     return msg ? <p className="text-[10px] text-red-500 mt-0.5 font-semibold">{msg}</p> : null;
   };
 
+  const TabButton = ({ tab, label }) => (
+    <button
+      type="button"
+      onClick={() => setActiveTab(tab)}
+      className={`py-3 px-1 text-xs font-bold transition-colors relative cursor-pointer ${
+        activeTab === tab ? "text-emerald-600" : "text-gray-400 hover:text-gray-600"
+      }`}
+    >
+      {label}
+      {activeTab === tab && (
+        <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-emerald-500 rounded-full" />
+      )}
+    </button>
+  );
+
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
-          <div className="relative bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
-              <h3 className="text-base font-extrabold text-gray-900">
-                {isEditMode ? `Edit Produk: ${product.kode_produk}` : "Tambah Produk Baru"}
+      <div className="relative bg-white rounded-2xl w-full max-w-4xl shadow-2xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200" onClick={e => e.stopPropagation()}>
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-slate-50/50">
+          <h3 className="text-base font-extrabold text-gray-900">
+            {isEditMode ? `Edit Produk: ${product.kode_produk}` : "Tambah Produk Baru"}
           </h3>
-          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors">
+          <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-900 hover:bg-gray-100 transition-colors cursor-pointer">
             <X className="w-4.5 h-4.5" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
-          <div className="space-y-4">
-            <h4 className="text-xs font-bold text-gray-950 uppercase tracking-wider border-b pb-1.5">Info Dasar</h4>
+        <div className="flex border-b border-gray-200 px-6 bg-white shrink-0">
+          <TabButton tab="info" label="Info Produk" />
+          <span className="mx-5" />
+          <TabButton tab="distribusi" label="Distribusi & Stok" />
+        </div>
 
-            <div className="space-y-1.5">
-              <label className="block text-[11px] font-bold text-gray-700">Foto Produk</label>
-              <div
-                className="border-2 border-dashed border-gray-200 hover:border-emerald-400 rounded-2xl p-4 flex flex-col items-center justify-center bg-slate-50/50 cursor-pointer transition-colors group"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) { setData("image", file); setImagePreview(URL.createObjectURL(file)); }
-                }} />
-                {imagePreview ? (
-                  <div className="flex items-center gap-3">
-                    <img src={imagePreview} alt="Preview" className="w-14 h-16 object-cover rounded-xl border shadow-xs" />
-                    <div className="text-left">
-                      <p className="text-[11px] font-bold text-slate-800">{data.image?.name || "Gambar produk"}</p>
-                      <p className="text-[9px] text-gray-400">Klik untuk ganti gambar</p>
-                    </div>
-                    <button type="button" onClick={(e) => { e.stopPropagation(); setData("image", null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-red-500 text-[10px] font-bold hover:underline">Hapus</button>
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="w-7 h-7 text-gray-400 group-hover:text-emerald-500 transition-colors mb-1.5" />
-                    <p className="text-[11px] font-bold text-gray-700">Klik untuk unggah gambar</p>
-                    <p className="text-[9px] text-gray-400 mt-0.5">Format JPG, PNG maks. 2MB</p>
-                  </>
-                )}
-              </div>
-              {fieldError("image")}
-            </div>
+        <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
+          {activeTab === "info" && (
+            <div className="space-y-4 max-w-2xl">
+              <h4 className="text-xs font-bold text-gray-950 uppercase tracking-wider border-b pb-1.5">Info Dasar</h4>
 
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Kode Produk *</label>
-              <input type="text" value={data.kode_produk} onChange={(e) => {
-                setData("kode_produk", e.target.value);
-                const updated = variantData.variants.map(v => ({
-                  ...v,
-                  sku: generateSku(e.target.value, v.color_nama, v.size_label),
-                }));
-                setVariantData(prev => ({ ...prev, variants: updated }));
-              }} placeholder="KHT-XXXX"
-                className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2 bg-slate-50" />
-              {fieldError("kode_produk")}
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Nama Produk *</label>
-              <input type="text" required value={data.nama_produk} onChange={(e) => setData("nama_produk", e.target.value)}
-                placeholder="Nama produk"
-                className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
-              {fieldError("nama_produk")}
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-              <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Kategori</label>
-                <div className="relative z-10" ref={categoryRef}>
-                  <button
-                    type="button"
-                    onClick={() => setIsCategoryOpen(!isCategoryOpen)}
-                    className="flex items-center justify-between w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500"
-                  >
-                    <span className="truncate">
-                      {data.category_id
-                        ? categories.find((c) => c.id == data.category_id)?.name || "-- Pilih Kategori --"
-                        : "-- Pilih Kategori --"}
-                    </span>
-                    <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isCategoryOpen ? "rotate-180" : ""}`} />
-                  </button>
-                  {isCategoryOpen && (
-                    <div className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 overflow-hidden">
-                      <div className="px-3 py-2 border-b border-gray-100">
-                        <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-lg">
-                          <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
-                          <input
-                            type="text"
-                            value={categorySearch}
-                            onChange={(e) => setCategorySearch(e.target.value)}
-                            placeholder="Cari kategori..."
-                            className="w-full bg-transparent text-xs outline-none text-gray-600 placeholder:text-gray-400"
-                            autoFocus
-                          />
-                        </div>
+              <div className="space-y-1.5">
+                <label className="block text-[11px] font-bold text-gray-700">Foto Produk</label>
+                <div
+                  className="border-2 border-dashed border-gray-200 hover:border-emerald-400 rounded-2xl p-4 flex flex-col items-center justify-center bg-slate-50/50 cursor-pointer transition-colors group"
+                  onClick={() => fileInputRef.current?.click()}
+                >
+                  <input type="file" ref={fileInputRef} accept="image/*" className="hidden" onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) { setData("image", file); setImagePreview(URL.createObjectURL(file)); }
+                  }} />
+                  {imagePreview ? (
+                    <div className="flex items-center gap-3">
+                      <img src={imagePreview} alt="Preview" className="w-14 h-16 object-cover rounded-xl border shadow-xs" />
+                      <div className="text-left">
+                        <p className="text-[11px] font-bold text-slate-800">{data.image?.name || "Gambar produk"}</p>
+                        <p className="text-[9px] text-gray-400">Klik untuk ganti gambar</p>
                       </div>
-                      <ul className="max-h-48 overflow-y-auto py-1 text-xs">
-                        {filteredCategories.length === 0 ? (
-                          <li className="px-3 py-3 text-gray-400 text-center font-medium">Kategori tidak ditemukan</li>
-                        ) : (
-                          filteredCategories.map((cat) => (
-                            <li
-                              key={cat.id}
-                              onClick={() => {
-                                setData("category_id", cat.id);
-                                setIsCategoryOpen(false);
-                                setCategorySearch("");
-                              }}
-                              className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${
-                                data.category_id == cat.id ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-gray-600"
-                              }`}
-                            >
-                              {cat.name}
-                            </li>
-                          ))
-                        )}
-                      </ul>
+                      <button type="button" onClick={(e) => { e.stopPropagation(); setData("image", null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ""; }} className="text-red-500 text-[10px] font-bold hover:underline cursor-pointer">Hapus</button>
                     </div>
+                  ) : (
+                    <>
+                      <Upload className="w-7 h-7 text-gray-400 group-hover:text-emerald-500 transition-colors mb-1.5" />
+                      <p className="text-[11px] font-bold text-gray-700">Klik untuk unggah gambar</p>
+                      <p className="text-[9px] text-gray-400 mt-0.5">Format JPG, PNG maks. 2MB</p>
+                    </>
                   )}
                 </div>
-                {fieldError("category_id")}
+                {fieldError("image")}
               </div>
-            </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-gray-700 mb-1">Deskripsi Produk</label>
-              <textarea value={data.deskripsi} onChange={(e) => setData("deskripsi", e.target.value)}
-                placeholder="Tuliskan keterangan detail mengenai bahan, ukuran pas, dll..." rows="3"
-                className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
-            </div>
-
-
-
-            <div className="flex items-center justify-between p-3 bg-slate-50 border border-gray-150 rounded-2xl">
               <div>
-                <span className="block text-xs font-bold text-gray-800">Status Produk</span>
-                <span className="block text-[10px] text-gray-400">Aktifkan agar dapat dipilih di kasir POS</span>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Kode Produk *</label>
+                <input type="text" value={data.kode_produk} onChange={(e) => {
+                  setData("kode_produk", e.target.value);
+                  const updated = variantData.variants.map(v => ({
+                    ...v,
+                    sku: generateSku(e.target.value, v.color_nama, v.size_label),
+                  }));
+                  setVariantData(prev => ({ ...prev, variants: updated }));
+                }} placeholder="KHT-XXXX"
+                  className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2 bg-slate-50" />
+                {fieldError("kode_produk")}
               </div>
-              <button type="button" onClick={() => setData("status", data.status === "aktif" ? "nonaktif" : "aktif")}
-                className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${data.status === "aktif" ? "bg-emerald-500" : "bg-gray-300"}`}>
-                <div className={`w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 ${data.status === "aktif" ? "translate-x-5.5" : "translate-x-0"}`} />
-              </button>
-            </div>
-          </div>
 
-          <div className="space-y-6 flex flex-col justify-between">
-            <div className="space-y-4">
-              <VariantManager
-                value={variantData}
-                onChange={setVariantData}
-                productCode={data.kode_produk}
-                hargaDefault={data.harga_jual}
-                hargaBeliDefault={data.harga_beli}
-              />
-              {fieldError("variants")}
-            </div>
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Nama Produk *</label>
+                <input type="text" required value={data.nama_produk} onChange={(e) => setData("nama_produk", e.target.value)}
+                  placeholder="Nama produk"
+                  className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
+                {fieldError("nama_produk")}
+              </div>
 
-            <div className="space-y-3">
-              <h4 className="text-xs font-bold text-gray-950 uppercase tracking-wider border-b pb-1.5">Distribusi Outlet</h4>
-              <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 border border-gray-100 rounded-2xl">
-                {outlets.map((out) => {
-                  const outletId = String(out.id);
-                  const isChecked = data.outlet_tersedia.includes(outletId);
-                  return (
-                    <label key={out.id} className={`flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer text-xs font-medium transition-all ${
-                      isChecked ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-white border-gray-200 text-gray-600 hover:bg-slate-50"
-                    }`}>
-                      <input type="checkbox" checked={isChecked} onChange={() => {
-                        const updated = data.outlet_tersedia.includes(outletId)
-                          ? data.outlet_tersedia.filter((id) => id !== outletId)
-                          : [...data.outlet_tersedia, outletId];
-                        setData("outlet_tersedia", updated);
-                      }}
-                        className="rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 w-3.5 h-3.5" />
-                      {out.name}
-                    </label>
-                  );
-                })}
-                {outlets.length === 0 && (
-                  <p className="text-xs text-gray-400 col-span-2 text-center py-2">Tidak ada outlet tersedia</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-700 mb-1">Kategori</label>
+                  <div className="relative z-10" ref={categoryRef}>
+                    <button
+                      type="button"
+                      onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                      className="flex items-center justify-between w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs font-semibold text-gray-700 hover:bg-gray-50 shadow-sm transition-all focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 cursor-pointer"
+                    >
+                      <span className="truncate">
+                        {data.category_id
+                          ? categories.find((c) => c.id == data.category_id)?.name || "-- Pilih Kategori --"
+                          : "-- Pilih Kategori --"}
+                      </span>
+                      <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isCategoryOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {isCategoryOpen && (
+                      <div className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 overflow-hidden">
+                        <div className="px-3 py-2 border-b border-gray-100">
+                          <div className="flex items-center gap-2 px-2 py-1 bg-gray-50 rounded-lg">
+                            <Search className="w-3.5 h-3.5 text-gray-400 shrink-0" />
+                            <input
+                              type="text"
+                              value={categorySearch}
+                              onChange={(e) => setCategorySearch(e.target.value)}
+                              placeholder="Cari kategori..."
+                              className="w-full bg-transparent text-xs outline-none text-gray-600 placeholder:text-gray-400"
+                              autoFocus
+                            />
+                          </div>
+                        </div>
+                        <ul className="max-h-48 overflow-y-auto py-1 text-xs">
+                          {filteredCategories.length === 0 ? (
+                            <li className="px-3 py-3 text-gray-400 text-center font-medium">Kategori tidak ditemukan</li>
+                          ) : (
+                            filteredCategories.map((cat) => (
+                              <li
+                                key={cat.id}
+                                onClick={() => {
+                                  setData("category_id", cat.id);
+                                  setIsCategoryOpen(false);
+                                  setCategorySearch("");
+                                }}
+                                className={`px-3 py-2 cursor-pointer transition-colors hover:bg-gray-50 ${
+                                  data.category_id == cat.id ? "bg-emerald-50 text-emerald-700 font-semibold" : "text-gray-600"
+                                }`}
+                              >
+                                {cat.name}
+                              </li>
+                            ))
+                          )}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                  {fieldError("category_id")}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-bold text-gray-700 mb-1">Deskripsi Produk</label>
+                <textarea value={data.deskripsi} onChange={(e) => setData("deskripsi", e.target.value)}
+                  placeholder="Tuliskan keterangan detail mengenai bahan, ukuran pas, dll..." rows="3"
+                  className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2" />
+              </div>
+
+              <div className="flex items-center justify-between p-3 bg-slate-50 border border-gray-150 rounded-2xl">
+                <div>
+                  <span className="block text-xs font-bold text-gray-800">Status Produk</span>
+                  <span className="block text-[10px] text-gray-400">Aktifkan agar dapat dipilih di kasir POS</span>
+                </div>
+                <button type="button" onClick={() => setData("status", data.status === "aktif" ? "nonaktif" : "aktif")}
+                  className={`w-12 h-6.5 rounded-full p-1 transition-colors duration-200 focus:outline-none cursor-pointer ${data.status === "aktif" ? "bg-emerald-500" : "bg-gray-300"}`}>
+                  <div className={`w-4.5 h-4.5 rounded-full bg-white transition-transform duration-200 ${data.status === "aktif" ? "translate-x-5.5" : "translate-x-0"}`} />
+                </button>
+              </div>
+
+              <div className="pt-4 border-t border-gray-100">
+                <VariantManager
+                  value={variantData}
+                  onChange={setVariantData}
+                  productCode={data.kode_produk}
+                  hargaDefault={data.harga_jual}
+                  hargaBeliDefault={data.harga_beli}
+                  readonlyStok={isEditMode}
+                />
+                {fieldError("variants")}
+              </div>
+            </div>
+          )}
+
+          {activeTab === "distribusi" && (
+            <div className="space-y-4 max-w-2xl">
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800 leading-relaxed">
+                <p className="font-bold mb-1">Stok awal dari setiap varian akan disalin ke semua lokasi yang dipilih.</p>
+                <p>Contoh: varian stok 10 → Gudang: 10, Outlet A: 10. Perubahan stok setelah simpan hanya bisa dilakukan lewat menu Inventory.</p>
+              </div>
+
+              {isEditMode && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800 flex items-center gap-2">
+                  <span className="text-base">🔒</span>
+                  <span className="font-semibold">Ubah stok via menu Inventory — stok tidak bisa diubah dari sini.</span>
+                </div>
+              )}
+
+              <div className="space-y-3">
+                <h4 className="text-xs font-bold text-gray-950 uppercase tracking-wider border-b pb-1.5">Pilih Lokasi Distribusi</h4>
+                <div className="grid grid-cols-2 gap-3 p-4 bg-slate-50 border border-gray-100 rounded-2xl">
+                  <div className={`col-span-2 flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer text-xs font-medium transition-all ${
+                    data.distribusi_ke_gudang ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-white border-gray-200 text-gray-600 hover:bg-slate-50"
+                  }`}>
+                    <input type="checkbox" checked={data.distribusi_ke_gudang} onChange={() => setData("distribusi_ke_gudang", !data.distribusi_ke_gudang)}
+                      className="rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 w-3.5 h-3.5" />
+                    Gudang (Pusat)
+                  </div>
+                  {outlets.map((out) => {
+                    const outletId = String(out.id);
+                    const isChecked = data.outlet_tersedia.includes(outletId);
+                    return (
+                      <label key={out.id} className={`flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer text-xs font-medium transition-all ${
+                        isChecked ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-white border-gray-200 text-gray-600 hover:bg-slate-50"
+                      }`}>
+                        <input type="checkbox" checked={isChecked} onChange={() => {
+                          const updated = data.outlet_tersedia.includes(outletId)
+                            ? data.outlet_tersedia.filter((id) => id !== outletId)
+                            : [...data.outlet_tersedia, outletId];
+                          setData("outlet_tersedia", updated);
+                        }}
+                          className="rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 w-3.5 h-3.5" />
+                        {out.name}
+                      </label>
+                    );
+                  })}
+                  {outlets.length === 0 && (
+                    <p className="text-xs text-gray-400 col-span-2 text-center py-2">Tidak ada outlet tersedia</p>
+                  )}
+                </div>
+                {!hasLocation && (
+                  <p className="text-[10px] text-red-500 font-semibold">Pilih minimal 1 lokasi distribusi</p>
                 )}
+                {fieldError("outlet_tersedia")}
               </div>
-              {fieldError("outlet_tersedia")}
+
+              {(data.distribusi_ke_gudang || data.outlet_tersedia.length > 0) && (
+                <div className="bg-slate-50 border border-gray-200 rounded-2xl p-4">
+                  <h5 className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-2">Lokasi Terpilih</h5>
+                  <div className="flex flex-wrap gap-1.5">
+                    {data.distribusi_ke_gudang && (
+                      <span className="inline-flex items-center px-2.5 py-1 bg-emerald-50 border border-emerald-200 text-emerald-700 rounded-lg text-[10px] font-semibold">
+                        Gudang (Pusat)
+                      </span>
+                    )}
+                    {data.outlet_tersedia.map(id => {
+                      const outlet = outlets.find(o => String(o.id) === id);
+                      return (
+                        <span key={id} className="inline-flex items-center px-2.5 py-1 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg text-[10px] font-semibold">
+                          {outlet?.name || id}
+                        </span>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[10px] text-gray-400 mt-2">
+                    {(() => {
+                      let total = 0;
+                      if (data.distribusi_ke_gudang) total++;
+                      total += data.outlet_tersedia.length;
+                      return `${total} lokasi dipilih`;
+                    })()}
+                  </p>
+                </div>
+              )}
             </div>
-          </div>
+          )}
         </form>
 
-        <div className="px-6 py-4 border-t border-gray-100 bg-slate-50/50 flex items-center justify-end gap-3">
-          <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-slate-100 transition-colors cursor-pointer">Batal</button>
-          <button type="button" onClick={handleSubmit} disabled={processing}
-            className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer">
-            {processing ? (
-              <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Menyimpan...</>
-            ) : "Simpan Produk"}
-          </button>
+        <div className="px-6 py-4 border-t border-gray-100 bg-slate-50/50 flex items-center justify-between gap-3">
+          <div>
+            {activeTab === "distribusi" && (
+              <button type="button" onClick={() => setActiveTab("info")}
+                className="px-4 py-2 border border-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-slate-100 transition-colors cursor-pointer">
+                ← Kembali
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 text-gray-700 rounded-xl text-xs font-semibold hover:bg-slate-100 transition-colors cursor-pointer">Batal</button>
+            {activeTab === "info" ? (
+              <button type="button" onClick={() => {
+                if (!data.nama_produk) {
+                  alert("Mohon lengkapi Nama Produk");
+                  return;
+                }
+                setActiveTab("distribusi");
+              }}
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-semibold shadow-md hover:shadow-lg transition-all cursor-pointer">
+                Lanjut →
+              </button>
+            ) : (
+              <button type="button" onClick={handleSubmit} disabled={processing}
+                className="px-4 py-2 bg-emerald-500 hover:bg-emerald-600 disabled:bg-emerald-400 text-white rounded-xl text-xs font-semibold flex items-center gap-2 shadow-md hover:shadow-lg transition-all cursor-pointer">
+                {processing ? (
+                  <><span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" /> Menyimpan...</>
+                ) : "Simpan Produk"}
+              </button>
+            )}
+          </div>
         </div>
       </div>
-  </div>,
-  document.body
-);
+    </div>,
+    document.body
+  );
 }
 
 function generateSku(productCode, colorName, sizeLabel) {

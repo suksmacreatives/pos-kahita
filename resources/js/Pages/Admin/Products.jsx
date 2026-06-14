@@ -227,6 +227,7 @@ export default function Products({ products: initialProducts, outlets, categorie
             onOpenDrawer={(prod) => { setSelectedProduct(prod); setIsDrawerOpen(true); }}
             onOpenEdit={(prod) => { setSelectedProduct(prod); setIsModalOpen(true); }}
             onDeleteProduct={(prod) => setDeleteConfirmTarget(prod)}
+            allOutlets={outlets}
           />
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">

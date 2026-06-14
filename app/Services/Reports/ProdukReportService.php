@@ -121,7 +121,7 @@ class ProdukReportService
             ->distinct()
             ->pluck('transaction_items.product_id');
 
-        $products = Product::whereNotIn('id', $productIdsWithSales)
+        $products = Product::whereNotIn('products.id', $productIdsWithSales)
             ->where('status', 'aktif')
             ->leftJoin('product_categories', 'products.category_id', '=', 'product_categories.id')
             ->selectRaw('

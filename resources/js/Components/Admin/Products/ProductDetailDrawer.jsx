@@ -7,6 +7,7 @@ import ProductBadge from './ProductBadge';
 
 export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEdit, onToggleStatus, allOutlets = [] }) {
   const [activeColorTab, setActiveColorTab] = useState('');
+  const [viewLocation, setViewLocation] = useState('gudang');
 
   useEffect(() => {
     if (product && product.varian && product.varian.length > 0) {
@@ -110,8 +111,38 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
             
             {uniqueColors.length > 0 ? (
               <div className="space-y-3">
+                {/* Location Tabs */}
+                <div className="flex flex-wrap gap-1 border-b border-gray-100 pb-2">
+                  <button
+                    onClick={() => setViewLocation('gudang')}
+                    className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                      viewLocation === 'gudang'
+                        ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+                        : 'bg-white text-gray-600 hover:bg-slate-50 border-gray-200'
+                    }`}
+                  >
+                    Gudang
+                  </button>
+                  {allOutlets.map((o) => {
+                    if (!product.outlet_tersedia?.includes(String(o.id))) return null;
+                    return (
+                      <button
+                        key={o.id}
+                        onClick={() => setViewLocation(String(o.id))}
+                        className={`px-3 py-1.5 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+                          viewLocation === String(o.id)
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-sm'
+                            : 'bg-white text-gray-600 hover:bg-slate-50 border-gray-200'
+                        }`}
+                      >
+                        {o.name}
+                      </button>
+                    );
+                  })}
+                </div>
+
                 {/* Color Dot Tabs */}
-                <div className="flex flex-wrap gap-1.5 border-b border-gray-100 pb-2">
+                <div className="flex flex-wrap gap-1.5">
                   {uniqueColors.map((colorName) => {
                     const isActive = activeColorTab === colorName;
                     return (
@@ -142,17 +173,22 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50 text-gray-600">
-                        {colorGroups[activeColorTab].items.map((item, idx) => (
-                          <tr key={idx} className="hover:bg-slate-50/50">
-                            <td className="py-2 px-3 font-semibold text-gray-800">{item.size_label || "—"}</td>
-                            <td className="py-2 px-3 font-mono text-[10px] text-gray-400">{item.sku}</td>
-                            <td className="py-2 px-3 text-right font-bold">
-                              <span className={item.stok === 0 ? 'text-red-500' : item.stok < 5 ? 'text-amber-500' : 'text-gray-800'}>
-                                {item.stok} pcs
-                              </span>
-                            </td>
-                          </tr>
-                        ))}
+                        {colorGroups[activeColorTab].items.map((item, idx) => {
+                          const stok = viewLocation === 'gudang'
+                            ? item.stok
+                            : (item.stok_outlet?.[viewLocation] ?? 0);
+                          return (
+                            <tr key={idx} className="hover:bg-slate-50/50">
+                              <td className="py-2 px-3 font-semibold text-gray-800">{item.size_label || "—"}</td>
+                              <td className="py-2 px-3 font-mono text-[10px] text-gray-400">{item.sku}</td>
+                              <td className="py-2 px-3 text-right font-bold">
+                                <span className={stok === 0 ? 'text-red-500' : stok < 5 ? 'text-amber-500' : 'text-gray-800'}>
+                                  {stok} pcs
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
                       </tbody>
                     </table>
                   </div>
@@ -170,22 +206,30 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
               Tersedia Di Outlet
             </h4>
             <div className="flex flex-wrap gap-1.5">
+              {product.stok_gudang > 0 && (
+                <span className="inline-flex items-center gap-1 px-3 py-1 bg-emerald-50 border border-emerald-200 rounded-xl text-xs font-medium text-emerald-700 shadow-2xs">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
+                  Gudang — {product.stok_gudang} pcs
+                </span>
+              )}
               {product.outlet_tersedia && product.outlet_tersedia.length > 0 ? (
                 product.outlet_tersedia.map((outId) => {
                   const found = allOutlets.find(o => String(o.id) === String(outId));
                   const label = found ? found.name : `Outlet #${outId}`;
+                  const stok = product.stok_per_outlet?.[String(outId)] ?? 0;
                   return (
                     <span 
                       key={outId}
-                      className="inline-flex items-center gap-1 px-3 py-1 bg-slate-50 border border-slate-100 rounded-xl text-xs font-medium text-slate-700 shadow-2xs"
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 border border-blue-200 rounded-xl text-xs font-medium text-blue-700 shadow-2xs"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
-                      {label}
+                      <span className="w-1.5 h-1.5 rounded-full bg-blue-500" />
+                      {label} — {stok} pcs
                     </span>
                   );
                 })
-              ) : (
-                <span className="text-xs text-gray-400 italic">Belum didistribusikan ke outlet manapun.</span>
+              ) : null}
+              {(!product.stok_gudang && (!product.outlet_tersedia || product.outlet_tersedia.length === 0)) && (
+                <span className="text-xs text-gray-400 italic">Belum didistribusikan kemana pun.</span>
               )}
             </div>
           </div>
@@ -220,6 +264,26 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
                 </div>
               </div>
             </div>
+
+            {allOutlets.length > 0 && (
+              <div className="grid grid-cols-3 gap-3">
+                {allOutlets.map((o) => {
+                  const stok = product.stok_per_outlet?.[String(o.id)] ?? 0;
+                  if (stok === 0) return null;
+                  return (
+                    <div key={o.id} className="bg-blue-50 border border-blue-100 p-3 rounded-xl flex flex-col justify-between">
+                      <div className="flex items-center gap-0.5 text-blue-400">
+                        <Store className="w-4 h-4" />
+                      </div>
+                      <div className="mt-2">
+                        <span className="text-[10px] text-blue-500 block font-medium">Stok {o.name}</span>
+                        <span className="text-sm font-extrabold text-blue-900">{stok} pcs</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
         </div>

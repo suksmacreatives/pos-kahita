@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { X, Check } from "lucide-react";
 
-export default function VariantBulkEdit({ selected, variants, colors, sizes, onApplyBulk, onActivateAll, onClear }) {
+export default function VariantBulkEdit({ selected, variants, colors, sizes, onApplyBulk, onActivateAll, onClear, readonlyStok = false }) {
   const [bulkHargaJual, setBulkHargaJual] = useState("");
   const [bulkHargaBeli, setBulkHargaBeli] = useState("");
   const [bulkStok, setBulkStok] = useState("");
@@ -51,15 +51,17 @@ export default function VariantBulkEdit({ selected, variants, colors, sizes, onA
               className="px-2 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600 disabled:opacity-40 transition-colors cursor-pointer">Terapkan</button>
           </div>
         </div>
-        <div className="space-y-1">
-          <label className="text-[10px] font-semibold text-gray-500">Stok</label>
-          <div className="flex gap-1">
-            <input type="number" value={bulkStok} onChange={e => setBulkStok(e.target.value)}
-              placeholder="0" className="w-full p-1.5 border border-gray-200 rounded-lg text-[11px] focus:outline-none focus:ring-1 focus:ring-emerald-500" />
-            <button onClick={() => handleApply("stok")} disabled={!bulkStok && bulkStok !== 0}
-              className="px-2 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600 disabled:opacity-40 transition-colors cursor-pointer">Terapkan</button>
+        {!readonlyStok && (
+          <div className="space-y-1">
+            <label className="text-[10px] font-semibold text-gray-500">Stok</label>
+            <div className="flex gap-1">
+              <input type="number" value={bulkStok} onChange={e => setBulkStok(e.target.value)}
+                placeholder="0" className="w-full p-1.5 border border-gray-200 rounded-lg text-[11px] focus:outline-none focus:ring-1 focus:ring-emerald-500" />
+              <button onClick={() => handleApply("stok")} disabled={!bulkStok && bulkStok !== 0}
+                className="px-2 py-1 bg-emerald-500 text-white rounded-lg text-[10px] font-bold hover:bg-emerald-600 disabled:opacity-40 transition-colors cursor-pointer">Terapkan</button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
       <div className="flex gap-2">
         <button onClick={() => { onActivateAll(true); onClear(); }}
