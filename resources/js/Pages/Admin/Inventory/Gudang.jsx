@@ -200,7 +200,7 @@ function Gudang() {
   };
 
   const handleBatalReturSupplier = (item) => {
-    if (confirm('Batalkan Retur Supplier ini?')) {
+    if (confirm('Batalkan Retur Supplier? Stok gudang akan dikembalikan.')) {
       router.patch(route('admin.inventory.gudang.retur.batal', item.id), {}, {
         preserveScroll: true,
         onSuccess: () => reloadData(),

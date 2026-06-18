@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Plus, Trash2 } from 'lucide-react';
+import { X, Plus, Trash2, AlertCircle, Info } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, onSubmit, outlets = [], outletStok = {} }) {
   if (!isOpen) return null;
@@ -22,6 +23,7 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
       {
         product_id: '',
         varian_sku: '',
+        product_variant_id: '',
         qty: 1,
         max_qty: 0,
         nama: '',
@@ -43,11 +45,12 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
 
     setItems(prev => {
       const copy = [...prev];
-      const firstVarian = prod.varian[0] || { sku: '', ukuran: '', warna: '', stok: 0 };
+      const firstVarian = prod.varian[0] || { sku: '', ukuran: '', warna: '', stok: 0, id: '' };
       copy[index] = {
         ...copy[index],
         product_id: prodId,
         varian_sku: firstVarian.sku,
+        product_variant_id: firstVarian.id || '',
         max_qty: firstVarian.stok,
         qty: Math.min(1, firstVarian.stok),
         nama: prod.nama_produk,
@@ -72,6 +75,7 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
       copy[index] = {
         ...copy[index],
         varian_sku: sku,
+        product_variant_id: varian.id || '',
         ukuran: varian.ukuran,
         warna: varian.warna,
         max_qty: varian.stok,
@@ -114,7 +118,7 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
 
   const isFormInvalid = 
     items.length === 0 || 
-    items.some(it => !it.product_id || !it.varian_sku || !!it.error || it.qty <= 0);
+    items.some(it => !it.product_id || !it.product_variant_id || !!it.error || it.qty <= 0);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -127,8 +131,9 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
       outlet_nama: originOutlet?.nama || '',
       tgl_retur: tanggal,
       alasan,
-      items: items.map(({ product_id, varian_sku, qty, nama, ukuran, warna, catatan_item }) => ({
+      items: items.map(({ product_id, product_variant_id, varian_sku, qty, nama, ukuran, warna, catatan_item }) => ({
         produk_id: parseInt(product_id),
+        product_variant_id,
         nama,
         ukuran,
         warna,
@@ -175,24 +180,24 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
 
             <div>
               <label className="block text-xs font-bold text-gray-550 uppercase mb-2">Alasan Retur *</label>
-              <select
-                required
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 font-semibold focus:border-emerald-500 outline-none cursor-pointer"
+              <SelectDropdown
                 value={alasan}
-                onChange={e => setAlasan(e.target.value)}
-              >
-                <option value="kelebihan stok">Kelebihan Stok</option>
-                <option value="cacat">Produk Cacat</option>
-                <option value="tidak laku">Tidak Laku / Slow Moving</option>
-                <option value="salah kirim">Kesalahan Kirim dari Gudang</option>
-              </select>
+                onChange={setAlasan}
+                options={[
+                  { value: 'kelebihan stok', label: 'Kelebihan Stok' },
+                  { value: 'cacat', label: 'Produk Cacat' },
+                  { value: 'tidak laku', label: 'Tidak Laku / Slow Moving' },
+                  { value: 'salah kirim', label: 'Kesalahan Kirim dari Gudang' },
+                ]}
+                placeholder="-- Pilih Alasan --"
+              />
             </div>
 
             <div>
               <label className="block text-xs font-bold text-gray-550 uppercase mb-2">Tanggal Pengiriman</label>
               <input
                 type="date"
-                className="w-full px-3 py-2 bg-white border border-gray-200 rounded-xl text-xs text-gray-700 font-semibold focus:border-emerald-500 outline-none"
+                className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-500 outline-none"
                 value={tanggal}
                 onChange={e => setTanggal(e.target.value)}
               />
@@ -230,6 +235,7 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
               <div className="space-y-3">
                 {items.map((row, idx) => {
                   const selectedProd = availableProducts.find(p => p.id === parseInt(row.product_id));
+                  const hasWarna = selectedProd?.varian?.some(v => v.warna && v.warna.trim() !== '');
                   
                   return (
                     <div key={idx} className="p-3 border border-gray-200 rounded-xl bg-gray-50/30 space-y-2 relative">
@@ -245,34 +251,27 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
                         {/* Select Product */}
                         <div className="sm:col-span-5">
                           <label className="block text-[10px] font-bold text-gray-400 mb-1">Produk</label>
-                          <select
-                            required
-                            className="w-full px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs outline-none focus:border-emerald-500 font-medium cursor-pointer"
+                          <SelectDropdown
                             value={row.product_id}
-                            onChange={e => handleProductChange(idx, e.target.value)}
-                          >
-                            <option value="">-- Pilih Produk --</option>
-                            {availableProducts.map(p => (
-                              <option key={p.id} value={p.id}>{p.nama_produk} ({p.kode_produk})</option>
-                            ))}
-                          </select>
+                            onChange={(val) => handleProductChange(idx, val)}
+                            options={[
+                              ...availableProducts.map(p => ({ value: p.id, label: `${p.nama_produk} (${p.kode_produk})`, stok: p.total_stok }))
+                            ]}
+                            placeholder="-- Pilih Produk --"
+                            searchable
+                          />
                         </div>
 
                         {/* Select Varian */}
                         <div className="sm:col-span-4">
-                          <label className="block text-[10px] font-bold text-gray-400 mb-1">Varian (Size - Warna)</label>
-                          <select
-                            required
-                            disabled={!row.product_id}
-                            className="w-full px-2.5 py-1.5 bg-white border border-gray-200 disabled:bg-gray-100 rounded-lg text-xs outline-none focus:border-emerald-500 font-medium cursor-pointer"
+                          <label className="block text-[10px] font-bold text-gray-400 mb-1">{hasWarna ? 'Varian (Size - Warna)' : 'Ukuran'}</label>
+                          <SelectDropdown
                             value={row.varian_sku}
-                            onChange={e => handleVarianChange(idx, e.target.value)}
-                          >
-                            {!row.product_id && <option value="">Pilih produk dulu</option>}
-                            {selectedProd?.varian.map(v => (
-                              <option key={v.sku} value={v.sku}>Size {v.ukuran} [Stok: {v.stok} pcs]</option>
-                            ))}
-                          </select>
+                            onChange={(val) => handleVarianChange(idx, val)}
+                            options={(selectedProd?.varian || []).map(v => ({ value: v.sku, label: hasWarna ? `Size ${v.ukuran} - ${v.warna} [Stok: ${v.stok} pcs]` : `Size ${v.ukuran} [Stok: ${v.stok} pcs]` }))}
+                            placeholder={!row.product_id ? 'Pilih produk dulu' : '-- Pilih Varian --'}
+                            disabled={!row.product_id}
+                          />
                         </div>
 
                         {/* Input Qty */}

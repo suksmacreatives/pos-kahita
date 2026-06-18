@@ -417,13 +417,6 @@ export default function StokOutletTable({ selectedOutlet, onAction, outletStok =
                             <Eye className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => onAction('transfer', item)}
-                            className="p-1.5 rounded-lg text-sky-600 hover:bg-sky-50 transition-colors inline-flex items-center justify-center cursor-pointer"
-                            title="Request Transfer"
-                          >
-                            <ArrowRightLeft className="w-4 h-4" />
-                          </button>
-                          <button
                             onClick={() => onAction('history', item)}
                             className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition-colors inline-flex items-center justify-center cursor-pointer"
                             title="Lihat Mutasi"

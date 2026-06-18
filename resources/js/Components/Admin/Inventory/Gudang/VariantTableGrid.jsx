@@ -45,7 +45,7 @@ export default function VariantTableGrid({
               <th className="text-left py-1 px-2 font-medium">Ukuran</th>
               {maxKey && <th className="text-right py-1 px-2 font-medium">{maxKey === 'stok' ? 'Stok' : maxKey}</th>}
               <th className="text-right py-1 px-2 font-medium">Qty</th>
-              {showHarga && <th className="text-right py-1 px-2 font-medium">Harga</th>}
+              {showHarga && <th className="text-right py-1 px-2 font-medium">Harga Beli</th>}
               {showHarga && <th className="text-right py-1 pl-2 font-medium">Subtotal</th>}
             </tr>
           </thead>

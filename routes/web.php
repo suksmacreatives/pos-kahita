@@ -155,7 +155,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/inventory/outlet/transfer/{id}', [OutletInventoryController::class, 'cancelTransfer'])->name('admin.inventory.outlet.transfer.cancel');
         Route::post('/admin/inventory/outlet/retur', [OutletInventoryController::class, 'storeReturGudang'])->name('admin.inventory.outlet.retur');
         Route::delete('/admin/inventory/outlet/retur/{id}', [OutletInventoryController::class, 'cancelRetur'])->name('admin.inventory.outlet.retur.cancel');
-        Route::post('/admin/inventory/outlet/opname', [OutletInventoryController::class, 'startOpname'])->name('admin.inventory.outlet.opname.start');
+        Route::post('/admin/inventory/outlet/opname', [OutletInventoryController::class, 'storeOpname'])->name('admin.inventory.outlet.opname');
         Route::post('/admin/inventory/outlet/opname/{id}/selesai', [OutletInventoryController::class, 'submitOpname'])->name('admin.inventory.outlet.opname.selesai');
         
         // --- SUB-MENU: SETTINGS ---

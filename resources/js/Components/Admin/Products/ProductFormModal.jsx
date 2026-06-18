@@ -102,7 +102,7 @@ export default function ProductFormModal({
       initialVariantData.current = converted;
       setVariantData(converted);
     } else {
-      const autoKode = "KHT-" + crypto.randomUUID().slice(0, 8).toUpperCase();
+      const autoKode = "KHT-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
       reset();
       setData("kode_produk", autoKode);
       setImagePreview(null);

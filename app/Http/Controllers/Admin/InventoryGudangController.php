@@ -152,6 +152,7 @@ class InventoryGudangController extends Controller
                 'total_qty' => $r->total_qty,
                 'status' => $r->status,
                 'catatan' => $r->catatan,
+                'created_at' => $r->created_at?->toIso8601String(),
                 'items' => $r->items->map(fn ($item) => [
                     'produk_id' => $item->product_id,
                     'nama' => $item->nama,
@@ -500,14 +501,14 @@ class InventoryGudangController extends Controller
                 'alasan' => $validated['alasan'],
                 'total_item' => $totalItem,
                 'total_qty' => $totalQty,
-                'status' => 'diajukan',
+                'status' => 'selesai',
                 'catatan' => $request->catatan ?? null,
             ]);
 
             foreach ($validated['items'] as $item) {
                 $variant = $this->findVariant($item['produk_id'], $item['ukuran'], $item['warna'] ?? null);
 
-                SupplierReturnItem::create([
+                $returItem = SupplierReturnItem::create([
                     'supplier_return_id' => $retur->id,
                     'product_id' => $item['produk_id'],
                     'product_variant_id' => $variant?->id,
@@ -516,10 +517,24 @@ class InventoryGudangController extends Controller
                     'warna' => $item['warna'] ?? null,
                     'qty' => $item['qty'],
                 ]);
+
+                if ($variant) {
+                    $variant->decrement('stock', $item['qty']);
+
+                    StockMovement::create([
+                        'product_variant_id' => $variant->id,
+                        'type' => 'retur_supplier',
+                        'reference_type' => 'supplier_return',
+                        'reference_id' => $retur->id,
+                        'qty' => -(int) $item['qty'],
+                        'note' => "Retur ke supplier: {$validated['supplier_nama']} - {$item['nama']}",
+                        'user_id' => Auth::id(),
+                    ]);
+                }
             }
 
             DB::commit();
-            return redirect()->back()->with('success', 'Retur supplier berhasil diajukan');
+            return redirect()->back()->with('success', 'Retur supplier berhasil disimpan');
         } catch (\Exception $e) {
             DB::rollBack();
             return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
@@ -583,12 +598,35 @@ class InventoryGudangController extends Controller
 
     public function cancelReturSupplier(SupplierReturn $supplierReturn)
     {
-        if (!in_array($supplierReturn->status, ['diajukan'])) {
-            return redirect()->back()->with('error', 'Hanya retur supplier dengan status diajukan yang bisa dibatalkan');
+        if (!in_array($supplierReturn->status, ['selesai'])) {
+            return redirect()->back()->with('error', 'Hanya retur supplier dengan status selesai yang bisa dibatalkan');
         }
 
-        $supplierReturn->update(['status' => 'dibatalkan']);
-        return redirect()->back()->with('success', 'Retur supplier berhasil dibatalkan');
+        DB::beginTransaction();
+        try {
+            foreach ($supplierReturn->items as $item) {
+                if ($item->productVariant) {
+                    $item->productVariant->increment('stock', $item->qty);
+
+                    StockMovement::create([
+                        'product_variant_id' => $item->product_variant_id,
+                        'type' => 'retur_supplier',
+                        'reference_type' => 'supplier_return',
+                        'reference_id' => $supplierReturn->id,
+                        'qty' => (int) $item->qty,
+                        'note' => "Pembatalan retur supplier: {$item->nama}",
+                        'user_id' => Auth::id(),
+                    ]);
+                }
+            }
+
+            $supplierReturn->update(['status' => 'dibatalkan']);
+            DB::commit();
+            return redirect()->back()->with('success', 'Retur supplier dibatalkan, stok gudang dikembalikan');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return redirect()->back()->with('error', 'Gagal membatalkan retur: ' . $e->getMessage());
+        }
     }
 
     public function cancelReturOutlet(int $id, ReturGudangService $returService)

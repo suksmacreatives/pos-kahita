@@ -4,18 +4,22 @@ namespace App\Http\Controllers\Admin\Inventory;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\Outlet\KonfirmasiTerimaRequest;
-use App\Http\Requests\Inventory\Outlet\StoreOpnameOutletRequest;
 use App\Http\Requests\Inventory\Outlet\StoreReturGudangRequest;
 use App\Http\Requests\Inventory\Outlet\StoreTransferRequest;
 use App\Http\Requests\Inventory\Outlet\SubmitOpnameOutletRequest;
 use App\Models\DistributionOrder;
 use App\Models\Outlet;
+use App\Models\OutletStock;
+use App\Models\ProductVariant;
+use App\Models\StockMovement;
 use App\Models\StockOpname;
+use App\Models\StockOpnameItem;
 use App\Services\Inventory\InventoriOutletService;
 use App\Services\Inventory\OpnameOutletService;
 use App\Services\Inventory\ReturGudangService;
 use App\Services\Inventory\TransferStokService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
@@ -47,9 +51,27 @@ class OutletInventoryController extends Controller
             $penerimaanList = $this->inventoriOutlet->getPenerimaanList($outletId);
             $transferList = $this->transferService->getTransferList($outletId);
             $returList = $this->returService->getReturList($outletId);
-            $opnameList = $outletId ? $this->opnameService->getOpnameList($outletId) : [];
+            $opnameList = $this->opnameService->getOpnameList($outletId);
             $perbandinganStok = $this->inventoriOutlet->getPerbandinganStok(7);
             $outlets = $this->inventoriOutlet->getOutletList();
+
+            $mutasiQuery = StockMovement::with('productVariant.product')
+                ->latest()
+                ->take(50);
+
+            if ($outletId) {
+                $mutasiQuery->where('outlet_id', $outletId);
+            }
+
+            $mutasiLog = $mutasiQuery->get()->map(fn ($m) => [
+                'id' => $m->id,
+                'tipe' => $this->mapMutasiTipe($m->type),
+                'qty' => (int) $m->qty,
+                'keterangan' => $m->note ?? $m->type,
+                'timestamp' => $m->created_at?->toIso8601String(),
+                'produk_id' => $m->productVariant?->product_id,
+                'nama_produk' => $m->productVariant?->product?->name,
+            ]);
 
             return Inertia::render('Admin/Inventory/Outlet', [
                 'outletStok' => fn () => $outletStok,
@@ -60,6 +82,7 @@ class OutletInventoryController extends Controller
                 'opnameList' => fn () => $opnameList,
                 'perbandinganStok' => fn () => $perbandinganStok,
                 'outlets' => fn () => $outlets,
+                'mutasiLog' => fn () => $mutasiLog,
                 'filters' => $filters,
             ]);
         } catch (\Exception $e) {
@@ -103,7 +126,15 @@ class OutletInventoryController extends Controller
     public function storeTransfer(StoreTransferRequest $request)
     {
         try {
-            $this->transferService->processTransfer($request->validated());
+            $data = $request->validated();
+            $asal = Outlet::where('slug', $data['outlet_asal_id'])->first();
+            $tujuan = Outlet::where('slug', $data['outlet_tujuan_id'])->first();
+            if (!$asal || !$tujuan) {
+                return redirect()->back()->with('error', 'Outlet asal atau tujuan tidak ditemukan.');
+            }
+            $data['outlet_asal_id'] = $asal->id;
+            $data['outlet_tujuan_id'] = $tujuan->id;
+            $this->transferService->processTransfer($data);
             return redirect()->back()->with('success', 'Transfer antar outlet berhasil dibuat.');
         } catch (\App\Exceptions\InsufficientStockException $e) {
             return redirect()->back()->withErrors(['stok' => $e->getMessage()]);
@@ -156,7 +187,13 @@ class OutletInventoryController extends Controller
     public function storeReturGudang(StoreReturGudangRequest $request)
     {
         try {
-            $this->returService->processRetur($request->validated());
+            $data = $request->validated();
+            $outlet = Outlet::where('slug', $data['outlet_id'])->first();
+            if (!$outlet) {
+                return redirect()->back()->with('error', 'Outlet tidak ditemukan.');
+            }
+            $data['outlet_id'] = $outlet->id;
+            $this->returService->processRetur($data);
             return redirect()->back()->with('success', 'Retur ke gudang berhasil diajukan.');
         } catch (\App\Exceptions\InsufficientStockException $e) {
             return redirect()->back()->withErrors(['stok' => $e->getMessage()]);
@@ -186,48 +223,116 @@ class OutletInventoryController extends Controller
         }
     }
 
-    public function startOpname(StoreOpnameOutletRequest $request)
+    public function storeOpname(Request $request)
     {
+        $validated = $request->validate([
+            'tanggal' => 'required|date',
+            'items' => 'required|array|min:1',
+            'items.*.produk_id' => 'required|exists:products,id',
+            'items.*.nama' => 'required|string',
+            'items.*.ukuran' => 'nullable|string',
+            'items.*.warna' => 'nullable|string',
+            'items.*.qty_sistem' => 'required|integer|min:0',
+            'items.*.qty_aktual' => 'required|integer|min:0',
+            'items.*.selisih' => 'required|integer',
+        ]);
+
         try {
-            $opname = $this->opnameService->createOpnameSession(
-                $request->input('outlet_id'),
-                $request->input('petugas'),
-                $request->input('scope', 'all')
-            );
+            $outletId = $request->input('outlet_id');
+            $outlet = Outlet::where('slug', $outletId)->first();
+            if (!$outlet) {
+                return redirect()->back()->with('error', 'Outlet tidak ditemukan.');
+            }
 
-            $snapshot = $this->opnameService->startOpname([
-                'outlet_id' => $request->input('outlet_id'),
-                'petugas' => $request->input('petugas'),
-                'scope' => $request->input('scope', 'all'),
+            $totalItem = count($validated['items']);
+            $totalSelisihPlus = collect($validated['items'])->where('selisih', '>', 0)->sum('selisih');
+            $totalSelisihMinus = abs(collect($validated['items'])->where('selisih', '<', 0)->sum('selisih'));
+
+            DB::beginTransaction();
+
+            $lastId = StockOpname::where('outlet_id', $outlet->id)->count();
+            $nomorOpname = 'OPO-' . now()->format('Ymd') . '-' . str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
+
+            $opname = StockOpname::create([
+                'nomor_opname' => $nomorOpname,
+                'outlet_id' => $outlet->id,
+                'tanggal_mulai' => $validated['tanggal'],
+                'tanggal_selesai' => $validated['tanggal'],
+                'total_item' => $totalItem,
+                'total_selisih_plus' => $totalSelisihPlus,
+                'total_selisih_minus' => $totalSelisihMinus,
+                'petugas' => Auth::user()->name,
+                'status' => 'selesai',
             ]);
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Sesi opname berhasil dimulai.',
-                'data' => [
-                    'opname_id' => $opname->id,
-                    'opname' => [
-                        'id' => $opname->id,
-                        'nomor_opname' => $opname->nomor_opname,
-                        'outlet_id' => $opname->outlet?->slug ?? $opname->outlet_id,
-                        'tgl_mulai' => $opname->tanggal_mulai?->format('Y-m-d'),
-                        'tgl_selesai' => null,
-                        'status' => 'berlangsung',
-                        'items' => $snapshot['items'],
-                        'total_item' => $snapshot['total_item'],
-                        'total_selisih_plus' => 0,
-                        'total_selisih_minus' => 0,
-                        'dilakukan_oleh' => $request->input('petugas'),
-                    ],
-                ],
-            ]);
+            foreach ($validated['items'] as $item) {
+                $variant = $this->findVariant($item['produk_id'], $item['ukuran'], $item['warna'] ?? null);
+
+                StockOpnameItem::create([
+                    'stock_opname_id' => $opname->id,
+                    'product_id' => $item['produk_id'],
+                    'product_variant_id' => $variant?->id,
+                    'nama' => $item['nama'],
+                    'ukuran' => $item['ukuran'] ?? null,
+                    'warna' => $item['warna'] ?? null,
+                    'stok_sistem' => $item['qty_sistem'],
+                    'stok_fisik' => $item['qty_aktual'],
+                    'selisih' => $item['selisih'],
+                    'keterangan' => $item['keterangan'] ?? null,
+                ]);
+
+                if ($variant && $item['selisih'] != 0) {
+                    $stokNow = OutletStock::where('outlet_id', $outlet->id)
+                        ->where('product_variant_id', $variant->id)
+                        ->first()?->stock ?? 0;
+
+                    OutletStock::updateOrCreate(
+                        [
+                            'outlet_id' => $outlet->id,
+                            'product_variant_id' => $variant->id,
+                        ],
+                        [
+                            'stock' => max(0, $stokNow + $item['selisih']),
+                        ]
+                    );
+
+                    StockMovement::create([
+                        'product_variant_id' => $variant->id,
+                        'outlet_id' => $outlet->id,
+                        'type' => 'koreksi_opname',
+                        'reference_type' => 'stock_opname',
+                        'reference_id' => $opname->id,
+                        'qty' => $item['selisih'],
+                        'note' => "Koreksi opname: {$item['nama']} (sistem: {$item['qty_sistem']}, fisik: {$item['qty_aktual']})",
+                        'user_id' => Auth::id(),
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return redirect()->back()->with('success', 'Stock opname berhasil disimpan.');
         } catch (\Exception $e) {
-            Log::error('Start opname error: ' . $e->getMessage());
-            return response()->json([
-                'success' => false,
-                'message' => 'Gagal memulai opname: ' . $e->getMessage(),
-            ], 500);
+            DB::rollBack();
+            Log::error('Store opname error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal menyimpan opname: ' . $e->getMessage());
         }
+    }
+
+    private function findVariant($productId, $ukuran, $warna)
+    {
+        $query = ProductVariant::where('product_id', $productId);
+
+        if (!empty($warna)) {
+            $query->where('color', $warna);
+        }
+
+        if (empty($ukuran)) {
+            $query->whereNull('size');
+        } else {
+            $query->where('size', $ukuran);
+        }
+
+        return $query->first();
     }
 
     public function submitOpname(SubmitOpnameOutletRequest $request, int $id)
@@ -248,5 +353,15 @@ class OutletInventoryController extends Controller
             Log::error('Submit opname error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal menyelesaikan opname: ' . $e->getMessage());
         }
+    }
+
+    private function mapMutasiTipe($type)
+    {
+        return match ($type) {
+            'sale', 'transfer_keluar', 'retur_gudang' => 'KELUAR',
+            'penerimaan', 'transfer_masuk', 'return', 'void' => 'MASUK',
+            'koreksi_opname', 'adjustment' => 'KOREKSI',
+            default => 'KOREKSI',
+        };
     }
 }

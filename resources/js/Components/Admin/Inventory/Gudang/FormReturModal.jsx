@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+﻿import React, { useState, useMemo } from "react";
 import { createPortal } from 'react-dom';
 import { X, Plus, Search, AlertTriangle } from "lucide-react";
 import SelectDropdown from '@/Components/Admin/SelectDropdown';
@@ -33,7 +33,7 @@ export default function FormReturModal({ open, onClose, onSubmit, suppliers = []
         kode: produk.kode_produk,
         variants: produk.varian.map(v => ({
           ukuran: v.ukuran,
-          warna: v.warna || '',
+          warna: v  .warna || '',
           warna_hex: v.warna_hex || '#6b7280',
           stok: v.stok,
           qty: 0,
@@ -75,7 +75,6 @@ export default function FormReturModal({ open, onClose, onSubmit, suppliers = []
       })),
       total_qty: totalQty,
       total_item: flatItems.length,
-      status: 'diajukan',
     });
     setItems([]);
     setSupplierId("");
