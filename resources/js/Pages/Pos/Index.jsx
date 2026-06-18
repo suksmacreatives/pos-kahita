@@ -108,8 +108,29 @@ export default function Index({
     useEffect(() => { loadSidebarData(); }, []);
 
     const filteredProducts = useMemo(() => displayProducts.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())), [searchQuery, displayProducts]);
+    
     const subtotal = useMemo(() => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0), [cart]);
-    const uangKembalian = useMemo(() => { const cash = parseFloat(inputUangDiterima) || 0; return cash > subtotal ? cash - subtotal : 0; }, [inputUangDiterima, subtotal]);
+
+    const nilaiDiskon = selectedPromo
+    ? (
+        selectedPromo.tipe === 'persentase'
+            ? Math.min(
+                subtotal * (selectedPromo.nilai_diskon / 100),
+                selectedPromo.max_diskon || Infinity
+            )
+            : selectedPromo.nilai_diskon
+    )
+    : 0;
+    const totalSetelahDiskon = subtotal - nilaiDiskon;
+
+
+    const uangKembalian = useMemo(() => {
+    const cash = parseFloat(inputUangDiterima) || 0;
+
+    return cash >= totalSetelahDiskon
+        ? cash - totalSetelahDiskon
+        : 0;
+}, [inputUangDiterima, totalSetelahDiskon]);
     const sisaTagihan = useMemo(() => { const cash = parseFloat(inputUangDiterima) || 0; return cash >= subtotal ? 0 : subtotal - cash; }, [inputUangDiterima, subtotal]);
     const formatRupiah = (num) => 'Rp ' + Number(num).toLocaleString('id-ID');
 
@@ -183,12 +204,34 @@ const cetakStrukLangsung = (transaksiData) => {
             <div class="border-b"></div>
 
             <div class="font-bold">
-                <div class="flex-between"><span>TOTAL RP. =</span><span>${formatRupiah(transaksiData.total || 0)}</span></div>
-                <div class="flex-between">
-                    <span>${transaksiData.metode || 'TUNAI'} =</span>
-                    <span>${formatRupiah(transaksiData.tunai || 0)}</span>
-                </div>
+        <div class="flex-between">
+            <span>SUBTOTAL =</span>
+            <span>${formatRupiah(transaksiData.subtotal || 0)}</span>
+        </div>
+        ${transaksiData.promoName ? `
+    <div class="flex-between">
+        <span>PROMO =</span>
+        <span>${transaksiData.promoName}</span>
+    </div>
+` : ''}
+        ${(transaksiData.discount > 0) ? `
+            <div class="flex-between">
+                <span>DISKON =</span>
+                <span>- ${formatRupiah(transaksiData.discount)}</span>
             </div>
+        ` : ''}
+
+        <div class="flex-between">
+            <span>TOTAL RP. =</span>
+            <span>${formatRupiah(transaksiData.total || 0)}</span>
+        </div>
+
+        <div class="flex-between">
+            <span>${transaksiData.metode || 'TUNAI'} =</span>
+            <span>${formatRupiah(transaksiData.bayar || 0)}</span>
+        </div>
+
+    </div>
 
             ${(transaksiData.metode === 'TUNAI' || !transaksiData.metode) ? `
                 <div class="border-b"></div>
@@ -217,18 +260,7 @@ useEffect(() => {
         setCart(JSON.parse(saved));
     }
 }, []); 
-const nilaiDiskon = selectedPromo
-    ? (
-        selectedPromo.tipe === 'persentase'
-            ? Math.min(
-                subtotal * (selectedPromo.nilai_diskon / 100),
-                selectedPromo.max_diskon || Infinity
-            )
-            : selectedPromo.nilai_diskon
-    )
-    : 0;
 
-const totalSetelahDiskon = subtotal - nilaiDiskon;
 const handleProsesBayarFinal = async () => {
     if (isProcessing) return; 
     if (cart.length === 0) {
@@ -296,9 +328,10 @@ const handleProsesBayarFinal = async () => {
                 data: {
                     subtotal,
                     discount: nilaiDiskon,
+                    promoName: selectedPromo?.name || '',
                     total: totalSetelahDiskon,
                     metode: selectedPayment,
-                    bayar: Number(inputUangDiterima || subtotal),
+                    bayar: Number(inputUangDiterima || totalSetelahDiskon),
                     kembalian: uangKembalian,
                     items: cart
                 }
@@ -509,7 +542,7 @@ console.log("DEBUG_INDEX: Isi cart di Index saat ini:", cart);
                         <div className="text-xs font-bold tracking-wider opacity-90">{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     </header>
                     <div className="flex-1 flex overflow-hidden w-full h-full">
-                        {activeMenu === 'kasir' && (<KasirPosView  promos={promos} selectedPromo={selectedPromo} setSelectedPromo={setSelectedPromo} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'kasir' && (<KasirPosView  promos={promos} selectedPromo={selectedPromo} setSelectedPromo={setSelectedPromo} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} isSidebarOpen={isSidebarOpen} />)}
                         {/* ... (Menu lainnya tetap sama) */}
                         {activeMenu === 'penjualan' && (<DataPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} onPrint={cetakStrukLangsung} onVoid={(sale) => { console.log('VOID:', sale); }} />)}
                         {activeMenu === 'laporan-ringkasan' && (<RingkasanPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} />)}

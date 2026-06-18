@@ -24,6 +24,7 @@ export default function KasirPosView({
     uangKembalian,
     handleProsesBayarFinal,
     formatRupiah,
+    isSidebarOpen,
 }) {
     
     // --- STATE MANAGEMENT VIEW KIRI ---
@@ -263,8 +264,13 @@ const nilaiDiskon = useMemo(() => {
 
     {leftContentView === 'grid' ? (
 
-        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-6">
-
+        <div
+    className={`grid gap-4 ${
+        isSidebarOpen
+            ? 'grid-cols-4'
+            : 'grid-cols-5'
+    }`}
+>
             {filteredProducts.map((product) => {
 
                 const totalStock =
@@ -277,9 +283,9 @@ const nilaiDiskon = useMemo(() => {
                     <div
                         key={product.id}
                         onClick={() => handleCardClick(product)}
-                        className="bg-white rounded-3xl overflow-hidden border border-slate-100 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group"
+                        className=" bg-white rounded-sm overflow-hidden border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer"
                     >
-                        <div className="relative h-48 bg-slate-50">
+                        <div className="relative aspect-square bg-slate-50 border-b border-slate-200">
                             {product.image ? (
                                 <img
                                     src={product.image}
@@ -293,14 +299,14 @@ const nilaiDiskon = useMemo(() => {
                             )}
 
                             <div className="absolute top-3 left-3">
-                                <span className="bg-white/90 backdrop-blur px-2 py-0.5 rounded-lg text-[9px] font-bold uppercase tracking-wider text-slate-500">
+                                <span className="bg-white/90 backdrop-blur px-2 py-0.5 rounded-l text-[9px] font-bold uppercase tracking-wider text-slate-500">
                                     {product.category?.name || 'Produk'}
                                 </span>
                             </div>
                         </div>
 
                         <div className="p-3">
-                            <h3 className="font-bold text-slate-800 text-xs uppercase line-clamp-2 min-h-[32px]">
+                            <h3 className="font-bold text-slate-800 text-xs uppercase truncate">
                                 {product.name}
                             </h3>
 
@@ -321,7 +327,7 @@ const nilaiDiskon = useMemo(() => {
                                     </div>
                                 </div>
 
-                                <div className="w-8 h-8 rounded-full bg-[#009664] text-white flex items-center justify-center font-bold">
+                                <div className="w-9 h-9 border border-[#009664] text-[#009664] flex items-center justify-center font-bold rounded-sm hover:bg-[#009664] hover:text-white transition-all">
                                     +
                                 </div>
                             </div>
@@ -333,7 +339,7 @@ const nilaiDiskon = useMemo(() => {
 
     ) : (
 
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+        <div className="bg-white rounded-l border border-slate-200 shadow-sm overflow-hidden">
 
     {/* HEADER */}
     <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
@@ -380,7 +386,7 @@ const nilaiDiskon = useMemo(() => {
                 <button
                     type="button"
                     onClick={() => setLeftContentView('grid')}
-                    className="px-5 py-2.5 rounded-xl bg-[#009664] text-white text-xs font-bold hover:bg-emerald-700 transition shadow-sm"
+                    className="px-5 py-2.5 rounded-l bg-[#009664] text-white text-xs font-bold hover:bg-emerald-700 transition shadow-sm"
                 >
                     ← Kembali ke Produk
                 </button>
@@ -480,7 +486,7 @@ const nilaiDiskon = useMemo(() => {
                 <button
                     type="button"
                     onClick={() => setLeftContentView('grid')}
-                    className="px-5 py-2.5 rounded-xl bg-[#009664] text-white text-xs font-bold hover:bg-emerald-700 transition shadow-sm"
+                    className="px-5 py-2.5 rounded-l bg-[#009664] text-white text-xs font-bold hover:bg-emerald-700 transition shadow-sm"
                 >
                     ← Kembali ke Produk
                 </button>
@@ -512,7 +518,7 @@ const nilaiDiskon = useMemo(() => {
                                             : 'grid'
                                     )
                                 }
-                                className={`w-full border p-2.5 rounded-xl flex items-center justify-between text-xs font-bold transition shadow-sm ${
+                                className={`w-full border p-2.5 rounded-l flex items-center justify-between text-xs font-bold transition shadow-sm ${
                                     leftContentView === 'saved_list' 
                                         ? 'border-[#009664] bg-emerald-50 text-[#009664]' 
                                         : 'bg-white border-gray-200 hover:border-[#009664] text-gray-700'
@@ -538,7 +544,7 @@ const nilaiDiskon = useMemo(() => {
                                 placeholder="Umum / Tulis nama pelanggan..."
                                 value={customerName}
                                 onChange={(e) => setCustomerName(e.target.value)}
-                                className="w-full bg-white border border-gray-200 px-3 py-2 rounded-xl text-xs font-bold focus:outline-none focus:border-[#009664]"
+                                className="w-full bg-white border border-gray-200 px-3 py-2 rounded-l text-xs font-bold focus:outline-none focus:border-[#009664]"
                             />
                         </div>
 
@@ -601,7 +607,7 @@ const nilaiDiskon = useMemo(() => {
                         {/* PANEL ACTIONS */}
                         <div className="border-t border-gray-100 p-4 bg-white flex-shrink-0 space-y-3">
                             {selectedPromo && (
-                                <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-2 text-xs">
+                                <div className="bg-emerald-50 border border-emerald-200 rounded-l p-2 text-xs">
                                     <div className="font-bold text-emerald-700">
                                         Promo Aktif
                                     </div>
@@ -622,21 +628,21 @@ const nilaiDiskon = useMemo(() => {
                             </div>
 
                             <div className="grid grid-cols-3 gap-2">
-                                <button type="button" onClick={() => setCart([])} disabled={cart.length === 0} className="flex flex-col items-center justify-center p-2 rounded-xl border border-red-100 bg-red-50/30 text-red-500 hover:bg-red-50 transition disabled:opacity-40">
+                                <button type="button" onClick={() => setCart([])} disabled={cart.length === 0} className="flex flex-col items-center justify-center p-2 rounded-l border border-red-100 bg-red-50/30 text-red-500 hover:bg-red-50 transition disabled:opacity-40">
                                     <span className="text-sm">🗑️</span>
                                     <span className="text-[9px] font-bold mt-0.5">Clear</span>
                                 </button>
                                 <button
                                     type="button"
                                     onClick={() => setShowPromoModal(true)}
-                                    className="flex flex-col items-center justify-center p-2 rounded-xl border border-amber-100 bg-amber-50/30 text-amber-600 hover:bg-amber-50 transition"
+                                    className="flex flex-col items-center justify-center p-2 rounded-l border border-amber-100 bg-amber-50/30 text-amber-600 hover:bg-amber-50 transition"
                                 >
                                     <span className="text-sm">🎟️</span>
                                     <span className="text-[9px] font-bold mt-0.5">
                                         Promo
                                     </span>
                                 </button>
-                                <button type="button" onClick={handleSimpanBillAction} disabled={cart.length === 0} className="flex flex-col items-center justify-center p-2 rounded-xl border border-blue-100 bg-blue-50/30 text-blue-600 hover:bg-blue-50 transition disabled:opacity-40">
+                                <button type="button" onClick={handleSimpanBillAction} disabled={cart.length === 0} className="flex flex-col items-center justify-center p-2 rounded-l border border-blue-100 bg-blue-50/30 text-blue-600 hover:bg-blue-50 transition disabled:opacity-40">
                                     <span className="text-sm">💾</span>
                                     <span className="text-[9px] font-bold mt-0.5">Simpan Bill</span>
                                 </button>
@@ -661,7 +667,7 @@ const nilaiDiskon = useMemo(() => {
                                         key={method}
                                         type="button"
                                         onClick={() => setSelectedPayment(method)}
-                                        className={`p-2.5 text-xs font-bold rounded-xl border text-center transition ${selectedPayment === method ? 'border-[#009664] bg-emerald-50 text-[#009664]' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}
+                                        className={`p-2.5 text-xs font-bold rounded-l border text-center transition ${selectedPayment === method ? 'border-[#009664] bg-emerald-50 text-[#009664]' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}
                                     >
                                         {method === 'Tunai' ? '💵 ' : method === 'QRIS' ? '📱 ' : '💳 '}{method}
                                     </button>
@@ -694,20 +700,20 @@ const nilaiDiskon = useMemo(() => {
                             </div>
                         </div>
                         <div className="p-4 border-t border-gray-100 bg-gray-50/60 flex-shrink-0">
-                            <button onClick={handleProsesBayarFinal} className="w-full bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-md">Selesaikan Transaksi</button>
+                            <button onClick={handleProsesBayarFinal} className="w-full bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2.5 rounded-l text-xs transition shadow-md">Selesaikan Transaksi</button>
                         </div>
                     </>
                 )}
             </div>
 
             {/* =========================================================================
-                POP-UP MODAL MULTI-VARIASI (+ ANGKA -)
+                POP-UP MODAL MULTI-VARIASI (+ ANGKA -)rounded-l
                ========================================================================= */}
 {isModalOpen && selectedProduct && (
     <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 bg-black/50 backdrop-blur-sm">
         {customAlert.isOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-100">
-                    <div className="bg-white border border-slate-200 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-xs font-sans tracking-tight animate-in zoom-in-95 duration-100">
+                    <div className="bg-white border border-slate-200 max-w-sm w-full rounded-l p-5 shadow-2xl flex flex-col gap-4 text-xs font-sans tracking-tight animate-in zoom-in-95 duration-100">
                         <div className="flex flex-col gap-1">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Notifikasi Sistem</span>
                             <p className="text-slate-700 font-semibold text-xs leading-relaxed">{customAlert.message}</p>
@@ -715,14 +721,14 @@ const nilaiDiskon = useMemo(() => {
                         <button 
                             type="button" 
                             onClick={() => setCustomAlert({ isOpen: false, message: '' })} 
-                            className="w-full bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-center uppercase tracking-wider"
+                            className="w-full bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2 rounded-l transition text-center uppercase tracking-wider"
                         >
                             Mengerti
                         </button>
                     </div>
                 </div>
             )}
-        <div className="bg-white rounded-t-3xl sm:rounded-3xl w-full max-w-lg flex flex-col max-h-[90vh] shadow-2xl overflow-hidden">
+        <div className="bg-white rounded-t-l sm:rounded-l w-full max-w-lg flex flex-col max-h-[90vh] shadow-2xl overflow-hidden">
             <div className="p-4 border-b flex justify-between items-center">
                 <h2 className="font-black text-slate-800">Pilih Varian</h2>
                 <button onClick={() => setIsModalOpen(false)}>✕</button>
@@ -742,7 +748,7 @@ const nilaiDiskon = useMemo(() => {
                                     const firstSizeForColor = selectedProduct.variants.find(v => (typeof v.color === 'string' ? v.color : v.color?.nama) === c)?.size;
                                     setSelectedSize(firstSizeForColor);
                                 }}
-                                className={`px-4 py-2 rounded-xl text-xs font-bold border-2 ${selectedColor === c ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}
+                                className={`px-4 py-2 rounded-l text-xs font-bold border-2 ${selectedColor === c ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}
                             >{c}</button>
                         ))}
                     </div>
@@ -758,7 +764,7 @@ const nilaiDiskon = useMemo(() => {
                                 <button 
                                     key={v.id}
                                     onClick={() => setSelectedSize(v.size)}
-                                    className={`px-4 py-2 rounded-xl text-sm font-bold border-2 ${selectedSize === v.size ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}
+                                    className={`px-4 py-2 rounded-l text-sm font-bold border-2 ${selectedSize === v.size ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}
                                 >{v.size || 'All Size'}</button>
                             ))}
                     </div>
@@ -801,7 +807,7 @@ const nilaiDiskon = useMemo(() => {
                 <button 
                     onClick={handleKonfirmasiMultiVarian} 
                     disabled={!currentVariant || (variantSelection[`${selectedColor}-${selectedSize}`] || 0) === 0}
-                    className="w-full py-4 bg-emerald-600 disabled:bg-gray-300 text-white font-black rounded-2xl"
+                    className="w-full py-4 bg-emerald-600 disabled:bg-gray-300 text-white font-black rounded-l"
                 >
                     Tambah ke Keranjang
                 </button>
@@ -816,7 +822,7 @@ const nilaiDiskon = useMemo(() => {
 
             {customConfirm.isOpen && (
                 <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs z-50 flex items-center justify-center p-4 animate-in fade-in duration-100">
-                    <div className="bg-white border border-slate-200 max-w-sm w-full rounded-2xl p-5 shadow-2xl flex flex-col gap-4 text-xs font-sans tracking-tight animate-in zoom-in-95 duration-100">
+                    <div className="bg-white border border-slate-200 max-w-sm w-full rounded-l p-5 shadow-2xl flex flex-col gap-4 text-xs font-sans tracking-tight animate-in zoom-in-95 duration-100">
                         <div className="flex flex-col gap-1">
                             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Konfirmasi Antrean</span>
                             <p className="text-slate-700 font-semibold text-xs leading-relaxed">{customConfirm.message}</p>
@@ -825,14 +831,14 @@ const nilaiDiskon = useMemo(() => {
                             <button 
                                 type="button" 
                                 onClick={() => customConfirm.onConfirm(false)} 
-                                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2 rounded-xl transition text-center uppercase tracking-wider"
+                                className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold py-2 rounded-l transition text-center uppercase tracking-wider"
                             >
                                 Abaikan
                             </button>
                             <button 
                                 type="button" 
                                 onClick={() => customConfirm.onConfirm(true)} 
-                                className="flex-1 bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2 rounded-xl transition text-center uppercase tracking-wider"
+                                className="flex-1 bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2 rounded-l transition text-center uppercase tracking-wider"
                             >
                                 Simpan Dulu
                             </button>
@@ -842,7 +848,7 @@ const nilaiDiskon = useMemo(() => {
             )}
                 {showPromoModal && (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center">
-        <div className="bg-white rounded-2xl w-[500px] max-h-[80vh] overflow-hidden shadow-xl">
+        <div className="bg-white rounded-l w-[500px] max-h-[80vh] overflow-hidden shadow-xl">
 
             <div className="px-5 py-4 border-b flex justify-between items-center">
                 <h2 className="font-bold text-lg">
@@ -867,7 +873,7 @@ const nilaiDiskon = useMemo(() => {
                     promos.map((promo) => (
                         <div
                             key={promo.id}
-                            className="border rounded-xl p-4 mb-3 hover:border-[#009664]"
+                            className="border rounded-l p-4 mb-3 hover:border-[#009664]"
                         >
                             <div className="font-bold">
                                 {promo.nama_promo}
@@ -886,7 +892,7 @@ const nilaiDiskon = useMemo(() => {
                             </div>
 
                             <button
-                                className="mt-3 px-3 py-1 rounded-lg bg-[#009664] text-white text-xs"
+                                className="mt-3 px-3 py-1 rounded-l bg-[#009664] text-white text-xs"
                                 onClick={() => {
                                     setSelectedPromo(promo);
                                     setShowPromoModal(false);

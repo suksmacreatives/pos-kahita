@@ -58,8 +58,9 @@ if ($existingTransaction) {
         if (!$user) throw new \Exception('User tidak terautentikasi');
 
         $activeShift = CashRegisterShift::where('user_id', $user->id)->where('status', 'open')->first();
-        dd($request->all());
-        $transaction = Transaction::create([
+
+
+    $transaction = Transaction::create([
         'invoice_number' => 'INV-' . now()->format('YmdHis'),
         'outlet_id' => $user->outlet_id,
         'user_id' => $user->id,
