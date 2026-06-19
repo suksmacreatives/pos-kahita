@@ -26,6 +26,8 @@ export default function Index({
     active_shift_details = null,
     attendances = [],
     outlet_name = '',
+    penerimaanList = {},
+    outletSlug = null,
 }) {
 
     // =========================================================
@@ -581,7 +583,13 @@ console.log("DEBUG_INDEX: Isi cart di Index saat ini:", cart);
                         )}
                         {activeMenu === 'laporan-produk-terjual' && (<ProdukTerjual salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
                         {activeMenu === 'laporan-jenis-bayar' && (<JenisBayar salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
-                        {activeMenu === 'inventory-penerimaan' && (<InventoryPenerimaanView />)}
+                        {activeMenu === 'inventory-penerimaan' && (
+  <InventoryPenerimaanView
+    penerimaanList={penerimaanList}
+    outletSlug={outletSlug}
+    userName={auth?.user?.name || 'Kasir'}
+  />
+)}
                         {activeMenu === 'inventory-stock' && (<InventoryStockView />)}
                         {activeMenu === 'absensi' && (<Absensi attendances={attendances} />)}
                         {activeMenu === 'pengaturan-nota' && (<PengaturanNotaView formatRupiah={formatRupiah} />)}

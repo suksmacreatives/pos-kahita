@@ -10,12 +10,19 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use App\Models\Attendance;
+use App\Models\DistributionOrder;
 use App\Models\Outlet;
 use App\Models\Promo;
+use App\Services\Inventory\InventoriOutletService;
+use App\Http\Requests\Inventory\Outlet\KonfirmasiTerimaRequest;
 use Inertia\Inertia;
 
 class PosController extends Controller
 {
+    public function __construct(
+        protected InventoriOutletService $inventoriOutlet
+    ) {}
+
     public function index()
     {
         $user = Auth::user();
@@ -79,8 +86,10 @@ class PosController extends Controller
                     }),
                 ];
             });
-            $promos = Promo::where('status', 'aktif')->get();
+            $promos = Promo::aktif()->get();
             
+        $penerimaanList = $this->inventoriOutlet->getPenerimaanList($outletId);
+
         return Inertia::render('Pos/Index', [
             'is_shift_open_db' => $activeShift ? true : false,
             'active_shift_details' => $activeShift,
@@ -88,6 +97,29 @@ class PosController extends Controller
             'promos' => $promos,
             'attendances' => $attendances,
             'outlet_name' => $outlet?->name,
+            'penerimaanList' => $penerimaanList,
+            'outletSlug' => $outlet?->slug,
         ]);
+    }
+
+    public function konfirmasiPenerimaan(KonfirmasiTerimaRequest $request, DistributionOrder $distributionOrder)
+    {
+        $user = $request->user();
+        abort_if($distributionOrder->outlet_id !== $user->outlet_id, 403);
+
+        try {
+            $this->inventoriOutlet->konfirmasiTerima(
+                $distributionOrder->id,
+                $request->input('items'),
+                $request->input('penerima') ?? $user->name
+            );
+
+            return redirect()->back()->with('success', 'Penerimaan barang berhasil dikonfirmasi.');
+        } catch (\App\Exceptions\InsufficientStockException $e) {
+            return redirect()->back()->withErrors(['stok' => $e->getMessage()]);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('POS konfirmasi terima error: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal mengkonfirmasi penerimaan: ' . $e->getMessage());
+        }
     }
 }

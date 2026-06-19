@@ -43,6 +43,7 @@ export default function DetailDistribusiModal({ data, onClose }) {
                   <tr>
                     <th className="px-3 py-2 text-left font-semibold text-gray-500">Produk</th>
                     <th className="px-3 py-2 text-left font-semibold text-gray-500">Ukuran</th>
+                    <th className="px-3 py-2 text-left font-semibold text-gray-500">Warna</th>
                     <th className="px-3 py-2 text-right font-semibold text-gray-500">Qty</th>
                   </tr>
                 </thead>
@@ -51,6 +52,7 @@ export default function DetailDistribusiModal({ data, onClose }) {
                     <tr key={idx} className="hover:bg-gray-50">
                       <td className="px-3 py-2 font-medium text-gray-800">{it.nama}</td>
                       <td className="px-3 py-2 text-gray-500">{it.ukuran}</td>
+                      <td className="px-3 py-2 text-gray-500">{it.warna || '-'}</td>
                       <td className="px-3 py-2 text-right font-bold text-gray-800">{it.qty}</td>
                     </tr>
                   ))}

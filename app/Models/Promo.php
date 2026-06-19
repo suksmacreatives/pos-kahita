@@ -42,4 +42,20 @@ class Promo extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    public function scopeAktif($query)
+    {
+        return $query->where('status', 'aktif')
+            ->where('berlaku_sampai', '>=', now())
+            ->where(function ($q) {
+                $q->whereNull('kuota')
+                  ->orWhereColumn('terpakai', '<', 'kuota');
+            });
+    }
+
+    public function scopeSudahExpired($query)
+    {
+        return $query->where('status', 'aktif')
+            ->where('berlaku_sampai', '<', now());
+    }
 }

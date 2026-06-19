@@ -63,7 +63,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/pos/riwayat-shift', [ShiftController::class, 'riwayatShiftHariIni'])->name('pos.riwayat-shift');
         
         // Logika Simpan Pembayaran Belanja POS
-    Route::post('/pos/transaksi', [TransactionController::class, 'store'])->name('pos.transaksi');    });
+        Route::post('/pos/transaksi', [TransactionController::class, 'store'])->name('pos.transaksi');
+        Route::post('/pos/penerimaan/{distributionOrder}/konfirmasi', [PosController::class, 'konfirmasiPenerimaan'])->name('pos.penerimaan.konfirmasi');
+    });
     Route::post('/cash-transactions', [CashTransactionController::class, 'store'])
     ->name('cash-transactions.store');
     Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');

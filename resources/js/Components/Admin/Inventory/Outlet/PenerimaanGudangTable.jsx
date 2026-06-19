@@ -208,11 +208,11 @@ export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, 
                                   <tr key={idx} className="hover:bg-gray-50/55">
                                     <td className="px-4 py-2 font-bold text-gray-800">{it.nama}</td>
                                     <td className="px-4 py-2">
-                                      <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-bold">{it.ukuran}</span>
+                                      <span className="px-1.5 py-0.5 bg-gray-100 rounded text-[9px] font-bold">{it.ukuran || '-'}</span>
                                     </td>
                                     <td className="px-4 py-2 flex items-center gap-1.5">
-                                      <span className="w-3.5 h-3.5 rounded-full border border-gray-200" style={{ backgroundColor: it.warna }} />
-                                      <span className="text-[10px] text-gray-400 font-mono">{it.warna}</span>
+                                      {/* <span className="w-3.5 h-3.5 rounded-full border border-gray-200" style={{ backgroundColor: it.warna }} /> */}
+                                      <span className="text-[10px] text-gray-400 font-mono">{it.warna || '-'}</span>
                                     </td>
                                     <td className="px-4 py-2 text-right font-bold text-gray-450">{it.qty_kirim}</td>
                                     <td className={`px-4 py-2 text-right font-extrabold ${it.qty_terima < it.qty_kirim ? 'text-rose-600' : 'text-gray-800'}`}>

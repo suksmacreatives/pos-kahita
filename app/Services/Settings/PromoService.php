@@ -9,6 +9,10 @@ class PromoService
 {
     public function getAll(array $filters = []): array
     {
+        Promo::where('status', 'aktif')
+            ->where('berlaku_sampai', '<', now())
+            ->update(['status' => 'nonaktif']);
+
         $query = Promo::with('creator:id,name')->orderBy('created_at', 'desc');
 
         if (!empty($filters['search'])) {
