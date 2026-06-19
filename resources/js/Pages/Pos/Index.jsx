@@ -11,6 +11,8 @@ import KasirAktivitas from '@/Components/POS/Views/KasirAktivitas';
 import KasKasir from '@/Components/POS/Views/KasKasir';
 import ProdukTerjual from '@/Components/POS/Views/ProdukTerjual';
 import JenisBayar from '@/Components/POS/Views/JenisBayar';
+import InventoryPenerimaanView from '@/Components/POS/Views/InventoryPenerimaanView';
+import InventoryStockView from '@/Components/POS/Views/InventoryStockView';
 import Absensi from '@/Components/POS/Views/Absensi';
 import PengaturanNotaView from '@/Components/POS/Views/PengaturanNotaView';
 import PengaturanPrinterView from '@/Components/POS/Views/PengaturanPrinterView';
@@ -579,6 +581,8 @@ console.log("DEBUG_INDEX: Isi cart di Index saat ini:", cart);
                         )}
                         {activeMenu === 'laporan-produk-terjual' && (<ProdukTerjual salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
                         {activeMenu === 'laporan-jenis-bayar' && (<JenisBayar salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
+                        {activeMenu === 'inventory-penerimaan' && (<InventoryPenerimaanView />)}
+                        {activeMenu === 'inventory-stock' && (<InventoryStockView />)}
                         {activeMenu === 'absensi' && (<Absensi attendances={attendances} />)}
                         {activeMenu === 'pengaturan-nota' && (<PengaturanNotaView formatRupiah={formatRupiah} />)}
                         {activeMenu === 'pengaturan-printer' && (<PengaturanPrinterView />)}

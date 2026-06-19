@@ -5,7 +5,8 @@ import {
     ChartColumnIncreasing,
     CalendarCheck2,
     Settings,
-    Lock
+    Lock,
+    Boxes
 } from 'lucide-react';
 
 
@@ -21,6 +22,7 @@ export default function SidebarPos({
     // State internal untuk mengatur buka-tutup dropdown menu Laporan dan Pengaturan
     const [isLaporanOpen, setIsLaporanOpen] = useState(false);
     const [isPengaturanOpen, setIsPengaturanOpen] = useState(false);
+    const [isInventoryOpen, setIsInventoryOpen] = useState(false);
 
     // Daftar menu utama bagian atas
     const menuItemsTop = [
@@ -44,6 +46,16 @@ export default function SidebarPos({
         { id: 'pengaturan-printer', label: 'Printer' },
         { id: 'pengaturan-toko', label: 'Tentang Toko/Outlet' },
     ];
+    const subMenuInventory = [
+    {
+            id: 'inventory-penerimaan',
+            label: 'Penerimaan Barang'
+        },
+        {
+            id: 'inventory-stock',
+            label: 'Stock Produk'
+        }
+    ];
 
     // Fungsi handle klik menu Laporan
     const handleLaporanToggle = () => {
@@ -64,6 +76,16 @@ export default function SidebarPos({
     }
     setIsPengaturanOpen(prev => !prev);
     };
+     
+    const handleInventoryToggle = () => {
+    if (!isOpen) {
+        if (onOpen) onOpen();
+        setIsInventoryOpen(true);
+        return;
+    }
+
+    setIsInventoryOpen(prev => !prev);
+};
 
     // Handler klik item menu untuk sekaligus merapatkan sidebar (opsional/fleksibel)
     const handleMenuClick = (menuId) => {
@@ -154,6 +176,55 @@ export default function SidebarPos({
                                 ))}
                             </div>
                         )}
+                    </div>
+
+                    {/* INVENTORY */}
+                    <div className="w-full">
+
+                        <button
+                            type="button"
+                            onClick={handleInventoryToggle}
+                            className={`w-full flex items-center rounded-xl transition-all duration-150 font-semibold text-sm ${
+                                isOpen
+                                    ? 'px-4 py-3 space-x-4 justify-start'
+                                    : 'p-3 justify-center'
+                            } ${
+                                activeMenu.startsWith('inventory')
+                                    ? 'bg-emerald-50 text-emerald-600'
+                                    : 'text-slate-600 hover:bg-slate-50'
+                            }`}
+                            title={!isOpen ? 'Inventory' : ''}
+                        >
+                            <Boxes size={20} className="flex-shrink-0" />
+
+                            {isOpen && (
+                                <span className="truncate text-left flex-1">
+                                    Inventory
+                                </span>
+                            )}
+                        </button>
+
+                        {isOpen && isInventoryOpen && (
+                            <div className="mt-1 ml-6 pl-4 border-l border-slate-100 bg-slate-50/50 rounded-r-xl py-1 space-y-1">
+
+                                {subMenuInventory.map((sub) => (
+                                    <button
+                                        key={sub.id}
+                                        type="button"
+                                        onClick={() => handleMenuClick(sub.id)}
+                                        className={`w-full text-left py-2 px-3 rounded-lg text-xs font-medium block truncate transition ${
+                                            activeMenu === sub.id
+                                                ? 'text-emerald-600 font-bold bg-white shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-800 hover:bg-slate-50'
+                                        }`}
+                                    >
+                                        {sub.label}
+                                    </button>
+                                ))}
+
+                            </div>
+                        )}
+
                     </div>
 
                     {/* 3. Menu Absensi */}
