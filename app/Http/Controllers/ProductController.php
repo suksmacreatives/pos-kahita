@@ -12,9 +12,108 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Maatwebsite\Excel\Facades\Excel as MaatExcel;
+use App\Exports\ProductExport;
 
 class ProductController extends Controller
 {
+    public function export(Request $request)
+    {
+        $format = $request->input('format', 'pdf');
+        $kategori = $request->input('kategori', 'Semua Kategori');
+        $status = $request->input('status', 'all');
+        $search = $request->input('search', '');
+        $outlet = $request->input('outlet', 'all');
+
+        $products = Product::with(['category', 'variants.outletStocks', 'outlet', 'outlets']);
+
+        if ($kategori !== 'Semua Kategori') {
+            $products->whereHas('category', fn($q) => $q->where('name', $kategori));
+        }
+
+        $products = $products->orderBy('created_at', 'desc')->get();
+
+        $salesData = \App\Models\TransactionItem::selectRaw('product_id, SUM(quantity) as total_terjual')
+            ->groupBy('product_id')
+            ->pluck('total_terjual', 'product_id');
+
+        $mapped = $products->map(function ($p) use ($salesData, $status, $search, $outlet) {
+            $variants = $p->variants->map(fn ($v) => [
+                'color_name' => $v->color,
+                'size_label' => in_array($v->size, ['', null], true) ? null : $v->size,
+                'stok' => (int) $v->stock,
+                'harga_jual' => (int) ($v->price ?? $p->price),
+                'harga_beli' => (int) ($v->cost_price ?? $p->cost_price),
+                'sku' => $v->sku,
+                'stok_outlet' => $v->outletStocks->groupBy('outlet_id')->map(fn ($stocks) => $stocks->sum('stock'))->toArray(),
+            ]);
+
+            $stok_gudang = $p->variants->sum('stock');
+            $stok_per_outlet = $p->variants
+                ->flatMap(fn ($v) => $v->outletStocks)
+                ->groupBy('outlet_id')
+                ->map(fn ($stocks) => $stocks->sum('stock'))
+                ->toArray();
+
+            $terjual = (int) ($salesData[$p->id] ?? 0);
+
+            return [
+                'id' => $p->id,
+                'kode_produk' => $p->sku,
+                'nama_produk' => $p->name,
+                'kategori' => $p->category?->name ?? '',
+                'status' => $p->status ?? 'aktif',
+                'harga_beli' => (int) $p->cost_price,
+                'harga_jual' => (int) $p->price,
+                'stok_gudang' => $stok_gudang,
+                'stok_per_outlet' => $stok_per_outlet,
+                'varian' => $variants->toArray(),
+                'terjual' => $terjual,
+            ];
+        });
+
+        if ($search) {
+            $mapped = $mapped->filter(fn($p) =>
+                str_contains(strtolower($p['nama_produk']), strtolower($search)) ||
+                str_contains(strtolower($p['kode_produk']), strtolower($search))
+            )->values();
+        }
+
+        if ($status === 'aktif') {
+            $mapped = $mapped->filter(fn($p) => $p['status'] === 'aktif')->values();
+        } elseif ($status === 'nonaktif') {
+            $mapped = $mapped->filter(fn($p) => $p['status'] === 'nonaktif')->values();
+        } elseif ($status === 'habis') {
+            $mapped = $mapped->filter(fn($p) => array_sum($p['stok_per_outlet']) + $p['stok_gudang'] === 0)->values();
+        }
+
+        $collection = $mapped;
+        $totalProduk = $collection->count();
+        $totalVarian = $collection->sum(fn($p) => count($p['varian']) ?: 1);
+
+        $outletNames = Outlet::aktif()->pluck('name', 'id')->toArray();
+        $outletIds = array_keys($outletNames);
+
+        if ($format === 'excel') {
+            return MaatExcel::download(
+                new ProductExport($collection->toArray()),
+                'produk-' . now()->format('YmdHis') . '.xlsx'
+            );
+        }
+
+        $pdf = Pdf::loadView('exports.product-pdf', [
+            'title'       => 'Katalog Produk - Kahita Busana',
+            'products'    => $collection,
+            'totalProduk' => $totalProduk,
+            'totalVarian' => $totalVarian,
+            'outletNames' => $outletNames,
+            'outletIds'   => $outletIds,
+        ]);
+
+        return $pdf->download('produk-' . now()->format('YmdHis') . '.pdf');
+    }
+
     public function create()
     {
         return Inertia::render('Admin/Products', [

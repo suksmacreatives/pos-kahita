@@ -9,6 +9,7 @@ use App\Models\Outlet;
 use App\Models\ProductCategory;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class ProdukReportService
@@ -54,13 +55,14 @@ class ProdukReportService
             ->selectRaw('
                 products.id,
                 products.name as nama,
+                products.sku as kode_produk,
                 products.image as foto,
                 COALESCE(product_categories.name, \'Umum\') as kategori,
                 SUM(transaction_items.quantity) as terjual,
                 SUM(transaction_items.total_price) as revenue,
                 AVG(transaction_items.price_at_sale) as avg_harga
             ')
-            ->groupBy('products.id', 'products.name', 'products.image', 'product_categories.name')
+            ->groupBy('products.id', 'products.name', 'products.sku', 'products.image', 'product_categories.name')
             ->orderByDesc($sortBy === 'qty' ? 'terjual' : 'revenue');
 
         if ($this->outlet !== 'all') {
@@ -70,7 +72,11 @@ class ProdukReportService
             }
         }
 
-        return $query->limit($limit)->get()->toArray();
+        return collect($query->limit($limit)->get()->toArray())
+            ->map(fn ($item) => array_merge($item, [
+                'foto' => $item['foto'] ? Storage::url($item['foto']) : null,
+            ]))
+            ->toArray();
     }
 
     public function getSlowMoving(): array

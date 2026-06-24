@@ -3,7 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\OutletStock;
 use App\Models\CashRegisterShift;
 use Illuminate\Http\Request;
@@ -21,36 +20,41 @@ class PosController extends Controller
 {
     public function __construct(
         protected InventoriOutletService $inventoriOutlet
-    ) {}
+    ) {
+    }
 
     public function index()
     {
         $user = Auth::user();
+        $outletId = $user->outlet_id;
 
-        // Ambil shift aktif
+        // 1. Ambil shift aktif
         $activeShift = CashRegisterShift::where('user_id', $user->id)
             ->where('status', 'open')
             ->latest()
             ->first();
 
-        // Ambil absensi hari ini
+        // 2. Ambil absensi hari ini
         $attendances = Attendance::with('user')
             ->whereDate('date', today())
             ->latest()
             ->get();
 
-        // Pastikan outlet id tersedia
-        $outletId = $user->outlet_id;
         $outlet = Outlet::find($outletId);
 
-        // Ambil produk
+        // 3. SOLUSI N+1 QUERY: Ambil semua stok outlet sekaligus dan simpan dalam key-value array
+        $stocks = OutletStock::where('outlet_id', $outletId)
+            ->pluck('stock', 'product_variant_id') // Menghasilkan: [variant_id => stock_quantity]
+            ->toArray();
+
+        // 4. Ambil produk dengan eager loading
         $products = Product::with(['variants', 'category'])
             ->where(function ($q) use ($outletId) {
                 $q->where('outlet_id', $outletId)
                     ->orWhereJsonContains('outlet_ids', (string) $outletId);
             })
             ->get()
-            ->map(function ($p) use ($outletId) {
+            ->map(function ($p) use ($stocks) {
                 return [
                     'id' => $p->id,
                     'name' => $p->name,
@@ -61,18 +65,11 @@ class PosController extends Controller
                         'id' => $p->category?->id,
                         'name' => $p->category?->name,
                     ],
-                    'image' => $p->image
-                        ? Storage::url($p->image)
-                        : null,
-                    'variants' => $p->variants->map(function ($v) use ($outletId) {
-                    $outletStock = OutletStock::where('outlet_id', $outletId)
-                        ->where('product_variant_id', $v->id)
-                        ->value('stock');
+                    'image' => $p->image ? Storage::url($p->image) : null,
+                    'variants' => $p->variants->map(function ($v) use ($stocks) {
+                        // Ambil stok dari memori array $stocks, bukan hit query database lagi
+                        $finalOutletStock = isset($stocks[$v->id]) ? (int) $stocks[$v->id] : 0;
 
-                    $finalOutletStock = $outletStock !== null
-                    ? (int) $outletStock
-                    : 0;
-                    
                         return [
                             'id' => $v->id,
                             'size' => $v->size,
@@ -86,12 +83,16 @@ class PosController extends Controller
                     }),
                 ];
             });
-            $promos = Promo::aktif()->get();
-            
+
+        // 5. SOLUSI PROMO EXPIRED: Pastikan promo yang sudah melewati tanggal kadaluarsa tidak ikut ditarik
+        $promos = Promo::aktif()
+            ->where('berlaku_sampai', '>=', now())
+            ->get();
+
         $penerimaanList = $this->inventoriOutlet->getPenerimaanList($outletId);
 
         return Inertia::render('Pos/Index', [
-            'is_shift_open_db' => $activeShift ? true : false,
+            'is_shift_open_db' => (bool) $activeShift,
             'active_shift_details' => $activeShift,
             'products_from_db' => $products,
             'promos' => $promos,
@@ -105,7 +106,9 @@ class PosController extends Controller
     public function konfirmasiPenerimaan(KonfirmasiTerimaRequest $request, DistributionOrder $distributionOrder)
     {
         $user = $request->user();
-        abort_if($distributionOrder->outlet_id !== $user->outlet_id, 403);
+
+        // Proteksi kecurangan silang data antar outlet
+        abort_if($distributionOrder->outlet_id !== $user->outlet_id, 403, 'Anda tidak memiliki akses ke dokumen DO ini.');
 
         try {
             $this->inventoriOutlet->konfirmasiTerima(

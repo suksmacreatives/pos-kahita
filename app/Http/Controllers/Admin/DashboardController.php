@@ -17,6 +17,10 @@ use App\Models\StockMovement;
 use App\Models\PurchaseOrder;
 use App\Models\DistributionOrder;
 use App\Models\ActivityLog;
+use Barryvdh\DomPDF\Facade\Pdf;
+use App\Exports\DashboardExcelExport;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
+use App\Services\Export\DashboardExportDataService;
 
 class DashboardController extends Controller
 {
@@ -52,6 +56,72 @@ class DashboardController extends Controller
                 ? Outlet::aktif()->where('id', $request->user()->outlet_id)->get(['id', 'name'])
                 : Outlet::aktif()->get(['id', 'name']),
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $format = $request->input('format', 'pdf');
+        $outlet = $request->query('outlet', $request->input('outlet', 'all'));
+        $period = $request->query('period', $request->input('period', 'monthly'));
+
+        if ($request->user()->outlet_id) {
+            $userOutlet = Outlet::find($request->user()->outlet_id);
+            $outlet = $userOutlet?->slug ?? $outlet;
+        }
+
+        [$start, $end] = $this->dateRange($period);
+        $outletId = $this->resolveOutletId($outlet);
+
+        $svc = app(DashboardExportDataService::class);
+
+        $data = [
+            'stats'             => $this->stats($outlet, $start, $end, $start->copy()->subMonth(), $end->copy()->subMonth()),
+            'salesTrend'        => $this->salesTrend($outlet, $start, $end, $period),
+            'stockMovement'     => $this->stockMovement($outlet, $start, $end, $period),
+            'topProducts'       => $this->topProducts($outlet, $start, $end),
+            'outletPerformance' => $this->outletPerformance($start, $end),
+            'incomingGoods'     => $this->incomingGoods(),
+            'outgoingGoods'     => $this->outgoingGoods($outlet),
+            'inventorySummary'  => $svc->getInventorySummary($outletId),
+            'distribution'      => $svc->getDistributionData($start, $end, $outletId),
+            'return'            => $svc->getReturnData($start, $end, $outletId),
+            'lowStock'          => $svc->getLowStockData($outletId),
+            'fastSlowMoving'    => $svc->getFastSlowMoving($start, $end, $outletId),
+            'restockRec'        => $svc->getRestockRecommendation(),
+            'inventoryValue'    => $svc->getInventoryValue(),
+        ];
+
+        $dari = $start->format('Y-m-d');
+        $sampai = $end->format('Y-m-d');
+        $outletLabel = $outlet === 'all' ? 'Semua Outlet' : ucfirst($outlet);
+        $logoPath = \App\Models\StoreSetting::first()?->logo_path;
+        $logo = $logoPath && file_exists(public_path('storage/' . $logoPath))
+            ? public_path('storage/' . $logoPath)
+            : public_path('images/suksma-creatives.png');
+
+        if ($format === 'excel') {
+            $excel = new DashboardExcelExport($data, $dari, $sampai);
+            $spreadsheet = $excel->build();
+            $writer = new Xlsx($spreadsheet);
+            $writer->setIncludeCharts(true);
+
+            return response()->streamDownload(function () use ($writer) {
+                $writer->save('php://output');
+            }, "dashboard-{$dari}-{$sampai}.xlsx", [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
+        }
+
+        $pdf = Pdf::loadView('exports.dashboard-pdf', [
+            'title'       => 'Laporan Dashboard - Kahita Busana',
+            'data'        => $data,
+            'dari'        => $dari,
+            'sampai'      => $sampai,
+            'outletLabel' => $outletLabel,
+            'logo'        => $logo,
+        ]);
+
+        return $pdf->download("dashboard-{$dari}-{$sampai}.pdf");
     }
 
     protected function dateRange(string $period): array

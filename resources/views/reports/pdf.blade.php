@@ -4,6 +4,7 @@
     <meta charset="utf-8">
     <title>{{ $title }}</title>
     <style>
+        @page { @if (!empty($landscape)) size: landscape; @endif margin: 15px; }
         body { font-family: 'DejaVu Sans', sans-serif; font-size: 10pt; color: #333; }
         .header { text-align: center; margin-bottom: 20px; border-bottom: 2px solid #333; padding-bottom: 10px; }
         .header h1 { font-size: 16pt; margin: 0 0 5px; }
@@ -20,6 +21,7 @@
         .badge-warning { background: #fff3cd; color: #856404; }
         .summary { margin-bottom: 15px; }
         .summary table th, .summary table td { border: none; padding: 2px 8px; }
+        .section-title { margin: 12px 0 6px; font-size: 11pt; }
     </style>
 </head>
 <body>
@@ -91,6 +93,35 @@
             </tbody>
         </table>
     </div>
+    @endif
+
+    @if (!empty($data['extra_sections'] ?? null))
+        @foreach ($data['extra_sections'] as $section)
+        <div style="page-break-inside:avoid;">
+            <h3 class="section-title">{{ $section['title'] ?? 'Data' }}</h3>
+            @php $secRows = (array) ($section['rows'] ?? []); @endphp
+            @if (!empty($secRows))
+            <table>
+                <thead>
+                    <tr>
+                        @foreach (array_keys((array) reset($secRows) ?: ['-' => '']) as $col)
+                        <th>{{ $col }}</th>
+                        @endforeach
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach ($secRows as $row)
+                    <tr>
+                        @foreach ((array) $row as $cell)
+                        <td>{{ is_numeric($cell) && $cell != (int) $cell ? 'Rp ' . number_format((float) $cell, 0, ',', '.') : $cell }}</td>
+                        @endforeach
+                    </tr>
+                    @endforeach
+                </tbody>
+            </table>
+            @endif
+        </div>
+        @endforeach
     @endif
 
     <div class="footer">

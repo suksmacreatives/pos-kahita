@@ -9,6 +9,7 @@ import ActivityCard from '@/Components/Admin/ActivityCard';
 import DataTable from '@/Components/Admin/DataTable';
 import LowStockAlert from '@/Components/Admin/LowStockAlert';
 import PerformanceTable from '@/Components/Admin/PerformanceTable';
+import ExportButton from '@/Components/Admin/Reports/ExportButton';
 
 import { 
   AreaChart, Area, 
@@ -23,7 +24,6 @@ import {
   ShoppingCart, 
   Percent, 
   Layers, 
-  Download, 
   RefreshCw
 } from 'lucide-react';
 
@@ -124,10 +124,7 @@ export default function Dashboard({ dashboard }) {
           >
             <RefreshCw className="w-4 h-4" />
           </button>
-          <button className="flex items-center gap-2 px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-sm shadow-emerald-600/10 hover:shadow-md transition-all duration-200 cursor-pointer">
-            <Download className="w-4 h-4" />
-            <span>Ekspor PDF</span>
-          </button>
+          <ExportButton routeName="admin.dashboard.export" params={{ outlet, period }} />
         </div>
       </div>
 

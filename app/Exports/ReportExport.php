@@ -48,7 +48,7 @@ class ReportExport implements FromArray, WithHeadings, WithStyles, WithTitle
             'penjualan' => ['Tanggal', 'Transaksi', 'Omset', 'Diskon', 'Total'],
             'produk'    => ['Rank', 'Produk', 'Kategori', 'Terjual', 'Revenue'],
             'inventori' => ['Waktu', 'Tipe', 'Produk', 'Qty', 'Referensi'],
-            'kasir'     => ['Kasir', 'Outlet', 'Transaksi', 'Omset', 'Void Rate'],
+            'kasir'     => ['Kasir', 'Outlet', 'Transaksi', 'Omset', 'Rata-rata', 'Void', 'Void Rate'],
             'keuangan'  => ['Komponen', 'Nilai'],
             default     => ['Data'],
         };
@@ -124,7 +124,9 @@ class ReportExport implements FromArray, WithHeadings, WithStyles, WithTitle
                 $k['outlet'] ?? '-',
                 $k['transaksi'] ?? 0,
                 $k['omset'] ?? 0,
-                $k['void_rate'] ?? 0,
+                $k['avg_transaksi'] ?? $k['avg'] ?? 0,
+                $k['void_count'] ?? $k['void'] ?? 0,
+                ($k['void_rate'] ?? $k['rate'] ?? 0) . '%',
             ];
         }
     }

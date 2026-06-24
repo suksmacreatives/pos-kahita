@@ -59,8 +59,8 @@ class InventoriReportService
             ->get()
             ->map(fn ($m) => [
                 'id'           => $m->id,
-                'tipe'         => $m->type,
-                'type'         => $m->type,
+                'tipe'         => $this->normalizeTipeMutasi($m->type),
+                'type'         => $this->normalizeTipeMutasi($m->type),
                 'qty'          => $m->qty,
                 'quantity'     => $m->qty,
                 'nama_produk'  => $m->productVariant?->product?->name ?? 'Produk Dihapus',
@@ -286,6 +286,17 @@ class InventoriReportService
                 ])->toArray(),
             ])
             ->toArray();
+    }
+
+    protected function normalizeTipeMutasi(string $type): string
+    {
+        return match ($type) {
+            'restock', 'penerimaan', 'adjustment_plus'  => 'masuk',
+            'sale', 'adjustment_minus', 'rusak'         => 'keluar',
+            'transfer'                                    => 'transfer',
+            'return', 'retur'                             => 'retur',
+            default                                       => $type,
+        };
     }
 
     protected function getSourceLocation(StockMovement $m): string

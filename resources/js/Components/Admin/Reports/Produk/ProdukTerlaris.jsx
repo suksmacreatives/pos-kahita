@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Award, TrendingUp, DollarSign, Package } from 'lucide-react';
+import { Award, TrendingUp, DollarSign } from 'lucide-react';
 import ReportChart from '../Shared/ReportChart';
 import ReportTable from '../Shared/ReportTable';
 
@@ -24,7 +24,8 @@ export default function ProdukTerlaris({ top_products, per_kategori }) {
       const bVal = sortBy === 'qty' ? (b.terjual || b.qty || 0) : (b.revenue || b.omset || 0);
       return bVal - aVal;
     })
-    .slice(0, limit);
+    .slice(0, limit)
+    .map((item, idx) => ({ ...item, rank: idx + 1 }));
 
   const barChartData = sorted.slice(0, 10).map((p, i) => ({
     name: (p.nama || p.produk || '').length > 15
@@ -49,8 +50,8 @@ export default function ProdukTerlaris({ top_products, per_kategori }) {
     {
       key: 'rank',
       label: 'Rank',
-      render: (row, idx) => {
-        const rank = idx + 1;
+      render: (row) => {
+        const rank = row.rank;
         return (
           <span className={`inline-flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold ${
             rank === 1 ? 'bg-amber-100 text-amber-700 ring-2 ring-amber-300' :
@@ -69,18 +70,9 @@ export default function ProdukTerlaris({ top_products, per_kategori }) {
       key: 'produk',
       label: 'Produk',
       render: (row) => (
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center overflow-hidden">
-            {row.foto ? (
-              <img src={row.foto} alt="" className="w-full h-full object-cover" />
-            ) : (
-              <Package className="w-5 h-5 text-gray-400" />
-            )}
-          </div>
-          <div>
-            <div className="font-medium text-sm text-gray-900">{row.nama || row.produk || '-'}</div>
-            <div className="text-xs text-gray-500">{row.kategori || '-'}</div>
-          </div>
+        <div>
+          <div className="font-medium text-sm text-gray-900">{row.nama || row.produk || '-'}</div>
+          <div className="text-xs text-gray-500">{row.kode_produk || row.sku || '-'}</div>
         </div>
       ),
     },

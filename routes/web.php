@@ -77,6 +77,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         
         // --- MENU 1: DASHBOARD UTAMA ---
         Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard.index');
+        Route::post('/admin/dashboard/export', [DashboardController::class, 'export'])->name('admin.dashboard.export');
 
         // --- MENU 2: KELOLA STAF & AKUN ---
         Route::get('/admin/staff', [UserController::class, 'index'])->name('admin.staff.index');
@@ -90,6 +91,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admin/products', [ProductController::class, 'store'])->name('admin.products.store');
         Route::patch('/admin/products/{product}', [ProductController::class, 'update'])->name('admin.products.update');
         Route::delete('/admin/products/{product}', [ProductController::class, 'destroy'])->name('admin.products.destroy');
+        Route::post('/admin/products/export', [ProductController::class, 'export'])->name('admin.products.export');
 
         // --- MENU 4: KATEGORI PRODUK ---
         Route::get('/admin/categories', [CategoryController::class, 'index'])->name('admin.categories.index');

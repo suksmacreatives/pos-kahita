@@ -3,8 +3,9 @@ import { Head, router, usePage } from '@inertiajs/react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useFilter } from '@/Context/FilterContext';
 import StatCard from '@/Components/Admin/StatCard';
+import ExportButton from '@/Components/Admin/Reports/ExportButton';
 import { 
-  Shirt, Plus, Upload, Download, 
+  Shirt, Plus, Upload,
   AlertCircle, CheckCircle2, 
   ChevronLeft, ChevronRight, X
 } from 'lucide-react';
@@ -144,10 +145,6 @@ export default function Products({ products: initialProducts, outlets, categorie
     });
   };
 
-  const handleExport = () => {
-    showToast('Data produk berhasil diekspor ke format XLSX (Mock)', 'success');
-  };
-
   const handleImport = () => {
     showToast('Mockup data berhasil diimpor kembali.', 'success');
   };
@@ -178,13 +175,7 @@ export default function Products({ products: initialProducts, outlets, categorie
             <Upload className="w-3.5 h-3.5" />
             <span>Import</span>
           </button>
-          <button 
-            onClick={handleExport}
-            className="flex items-center gap-1.5 px-3 py-2 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 hover:text-gray-900 rounded-xl text-xs font-bold shadow-xs transition-colors cursor-pointer"
-          >
-            <Download className="w-3.5 h-3.5" />
-            <span>Export</span>
-          </button>
+          <ExportButton routeName="admin.products.export" params={{ kategori: selectedKategori, status: selectedStatus, search: debouncedSearch, outlet }} />
           <button 
             onClick={() => {
               setSelectedProduct(null);

@@ -168,20 +168,22 @@ export default function Reports() {
     <div className="min-h-screen">
       <Head title={`${subLabel} - Laporan ${categoryLabel} - Kahita Busana`} />
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <div className="text-sm text-gray-500 mb-1">
-            Dashboard <span className="mx-2">›</span> Laporan{' '}
-            <span className="mx-2">›</span>{' '}
-            <span className="text-gray-900 font-medium">{categoryLabel}</span>
-            <span className="mx-2">›</span>{' '}
-            <span className="text-gray-900 font-medium">{subLabel}</span>
+          <div className="text-[10px] md:text-xs font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+            <span>Dashboard</span>
+            <span>&rsaquo;</span>
+            <span>Laporan</span>
+            <span>&rsaquo;</span>
+            <span className="text-emerald-600 font-bold">{categoryLabel}</span>
+            <span>&rsaquo;</span>
+            <span className="text-emerald-600 font-bold">{subLabel}</span>
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">Laporan {categoryLabel}</h1>
-          <p className="text-sm text-gray-500 mt-1">Kahita Busana — {subLabel}</p>
+          <h1 className="text-xl md:text-2xl font-black text-gray-900 tracking-tight leading-none">Laporan {categoryLabel}</h1>
+          <p className="text-xs font-semibold text-gray-400 mt-1.5">Kahita Busana — {subLabel}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <ExportButton kategori={activeKategori} sub={activeSub} filters={currentFilters} />
+        <div className="flex items-center gap-2">
+          <ExportButton routeName="admin.reports.export" params={{ ...currentFilters, kategori: activeKategori, sub: activeSub }} showPrint />
         </div>
       </div>
 

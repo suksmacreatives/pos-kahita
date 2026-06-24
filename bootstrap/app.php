@@ -23,6 +23,9 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->validateCsrfTokens(except: [
             'pos/transaksi',
+            'admin/dashboard/export',
+            'admin/products/export',
+            'admin/reports/export',
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

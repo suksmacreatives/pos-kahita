@@ -133,15 +133,171 @@ class ReportsController extends Controller
             );
         }
 
+        $title = match ($kategori) {
+            'penjualan' => 'Laporan Penjualan',
+            'produk'    => 'Laporan Produk',
+            'inventori' => 'Laporan Inventori',
+            'kasir'     => 'Laporan Kasir',
+            'keuangan'  => 'Laporan Keuangan',
+            default     => 'Laporan',
+        };
+
+        $prepared = $this->preparePdfData($data, $kategori);
+
+        $landscape = $kategori === 'kasir' || $kategori === 'keuangan';
+
         $pdf = \Barryvdh\DomPDF\Facade\Pdf::loadView('reports.pdf', [
-            'data'     => $data,
-            'kategori' => $kategori,
-            'sub'      => $sub,
-            'dari'     => $dari,
-            'sampai'   => $sampai,
+            'data'      => $prepared,
+            'kategori'  => $kategori,
+            'sub'       => $sub,
+            'dari'      => $dari,
+            'sampai'    => $sampai,
+            'title'     => $title,
+            'landscape' => $landscape,
         ]);
 
         return $pdf->download("laporan-{$kategori}-{$dari->format('Ymd')}-{$sampai->format('Ymd')}.pdf");
+    }
+
+    protected function preparePdfData(array $data, string $kategori): array
+    {
+        return match ($kategori) {
+            'penjualan' => [
+                'summary' => $data['ringkasan'] ?? [],
+                'rows'    => $data['omset_harian'] ?? [],
+                'charts'  => [
+                    'labels' => collect($data['omset_harian'] ?? [])->pluck('tanggal')->values()->toArray(),
+                    'series' => [
+                        ['name' => 'Omset',     'data' => collect($data['omset_harian'] ?? [])->pluck('omset')->values()->toArray()],
+                        ['name' => 'Transaksi', 'data' => collect($data['omset_harian'] ?? [])->pluck('transaksi')->values()->toArray()],
+                    ],
+                ],
+            ],
+            'produk' => [
+                'summary' => [
+                    'Total Produk Terjual' => collect($data['top_products'] ?? [])->sum('terjual'),
+                    'Total Revenue'        => collect($data['top_products'] ?? [])->sum('revenue'),
+                    'Rata-rata Harga'      => collect($data['top_products'] ?? [])->avg('avg_harga') ?: 0,
+                ],
+                'rows'   => collect($data['top_products'] ?? [])
+                    ->map(fn ($row) => tap($row, fn (&$r) => (function () use (&$r) {
+                        unset($r['id'], $r['foto'], $r['image']);
+                    })()))
+                    ->values()
+                    ->toArray(),
+                'charts' => [
+                    'labels' => collect($data['per_kategori'] ?? [])->pluck('nama')->values()->toArray(),
+                    'series' => [
+                        ['name' => 'Revenue', 'data' => collect($data['per_kategori'] ?? [])->pluck('revenue')->values()->toArray()],
+                    ],
+                ],
+            ],
+            'inventori' => [
+                'summary' => $data['mutasi_summary'] ?? [],
+                'rows'    => $data['mutasi_log'] ?? [],
+                'charts'  => [
+                    'labels' => collect($data['nilai_per_lokasi'] ?? [])->pluck('nama')->values()->toArray(),
+                    'series' => [
+                        ['name' => 'Nilai Inventori', 'data' => collect($data['nilai_per_lokasi'] ?? [])->pluck('nilai')->values()->toArray()],
+                    ],
+                ],
+            ],
+            'kasir' => [
+                'summary' => [
+                    'Total Kasir'        => count($data['kasir_stats'] ?? []),
+                    'Total Transaksi'    => collect($data['kasir_stats'] ?? [])->sum('transaksi'),
+                    'Total Omset'        => collect($data['kasir_stats'] ?? [])->sum('omset'),
+                    'Rata-rata per Trx'  => ($t = collect($data['kasir_stats'] ?? [])->sum('transaksi')) > 0
+                        ? 'Rp ' . number_format(collect($data['kasir_stats'] ?? [])->sum('omset') / $t, 0, ',', '.')
+                        : 'Rp 0',
+                    'Total Void'         => collect($data['kasir_stats'] ?? [])->sum('void_count'),
+                ],
+                'rows'   => collect($data['kasir_stats'] ?? [])
+                    ->map(fn ($k) => [
+                        'Kasir'        => $k['nama'] ?? $k['kasir'] ?? '-',
+                        'Outlet'       => $k['outlet'] ?? '-',
+                        'Transaksi'    => $k['transaksi'] ?? 0,
+                        'Omset'        => $k['omset'] ?? 0,
+                        'Rata-rata'    => $k['avg_transaksi'] ?? $k['avg'] ?? 0,
+                        'Void'         => $k['void_count'] ?? $k['void'] ?? 0,
+                        'Void Rate'    => ($k['void_rate'] ?? $k['rate'] ?? 0) . '%',
+                    ])
+                    ->values()
+                    ->toArray(),
+                'charts' => [
+                    'labels' => collect($data['kasir_stats'] ?? [])->pluck('nama')->values()->toArray(),
+                    'series' => [
+                        ['name' => 'Transaksi', 'data' => collect($data['kasir_stats'] ?? [])->pluck('transaksi')->values()->toArray()],
+                        ['name' => 'Omset',     'data' => collect($data['kasir_stats'] ?? [])->pluck('omset')->values()->toArray()],
+                    ],
+                ],
+                'extra_sections' => array_filter([
+                    !empty($data['shift_stats']['shifts'] ?? []) ? [
+                        'title' => 'Detail Shift',
+                        'rows'  => collect($data['shift_stats']['shifts'] ?? [])->map(fn ($s) => [
+                            'Shift'     => ucfirst($s['shift'] ?? ''),
+                            'Hari'      => $s['hari'] ?? '-',
+                            'Kasir'     => $s['kasir'] ?? $s['nama'] ?? '-',
+                            'Transaksi' => $s['transaksi'] ?? 0,
+                            'Omset'     => $s['omset'] ?? $s['total'] ?? 0,
+                        ])->toArray(),
+                    ] : null,
+                ]),
+            ],
+            'keuangan' => [
+                'summary' => [
+                    'Penjualan Bruto'  => $data['laba_rugi']['penjualan_bruto'] ?? 0,
+                    'Diskon'           => $data['laba_rugi']['diskon'] ?? 0,
+                    'Penjualan Bersih' => $data['laba_rugi']['penjualan_bersih'] ?? 0,
+                    'Total HPP'        => $data['laba_rugi']['total_hpp'] ?? 0,
+                    'Laba Kotor'       => $data['laba_rugi']['laba_kotor'] ?? 0,
+                    'Nilai Void'       => $data['laba_rugi']['nilai_void'] ?? 0,
+                    'Nilai Refund'     => $data['laba_rugi']['nilai_refund'] ?? 0,
+                    'Laba Bersih'      => $data['laba_rugi']['laba_bersih'] ?? 0,
+                    'Margin Kotor'     => ($data['laba_rugi']['margin_kotor'] ?? 0) . '%',
+                    'Margin Bersih'    => ($data['laba_rugi']['margin_bersih'] ?? 0) . '%',
+                ],
+                'rows'   => collect($data['margin_per_produk'] ?? [])
+                    ->map(fn ($row) => tap($row, fn (&$r) => (function () use (&$r) {
+                        unset($r['id'], $r['produk'], $r['hpp'], $r['beli'], $r['jual'], $r['margin_rupiah'], $r['margin']);
+                    })()))
+                    ->values()
+                    ->toArray(),
+                'charts' => [
+                    'labels' => collect($data['hpp_stats']['per_kategori'] ?? [])->pluck('nama')->values()->toArray(),
+                    'series' => [
+                        ['name' => 'Margin %', 'data' => collect($data['hpp_stats']['per_kategori'] ?? [])->pluck('margin_persen')->values()->toArray()],
+                    ],
+                ],
+                'extra_sections' => array_filter([
+                    !empty($data['diskon_stats'] ?? []) ? [
+                        'title' => 'Analisis Diskon',
+                        'rows'  => [
+                            ['Komponen' => 'Total Diskon', 'Nilai' => $data['diskon_stats']['total_diskon'] ?? 0],
+                            ['Komponen' => 'Revenue',      'Nilai' => $data['diskon_stats']['revenue_impact'] ?? $data['diskon_stats']['dampak_revenue'] ?? 0],
+                            ['Komponen' => 'Pemakaian',    'Nilai' => $data['diskon_stats']['total_pemakaian'] ?? $data['diskon_stats']['pemakaian'] ?? 0],
+                            ['Komponen' => 'Efektivitas',  'Nilai' => ($data['diskon_stats']['efektivitas'] ?? $data['diskon_stats']['effectiveness'] ?? 0) . '%'],
+                            ['Komponen' => 'ROI Rata-rata','Nilai' => $data['diskon_stats']['roi_rata'] ?? $data['diskon_stats']['avg_roi'] ?? 0],
+                        ],
+                    ] : null,
+                    !empty($data['promo_performance'] ?? []) ? [
+                        'title' => 'Performa Promo',
+                        'rows'  => collect($data['promo_performance'] ?? [])->map(fn ($p) => [
+                            'Kategori Promo' => $p['nama'] ?? $p['promo'] ?? '-',
+                            'Pemakaian'      => $p['pemakaian'] ?? $p['count'] ?? 0,
+                            'Nilai Diskon'   => $p['nilai_diskon'] ?? $p['diskon'] ?? 0,
+                            'Revenue'        => $p['revenue'] ?? $p['pendapatan'] ?? 0,
+                            'ROI'            => $p['roi'] ?? 0,
+                        ])->toArray(),
+                    ] : null,
+                ]),
+            ],
+            default => [
+                'summary' => [],
+                'rows'    => [],
+                'charts'  => ['labels' => [], 'series' => []],
+            ],
+        };
     }
 
     protected function getPeriodeLabel(Carbon $dari, Carbon $sampai): string
