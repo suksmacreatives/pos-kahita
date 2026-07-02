@@ -201,6 +201,11 @@ export default function Sidebar({ isOpen, onClose }) {
                     href: "/admin/settings?tab=log_aktivitas",
                     pattern: /tab=log_aktivitas/,
                 },
+                {
+                    label: "Notifikasi",
+                    href: "/admin/settings?tab=notifikasi",
+                    pattern: /tab=notifikasi/,
+                },
             ],
         },
     ];

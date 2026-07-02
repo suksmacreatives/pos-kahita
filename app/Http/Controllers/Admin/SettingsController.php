@@ -57,6 +57,37 @@ class SettingsController extends Controller
             $data['log_stats'] = $result['log_stats'];
         }
 
+        if ($tab === 'notifikasi') {
+            $user = $request->user();
+            $notifications = $user->notifications()
+                ->orderByDesc('created_at')
+                ->paginate(50)
+                ->through(function ($n) {
+                    $d = $n->data;
+                    return [
+                        'id'         => $n->id,
+                        'title'      => $d['title'] ?? '',
+                        'message'    => $d['message'] ?? '',
+                        'link'       => $d['link'] ?? '#',
+                        'icon'       => $d['icon'] ?? 'bell',
+                        'severity'   => $d['severity'] ?? 'info',
+                        'is_read'    => $n->read_at !== null,
+                        'created_at' => $n->created_at->toIso8601String(),
+                        'time_ago'   => $n->created_at->diffForHumans(),
+                        'read_at'    => $n->read_at?->toIso8601String(),
+                    ];
+                });
+
+            $data['notifications'] = $notifications;
+            $data['notif_stats'] = [
+                'total'    => $user->notifications()->count(),
+                'unread'   => $user->unreadNotifications()->count(),
+                'hari_ini' => $user->notifications()->whereDate('created_at', today())->count(),
+                'danger'   => $user->notifications()->where('data->severity', 'danger')->count(),
+                'warning'  => $user->notifications()->where('data->severity', 'warning')->count(),
+            ];
+        }
+
         return Inertia::render('Admin/Settings', $data);
     }
 

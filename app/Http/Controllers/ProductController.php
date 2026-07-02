@@ -13,7 +13,7 @@ use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Barryvdh\DomPDF\Facade\Pdf;
-use Maatwebsite\Excel\Facades\Excel as MaatExcel;
+use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Exports\ProductExport;
 
 class ProductController extends Controller
@@ -96,10 +96,14 @@ class ProductController extends Controller
         $outletIds = array_keys($outletNames);
 
         if ($format === 'excel') {
-            return MaatExcel::download(
-                new ProductExport($collection->toArray()),
-                'produk-' . now()->format('YmdHis') . '.xlsx'
-            );
+            $excel = new ProductExport($collection->toArray());
+            $spreadsheet = $excel->build();
+            $writer = new Xlsx($spreadsheet);
+            return response()->streamDownload(function () use ($writer) {
+                $writer->save('php://output');
+            }, 'produk-' . now()->format('YmdHis') . '.xlsx', [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
         }
 
         $pdf = Pdf::loadView('exports.product-pdf', [

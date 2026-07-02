@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, usePage, router } from '@inertiajs/react';
-import { Users, UserCheck, ShoppingBag, UserX, Plus, Tag, Zap, Clock, BarChart2, List, LayoutGrid, Activity, LogIn, AlertCircle, Download } from 'lucide-react';
+import { Users, UserCheck, ShoppingBag, UserX, Plus, Tag, Zap, Clock, BarChart2, List, LayoutGrid, Activity, LogIn, AlertCircle, Download, Bell, BellDot, Eye, CheckCheck } from 'lucide-react';
 
 import AkunTable from '@/Components/Admin/Settings/KelolAkun/AkunTable';
 import AkunFormModal from '@/Components/Admin/Settings/KelolAkun/AkunFormModal';
@@ -14,6 +14,8 @@ import PromoFormModal from '@/Components/Admin/Settings/Promo/PromoFormModal';
 import LogTable from '@/Components/Admin/Settings/LogAktivitas/LogTable';
 import LogDetailModal from '@/Components/Admin/Settings/LogAktivitas/LogDetailModal';
 
+import NotifikasiTable from '@/Components/Admin/Settings/Notifikasi/NotifikasiTable';
+
 export default function Settings() {
     const { url } = usePage();
     const props = usePage().props;
@@ -23,6 +25,7 @@ export default function Settings() {
     let activeMenu = 'kelola_akun';
     if (url.includes('tab=promo')) activeMenu = 'promo';
     else if (url.includes('tab=log_aktivitas')) activeMenu = 'log_aktivitas';
+    else if (url.includes('tab=notifikasi')) activeMenu = 'notifikasi';
 
     const [logViewMode, setLogViewMode] = useState('tabel');
     const [promoViewMode, setPromoViewMode] = useState('list');
@@ -30,9 +33,11 @@ export default function Settings() {
     const accounts = props.accounts || [];
     const promos = props.promos || [];
     const logs = props.logs || [];
+    const notifications = props.notifications || { data: [], links: [] };
     const akunStats = props.akun_stats || { total: 0, aktif: 0, kasir: 0, nonaktif_suspended: 0 };
     const promoStats = props.promo_stats || { total: 0, aktif: 0, hampir_habis: 0, total_terpakai: 0 };
     const logStats = props.log_stats || { total_hari_ini: 0, login_hari_ini: 0, gagal_hari_ini: 0, user_teraktif: { nama: 'Tidak ada', count: 0 } };
+    const notifStats = props.notif_stats || { total: 0, unread: 0, hari_ini: 0, danger: 0, warning: 0 };
     const outletList = props.outlet_list || [];
 
     const [modalState, setModalState] = useState({ isOpen: false, type: null, mode: 'create', data: null });
@@ -227,6 +232,33 @@ export default function Settings() {
                     </div>
                 </div>
             );
+        } else if (activeMenu === 'notifikasi') {
+            return (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center text-gray-500"><Bell size={24} /></div>
+                        <div><div className="text-2xl font-bold text-gray-900 leading-none">{notifStats.total}</div><div className="text-xs text-gray-500 mt-1 font-medium">Total notifikasi</div></div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-emerald-50 flex items-center justify-center text-emerald-600 relative">
+                            {notifStats.unread > 0 && <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>}
+                            <BellDot size={24} />
+                        </div>
+                        <div><div className="text-2xl font-bold text-gray-900 leading-none">{notifStats.unread}</div><div className="text-xs text-gray-500 mt-1 font-medium">Belum dibaca</div></div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600"><Activity size={24} /></div>
+                        <div><div className="text-2xl font-bold text-gray-900 leading-none">{notifStats.hari_ini}</div><div className="text-xs text-gray-500 mt-1 font-medium">Hari ini</div></div>
+                    </div>
+                    <div className="bg-white rounded-2xl p-5 border border-gray-100 shadow-sm flex items-center gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center text-red-600">
+                            {notifStats.danger > 0 && <span className="absolute top-0 right-0 w-3 h-3 bg-red-500 border-2 border-white rounded-full animate-pulse"></span>}
+                            <AlertCircle size={24} />
+                        </div>
+                        <div><div className="text-2xl font-bold text-gray-900 leading-none">{notifStats.danger}</div><div className="text-xs text-gray-500 mt-1 font-medium">Kritis</div></div>
+                    </div>
+                </div>
+            );
         }
     };
 
@@ -242,6 +274,7 @@ export default function Settings() {
                             {activeMenu === 'kelola_akun' && 'Atur pengguna, role, dan hak akses sistem'}
                             {activeMenu === 'promo' && 'Atur program promo dan kode diskon'}
                             {activeMenu === 'log_aktivitas' && 'Riwayat semua aksi pengguna di sistem'}
+                            {activeMenu === 'notifikasi' && 'Riwayat semua notifikasi sistem'}
                         </p>
                     </div>
                     <div>
@@ -267,6 +300,14 @@ export default function Settings() {
                                 className="flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-xl font-semibold hover:bg-gray-50 transition-colors shadow-sm"
                             >
                                 <Download size={18} /> Export Log
+                            </button>
+                        )}
+                        {activeMenu === 'notifikasi' && notifStats.unread > 0 && (
+                            <button
+                                onClick={() => router.post(route('admin.notifications.read-all'), {}, { preserveState: true, preserveScroll: true })}
+                                className="flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-xl font-semibold hover:bg-emerald-700 transition-colors shadow-sm shadow-emerald-600/20"
+                            >
+                                <CheckCheck size={18} /> Tandai Semua Dibaca
                             </button>
                         )}
                     </div>
@@ -356,6 +397,10 @@ export default function Settings() {
                                 onDetail={handleDetailLog}
                             />
                         </>
+                    )}
+
+                    {activeMenu === 'notifikasi' && (
+                        <NotifikasiTable data={notifications} />
                     )}
                 </div>
             </div>

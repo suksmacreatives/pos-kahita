@@ -4,6 +4,8 @@ namespace App\Http\Controllers\POS;
 
 use App\Http\Controllers\Controller;
 use App\Models\CashRegisterShift;
+use App\Models\User;
+use App\Notifications\ShiftNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Carbon\Carbon;
@@ -72,6 +74,19 @@ class ShiftController extends Controller
             'discrepancy' => $discrepancy,
             'status' => 'closed'
         ]);
+
+        // Notify admins about shift closure
+        $admins = User::whereIn('role', ['admin', 'owner'])->where('status', 'aktif')->get();
+        $severity = abs($discrepancy) > 0 ? 'warning' : 'info';
+        foreach ($admins as $admin) {
+            $admin->notify(new ShiftNotification([
+                'title'    => 'Shift Ditutup',
+                'message'  => "Shift {$user->name} ditutup" . ($discrepancy != 0 ? " (selisih: Rp " . number_format(abs($discrepancy), 0, ',', '.') . ")" : ""),
+                'link'     => '/admin/reports?kategori=kasir&sub=performa-kasir',
+                'icon'     => 'clock',
+                'severity' => $severity,
+            ]));
+        }
 
         session()->forget('active_shift_id');
 

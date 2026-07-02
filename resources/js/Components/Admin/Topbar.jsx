@@ -1,31 +1,58 @@
-import React, { useState } from 'react';
-import { usePage, Link } from '@inertiajs/react';
-import { Menu, Bell, Search, ChevronDown, User, LogOut, Settings as SettingsIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { usePage, router, Link } from '@inertiajs/react';
+import { Menu, Bell, BellDot, Search, ChevronDown, User, LogOut, Settings as SettingsIcon, Package, Clock, AlertTriangle, Info } from 'lucide-react';
 import OutletDropdownFilter from './OutletDropdownFilter';
 import PeriodDropdownFilter from './PeriodDropdownFilter';
 
+const NOTIF_ICONS = { package: Package, clock: Clock, 'alert-triangle': AlertTriangle, bell: Bell, info: Info };
+const NOTIF_COLORS = { danger: 'red', warning: 'amber', info: 'blue', success: 'emerald' };
+
 export default function Topbar({ onToggleSidebar }) {
-  const { auth } = usePage().props;
+  const { auth, notifications: notifProp } = usePage().props;
   const userName = auth?.user?.name || 'Admin Pusat';
   const userEmail = auth?.user?.email || 'admin@kahita.com';
-  
+
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
 
-  // Helper to safely resolve Laravel routes with a string fallback if not defined in Ziggy
-  const getRoute = (name, fallback) => {
-    try {
-      return route(name);
-    } catch (e) {
-      return fallback;
-    }
+  const notifications = notifProp?.data || [];
+  const unreadCount = notifProp?.unread_count || 0;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      router.reload({ only: ['notifications'], preserveState: true });
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const markAsRead = (id) => {
+    router.post(route('admin.notifications.read', id), {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  };
+
+  const markAllAsRead = () => {
+    router.post(route('admin.notifications.read-all'), {}, {
+      preserveState: true,
+      preserveScroll: true,
+    });
+  };
+
+  const handleNotifClick = (n) => {
+    if (!n.is_read) markAsRead(n.id);
+    setIsNotificationsOpen(false);
+    if (n.link) window.location.href = n.link;
+  };
+
+  const severityDotColor = (severity) => {
+    const map = { danger: 'bg-red-500', warning: 'bg-amber-500', info: 'bg-blue-500', success: 'bg-emerald-500' };
+    return map[severity] || 'bg-gray-400';
   };
 
   return (
-    <header className="sticky top-0 right-0 z-30 h-16 bg-white/90 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-4 md:px-8 shadow-sm">
-      {/* Left Section: Mobile Menu + Search */}
+    <header className="sticky top-0 right-0 z-50 h-16 bg-white/90 backdrop-blur-md border-b border-gray-100 flex items-center justify-between px-4 md:px-8 shadow-sm">
       <div className="flex items-center gap-4 flex-1">
-        {/* Mobile Hamburger Button */}
         <button
           onClick={onToggleSidebar}
           className="p-2 rounded-xl text-gray-500 hover:text-gray-900 hover:bg-gray-50 md:hidden transition-colors"
@@ -34,7 +61,6 @@ export default function Topbar({ onToggleSidebar }) {
           <Menu className="w-5.5 h-5.5" />
         </button>
 
-        {/* Search Bar (Desktop) */}
         <div className="hidden lg:flex items-center gap-2 bg-gray-50 border border-gray-100 rounded-xl px-3 py-1.5 w-72 focus-within:ring-1 focus-within:ring-emerald-500/20 focus-within:border-emerald-500 transition-all duration-200">
           <Search className="w-4 h-4 text-gray-400" />
           <input
@@ -45,9 +71,7 @@ export default function Topbar({ onToggleSidebar }) {
         </div>
       </div>
 
-      {/* Right Section: Filters & Profile Controls */}
       <div className="flex items-center gap-3 md:gap-5">
-        {/* Filters */}
         <div className="flex items-center gap-2">
           <OutletDropdownFilter />
           <PeriodDropdownFilter />
@@ -55,7 +79,6 @@ export default function Topbar({ onToggleSidebar }) {
 
         <div className="w-px h-6 bg-gray-100 hidden sm:block" />
 
-        {/* Notifications Icon */}
         <div className="relative">
           <button
             onClick={() => {
@@ -65,44 +88,92 @@ export default function Topbar({ onToggleSidebar }) {
             className="relative p-2 rounded-xl text-gray-500 hover:text-gray-950 hover:bg-gray-50 transition-colors"
             aria-label="Notifications"
           >
-            <Bell className="w-5 h-5" />
-            <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-white animate-pulse" />
+            {unreadCount > 0 ? <BellDot className="w-5 h-5" /> : <Bell className="w-5 h-5" />}
+            {unreadCount > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded-full bg-red-500 text-[10px] font-bold text-white ring-2 ring-white">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            )}
           </button>
 
-          {/* Notifications Dropdown */}
           {isNotificationsOpen && (
             <>
-              <div className="fixed inset-0 z-30" onClick={() => setIsNotificationsOpen(false)} />
-              <div className="absolute right-0 mt-2.5 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 p-4 transform origin-top-right transition-all duration-200">
-                <div className="flex items-center justify-between pb-3 border-b border-gray-50 mb-3">
-                  <span className="font-semibold text-xs text-gray-900">Notifikasi Baru</span>
-                  <span className="text-[10px] text-emerald-600 font-medium hover:underline cursor-pointer">Tandai dibaca</span>
+              <div className="fixed inset-0 z-[55]" onClick={() => setIsNotificationsOpen(false)} />
+              <div className="absolute right-0 mt-2.5 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-[60] transform origin-top-right transition-all duration-200">
+                <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-50">
+                  <span className="font-semibold text-xs text-gray-900">
+                    Notifikasi {unreadCount > 0 && <span className="text-emerald-600 font-bold">({unreadCount})</span>}
+                  </span>
+                  {unreadCount > 0 && (
+                    <button
+                      onClick={markAllAsRead}
+                      className="text-[10px] text-emerald-600 font-medium hover:underline"
+                    >
+                      Tandai dibaca
+                    </button>
+                  )}
                 </div>
-                <div className="space-y-3">
-                  <div className="flex gap-2.5 items-start p-1.5 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-                    <span className="w-2 h-2 mt-1.5 rounded-full bg-red-500 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-gray-800 font-medium leading-normal">Stok Paper Cup Hot 8oz kritis (&lt; 100 pcs) di Bandung</p>
-                      <span className="text-[10px] text-gray-400 block mt-0.5">8 menit yang lalu</span>
+
+                <div className="max-h-[320px] overflow-y-auto">
+                  {!notifProp ? (
+                    <div className="p-4 space-y-3">
+                      {[1, 2, 3].map((i) => (
+                        <div key={i} className="flex gap-2.5 items-start p-1.5 animate-pulse">
+                          <div className="w-2 h-2 mt-1.5 rounded-full bg-gray-200 flex-shrink-0" />
+                          <div className="flex-1 space-y-1.5">
+                            <div className="h-3 bg-gray-200 rounded w-3/4" />
+                            <div className="h-2 bg-gray-100 rounded w-1/2" />
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  </div>
-                  <div className="flex gap-2.5 items-start p-1.5 hover:bg-gray-50 rounded-lg transition-colors cursor-pointer">
-                    <span className="w-2 h-2 mt-1.5 rounded-full bg-amber-500 flex-shrink-0" />
-                    <div>
-                      <p className="text-xs text-gray-800 font-medium leading-normal">Transfer Mutasi Susu UHT 120 Pcs menunggu persetujuan</p>
-                      <span className="text-[10px] text-gray-400 block mt-0.5">45 menit yang lalu</span>
+                  ) : notifications.length === 0 ? (
+                    <div className="p-6 text-center">
+                      <Bell className="w-8 h-8 text-gray-200 mx-auto mb-2" />
+                      <p className="text-xs text-gray-400">Tidak ada notifikasi</p>
                     </div>
+                  ) : (
+                    <div className="p-2 space-y-1">
+                      {notifications.map((n) => {
+                        const IconComp = NOTIF_ICONS[n.icon] || Bell;
+                        return (
+                          <div
+                            key={n.id}
+                            onClick={() => handleNotifClick(n)}
+                            className={`flex gap-2.5 items-start p-2 rounded-xl transition-colors cursor-pointer ${
+                              n.is_read ? 'hover:bg-gray-50' : 'bg-emerald-50/40 hover:bg-emerald-50'
+                            }`}
+                          >
+                            <span className={`w-2 h-2 mt-1.5 rounded-full flex-shrink-0 ${n.is_read ? 'bg-transparent' : severityDotColor(n.severity)}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-xs leading-normal ${n.is_read ? 'text-gray-600' : 'text-gray-900 font-medium'}`}>
+                                {n.message}
+                              </p>
+                              <span className="text-[10px] text-gray-400 block mt-0.5">{n.time_ago}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+
+                {notifications.length > 0 && (
+                  <div className="text-center pt-3 pb-4 border-t border-gray-50 mt-1">
+                    <Link
+                      href="/admin/settings?tab=notifikasi"
+                      onClick={() => setIsNotificationsOpen(false)}
+                      className="text-xs text-gray-500 hover:text-gray-900 cursor-pointer font-medium inline-block"
+                    >
+                      Lihat Semua Notifikasi
+                    </Link>
                   </div>
-                </div>
-                <div className="text-center pt-3 border-t border-gray-50 mt-3">
-                  <span className="text-xs text-gray-500 hover:text-gray-900 cursor-pointer font-medium">Lihat Semua Notifikasi</span>
-                </div>
+                )}
               </div>
             </>
           )}
         </div>
 
-        {/* User Profile Menu */}
         <div className="relative">
           <button
             onClick={() => {
@@ -118,18 +189,17 @@ export default function Topbar({ onToggleSidebar }) {
             <ChevronDown className="w-4 h-4 text-gray-400 hidden md:block" />
           </button>
 
-          {/* Profile Dropdown */}
           {isProfileOpen && (
             <>
-              <div className="fixed inset-0 z-30" onClick={() => setIsProfileOpen(false)} />
+              <div className="fixed inset-0 z-[55]" onClick={() => setIsProfileOpen(false)} />
               <div className="absolute right-0 mt-2.5 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 p-2 transform origin-top-right transition-all duration-200">
                 <div className="px-3 py-2 border-b border-gray-50 mb-1.5">
                   <p className="text-xs font-bold text-gray-900 truncate">{userName}</p>
                   <p className="text-[10px] text-gray-400 truncate mt-0.5">{userEmail}</p>
                 </div>
-                
+
                 <Link
-                  href={getRoute('profile.edit', '/profile')}
+                  href={route('profile.edit')}
                   className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-colors"
                   onClick={() => setIsProfileOpen(false)}
                 >
@@ -151,7 +221,7 @@ export default function Topbar({ onToggleSidebar }) {
                 <Link
                   method="post"
                   as="button"
-                  href={getRoute('logout', '/logout')}
+                  href={route('logout')}
                   className="flex items-center gap-2.5 w-full text-left px-3 py-2 rounded-xl text-xs font-semibold text-red-600 hover:bg-red-50 transition-colors cursor-pointer"
                 >
                   <LogOut className="w-4 h-4 text-red-500" />

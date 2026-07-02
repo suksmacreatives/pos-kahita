@@ -110,6 +110,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
             Route::post('/export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
         });
 
+        // --- NOTIFICATIONS ---
+        Route::prefix('/admin/notifications')->name('admin.notifications.')->group(function () {
+            Route::post('/{notification}/read', [\App\Http\Controllers\Admin\NotificationController::class, 'markAsRead'])->name('read');
+            Route::post('/read-all', [\App\Http\Controllers\Admin\NotificationController::class, 'markAllAsRead'])->name('read-all');
+        });
+
         // --- MENU: OUTLETS ---
         Route::prefix('/admin/outlets')->name('admin.outlets.')->group(function () {
             Route::get('/', [\App\Http\Controllers\Admin\Outlets\OutletController::class, 'index'])->name('index');

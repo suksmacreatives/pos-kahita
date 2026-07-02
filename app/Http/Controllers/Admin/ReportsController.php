@@ -127,10 +127,14 @@ class ReportsController extends Controller
         };
 
         if ($format === 'excel') {
-            return \Maatwebsite\Excel\Facades\Excel::download(
-                new \App\Exports\ReportExport($data, $kategori, $sub, $dari, $sampai),
-                "laporan-{$kategori}-{$dari->format('Ymd')}-{$sampai->format('Ymd')}.xlsx"
-            );
+            $excel = new \App\Exports\ReportExport($data, $kategori, $sub, $dari, $sampai);
+            $spreadsheet = $excel->build();
+            $writer = new \PhpOffice\PhpSpreadsheet\Writer\Xlsx($spreadsheet);
+            return response()->streamDownload(function () use ($writer) {
+                $writer->save('php://output');
+            }, "laporan-{$kategori}-{$dari->format('Ymd')}-{$sampai->format('Ymd')}.xlsx", [
+                'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            ]);
         }
 
         $title = match ($kategori) {

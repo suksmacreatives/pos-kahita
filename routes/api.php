@@ -29,5 +29,6 @@ Route::post('/transactions', [TransactionController::class, 'store']);
 Route::get('/transactions/{id}', [TransactionController::class, 'show']);
 
 Route::post('/transactions/{id}/void', [TransactionController::class, 'void']);
+
 // Jika Anda ingin menggunakan session yang sama dengan web
 Route::middleware(['web', 'auth'])->post('/cash-transactions', [CashTransactionController::class, 'store']);
