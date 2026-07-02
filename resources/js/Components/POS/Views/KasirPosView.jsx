@@ -607,21 +607,38 @@ const nilaiDiskon = useMemo(() => {
                         {/* PANEL ACTIONS */}
                         <div className="border-t border-gray-100 p-4 bg-white flex-shrink-0 space-y-3">
                             {selectedPromo && (
-                                <div className="bg-emerald-50 border border-emerald-200 rounded-l p-2 text-xs">
-                                    <div className="font-bold text-emerald-700">
-                                        Promo Aktif
-                                    </div>
+    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs">
 
-                                    <div>
-                                        {selectedPromo.nama_promo}
-                                    </div>
-                                    <div className="flex justify-between items-center text-xs text-red-500 font-bold">
-                                        <span>Potongan Promo</span>
-                                        <span>- {formatRupiah(nilaiDiskon)}</span>
-                                    </div>
-                                </div>
-                                
-                            )}
+        <div className="flex justify-between items-start">
+
+            <div>
+                <div className="font-bold text-emerald-700">
+                    Promo Aktif
+                </div>
+
+                <div className="mt-1">
+                    {selectedPromo.nama_promo}
+                </div>
+            </div>
+
+            <button
+                type="button"
+                onClick={() => setSelectedPromo(null)}
+                className="w-6 h-6 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold"
+                title="Batalkan Promo"
+            >
+                ✕
+            </button>
+
+        </div>
+
+        <div className="flex justify-between items-center text-xs text-red-500 font-bold mt-2">
+            <span>Potongan Promo</span>
+            <span>- {formatRupiah(nilaiDiskon)}</span>
+        </div>
+
+    </div>
+)}
                             <div className="flex justify-between items-center text-xs">
                                 <span className="font-bold text-gray-400 uppercase">Total Tagihan</span>
                                 <span className="text-base font-black text-gray-800">{formatRupiah(totalSetelahDiskon)}</span>

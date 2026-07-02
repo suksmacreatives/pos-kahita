@@ -58,7 +58,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // Logika Buka & Tutup Sesi Laci Kasir
         Route::post('/pos/buka-kasir', [ShiftController::class, 'bukaKasir'])->name('pos.buka-kasir');
         Route::post('/pos/tutup-kasir', [ShiftController::class, 'tutupKasir'])->name('pos.tutup-kasir');
-        
+        Route::post('/pos/logout-after-print', [ShiftController::class, 'logoutAfterPrint'])
+        ->name('pos.logout-after-print');
         // SISIPAN AMAN: Rute untuk menampilkan data shift kasir hari ini di tabel bawah
         Route::get('/pos/riwayat-shift', [ShiftController::class, 'riwayatShiftHariIni'])->name('pos.riwayat-shift');
         
@@ -68,6 +69,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     });
     Route::post('/cash-transactions', [CashTransactionController::class, 'store'])
     ->name('cash-transactions.store');
+    Route::post('/transactions/{id}/void', [\App\Http\Controllers\Api\TransactionController::class, 'void'])
+    ->name('transactions.void');
     Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');
     Route::post('/absensi/pulang/{attendance}', [AbsensiController::class, 'clockOut'])
     ->name('absensi.pulang');

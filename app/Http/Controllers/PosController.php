@@ -65,35 +65,93 @@ class PosController extends Controller
                         ? Storage::url($p->image)
                         : null,
                     'variants' => $p->variants->map(function ($v) use ($outletId) {
+
                     $outletStock = OutletStock::where('outlet_id', $outletId)
                         ->where('product_variant_id', $v->id)
-                        ->value('stock');
+                        ->first();
 
-                    $finalOutletStock = $outletStock !== null
-                    ? (int) $outletStock
-                    : 0;
-                    
-                        return [
-                            'id' => $v->id,
-                            'size' => $v->size,
-                            'color' => $v->color,
-                            'sku' => $v->sku,
-                            'stock' => $finalOutletStock,
-                            'stok_gudang' => (int) $v->stock,
-                            'stok_outlet' => $finalOutletStock,
-                            'total_stok' => (int) $v->stock + $finalOutletStock,
-                        ];
-                    }),
+                    $stockOutlet = $outletStock?->stock ?? 0;
+
+                    return [
+                        'id' => $v->id,
+                        'size' => $v->size,
+                        'color' => $v->color,
+                        'sku' => $v->sku,
+
+                        'stock' => $stockOutlet,
+
+                        'stok_gudang' => (int) $v->stock,
+                        'stok_outlet' => (int) $stockOutlet,
+
+                        'price' => $v->price,
+                        'cost_price' => $v->cost_price,
+                    ];
+                }),
                 ];
             });
             $promos = Promo::aktif()->get();
             
         $penerimaanList = $this->inventoriOutlet->getPenerimaanList($outletId);
 
+        $inventoryProducts = Product::with([
+                'category',
+                'variants'
+            ])
+            ->where(function ($q) use ($outletId) {
+                $q->where('outlet_id', $outletId)
+                ->orWhereJsonContains('outlet_ids', (string) $outletId);
+            })
+            ->get()
+            ->map(function ($product) use ($outletId) {
+
+                $totalStock = 0;
+
+                $variants = $product->variants->map(function ($variant) use ($outletId, &$totalStock) {
+
+                    $outletStock = OutletStock::where(
+                        'product_variant_id',
+                        $variant->id
+                    )
+                    ->where('outlet_id', $outletId)
+                    ->value('stock') ?? 0;
+
+                    $totalStock += $outletStock;
+
+                    return [
+                        'id' => $variant->id,
+                        'sku' => $variant->sku,
+                        'size' => $variant->size,
+                        'color' => $variant->color,
+                        'stock' => $outletStock,
+                        'price' => $variant->price,
+                    ];
+                });
+
+                return [
+                    'id' => $product->id,
+                    'name' => $product->name,
+                    'sku' => $product->sku,
+
+                    'category' => $product->category?->name,
+
+                    'image' => $product->image
+                        ? Storage::url($product->image)
+                        : null,
+
+                    'price' => $product->price,
+
+                    'stock_total' => $totalStock,
+
+                    'variant_count' => $variants->count(),
+
+                    'variants' => $variants,
+                ];
+            });
         return Inertia::render('Pos/Index', [
             'is_shift_open_db' => $activeShift ? true : false,
             'active_shift_details' => $activeShift,
             'products_from_db' => $products,
+            'inventoryProducts' => $inventoryProducts,
             'promos' => $promos,
             'attendances' => $attendances,
             'outlet_name' => $outlet?->name,
