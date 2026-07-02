@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\OutletStock;
 use App\Models\CashRegisterShift;
 use Illuminate\Http\Request;
@@ -26,35 +27,31 @@ class PosController extends Controller
     public function index()
     {
         $user = Auth::user();
-        $outletId = $user->outlet_id;
 
-        // 1. Ambil shift aktif
+        // Ambil shift aktif
         $activeShift = CashRegisterShift::where('user_id', $user->id)
             ->where('status', 'open')
             ->latest()
             ->first();
 
-        // 2. Ambil absensi hari ini
+        // Ambil absensi hari ini
         $attendances = Attendance::with('user')
             ->whereDate('date', today())
             ->latest()
             ->get();
 
+        // Pastikan outlet id tersedia
+        $outletId = $user->outlet_id;
         $outlet = Outlet::find($outletId);
 
-        // 3. SOLUSI N+1 QUERY: Ambil semua stok outlet sekaligus dan simpan dalam key-value array
-        $stocks = OutletStock::where('outlet_id', $outletId)
-            ->pluck('stock', 'product_variant_id') // Menghasilkan: [variant_id => stock_quantity]
-            ->toArray();
-
-        // 4. Ambil produk dengan eager loading
+        // Ambil produk
         $products = Product::with(['variants', 'category'])
             ->where(function ($q) use ($outletId) {
                 $q->where('outlet_id', $outletId)
                     ->orWhereJsonContains('outlet_ids', (string) $outletId);
             })
             ->get()
-            ->map(function ($p) use ($stocks) {
+            ->map(function ($p) use ($outletId) {
                 return [
                     'id' => $p->id,
                     'name' => $p->name,
@@ -69,42 +66,41 @@ class PosController extends Controller
                         ? Storage::url($p->image)
                         : null,
                     'variants' => $p->variants->map(function ($v) use ($outletId) {
-                    $outletStock = OutletStock::where('outlet_id', $outletId)
-                        ->where('product_variant_id', $v->id)
-                        ->value('stock');
 
-                    $finalOutletStock = $outletStock !== null
-                    ? (int) $outletStock
-                    : 0;
-                    
+                        $outletStock = OutletStock::where('outlet_id', $outletId)
+                            ->where('product_variant_id', $v->id)
+                            ->first();
+
+                        $stockOutlet = $outletStock?->stock ?? 0;
+
                         return [
                             'id' => $v->id,
                             'size' => $v->size,
                             'color' => $v->color,
                             'sku' => $v->sku,
-                            'stock' => $finalOutletStock,
+
+                            'stock' => $stockOutlet,
+
                             'stok_gudang' => (int) $v->stock,
-                            'stok_outlet' => $finalOutletStock,
-                            'total_stok' => (int) $v->stock + $finalOutletStock,
+                            'stok_outlet' => (int) $stockOutlet,
+
+                            'price' => $v->price,
+                            'cost_price' => $v->cost_price,
                         ];
                     }),
                 ];
             });
-
-        // 5. SOLUSI PROMO EXPIRED: Pastikan promo yang sudah melewati tanggal kadaluarsa tidak ikut ditarik
-        $promos = Promo::aktif()
-            ->where('berlaku_sampai', '>=', now())
-            ->get();
+        $promos = Promo::aktif()->get();
 
         $penerimaanList = $this->inventoriOutlet->getPenerimaanList($outletId);
 
         $inventoryProducts = Product::with([
-                'category',
-                'variants'
-            ])
+            'category',
+            'variants'
+        ])
             ->where(function ($q) use ($outletId) {
                 $q->where('outlet_id', $outletId)
-                ->orWhereJsonContains('outlet_ids', (string) $outletId);
+                    ->orWhereJsonContains('outlet_ids', (string) $outletId);
             })
             ->get()
             ->map(function ($product) use ($outletId) {
@@ -117,8 +113,8 @@ class PosController extends Controller
                         'product_variant_id',
                         $variant->id
                     )
-                    ->where('outlet_id', $outletId)
-                    ->value('stock') ?? 0;
+                        ->where('outlet_id', $outletId)
+                        ->value('stock') ?? 0;
 
                     $totalStock += $outletStock;
 
@@ -153,7 +149,7 @@ class PosController extends Controller
                 ];
             });
         return Inertia::render('Pos/Index', [
-            'is_shift_open_db' => (bool) $activeShift,
+            'is_shift_open_db' => $activeShift ? true : false,
             'active_shift_details' => $activeShift,
             'products_from_db' => $products,
             'inventoryProducts' => $inventoryProducts,
@@ -168,9 +164,7 @@ class PosController extends Controller
     public function konfirmasiPenerimaan(KonfirmasiTerimaRequest $request, DistributionOrder $distributionOrder)
     {
         $user = $request->user();
-
-        // Proteksi kecurangan silang data antar outlet
-        abort_if($distributionOrder->outlet_id !== $user->outlet_id, 403, 'Anda tidak memiliki akses ke dokumen DO ini.');
+        abort_if($distributionOrder->outlet_id !== $user->outlet_id, 403);
 
         try {
             $this->inventoriOutlet->konfirmasiTerima(
