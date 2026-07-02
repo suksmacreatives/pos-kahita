@@ -216,7 +216,6 @@ if (!$variant) {
             ]);
 
             DB::commit();
-
             return response()->json([
                 'success' => true,
                 'message' => 'Transaksi berhasil di-void'

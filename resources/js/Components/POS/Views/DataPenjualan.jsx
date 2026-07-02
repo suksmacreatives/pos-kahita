@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 export default function DataPenjualan({
     salesHistory = [],
@@ -8,6 +8,29 @@ export default function DataPenjualan({
 }) {
 
     const [selectedSale, setSelectedSale] = useState(null);
+    const [selectedVoidSale, setSelectedVoidSale] = useState(null);
+
+    const [toast, setToast] = useState({
+        show: false,
+        type: '',
+        message: ''
+    });
+    useEffect(() => {
+
+    if (!toast.show) return;
+
+    const timer = setTimeout(() => {
+
+        setToast(prev => ({
+            ...prev,
+            show: false
+        }));
+
+    }, 3000);
+
+    return () => clearTimeout(timer);
+
+}, [toast.show]);
 
     return (
         <div className="flex-1 flex flex-col h-full bg-[#f4f6f9] overflow-hidden">
@@ -287,27 +310,66 @@ export default function DataPenjualan({
                             >
                                 🖨 Cetak Struk
                             </button>
-
                             {/* VOID */}
                             {
                                 selectedSale.status !== 'void' && (
+                                    
                                     <button
-                                        onClick={() => onVoid(selectedSale)}
+                                        onClick={() => setSelectedVoidSale(selectedSale)}
                                         className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-2.5 rounded-xl text-xs transition shadow-sm"
                                     >
                                         VOID
                                     </button>
                                 )
                             }
-
                         </div>
-
                     </div>
-
                 </div>
-
             )}
+            {selectedVoidSale && (
+
+    <div className="fixed inset-0 bg-black/50 z-[9999] flex items-center justify-center">
+
+        <div className="bg-white rounded-2xl p-6 w-[400px]">
+
+            <h3 className="font-black text-lg text-gray-800">
+                Void Transaksi
+            </h3>
+
+            <p className="text-sm text-gray-500 mt-2">
+                Yakin ingin void transaksi
+                <br />
+                <b>{selectedVoidSale.invoice_number}</b> ?
+            </p>
+
+            <div className="flex gap-2 mt-5">
+
+                <button
+                    onClick={() => setSelectedVoidSale(null)}
+                    className="flex-1 border rounded-xl py-2"
+                >
+                    Batal
+                </button>
+
+                <button
+                    onClick={() => {
+                        onVoid(selectedVoidSale);
+                        setSelectedVoidSale(null);
+                        setSelectedSale(null);
+                    }}
+                    className="flex-1 bg-red-500 text-white rounded-xl py-2"
+                >
+                    Ya, Void
+                </button>
+
+            </div>
 
         </div>
+
+    </div>
+
+)}
+        </div>
     );
+    
 }

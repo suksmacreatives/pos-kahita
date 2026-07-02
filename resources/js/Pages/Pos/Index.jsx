@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
-import { Head, useForm } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import SidebarPos from '@/Components/POS/SidebarPos';
 
 // Import View Modular
@@ -17,10 +17,12 @@ import Absensi from '@/Components/POS/Views/Absensi';
 import PengaturanNotaView from '@/Components/POS/Views/PengaturanNotaView';
 import PengaturanPrinterView from '@/Components/POS/Views/PengaturanPrinterView';
 import PengaturanTokoView from '@/Components/POS/Views/PengaturanTokoView';
+import PrintShiftReport from "@/components/POS/views/PrintShiftReport";
 
 export default function Index({
     auth,
     products_from_db = [],
+    categories,
     promos = [],
     is_shift_open_db = false,
     active_shift_details = null,
@@ -30,6 +32,7 @@ export default function Index({
     outletSlug = null,
 }) {
 
+     const { props } = usePage();   
     // =========================================================
     // STATE
     // =========================================================
@@ -54,7 +57,7 @@ export default function Index({
     const [isCheckoutView, setIsCheckoutView] = useState(false);
     const [selectedPayment, setSelectedPayment] = useState('Tunai');
     const [inputUangDiterima, setInputUangDiterima] = useState('');
-
+    
     const [salesHistory, setSalesHistory] = useState([]);
     const [kasHistory, setKasHistory] = useState([]);
     const [voidHistory, setVoidHistory] = useState([]);
@@ -63,10 +66,11 @@ export default function Index({
     const [loadingSidebar, setLoadingSidebar] = useState(false);
     const [showModalTutup, setShowModalTutup] = useState(false);
     const [isProcessing, setIsProcessing] = useState(false);
+    
     // STATE BARU UNTUK MODAL
     const [appNotification, setAppNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
     const [successModal, setSuccessModal] = useState({ isOpen: false, data: null });
-
+    
     const isSessionOpen = is_shift_open_db;
     const kasirName = auth.user.name;
 
@@ -187,22 +191,46 @@ const cetakStrukLangsung = (transaksiData) => {
                 ${notaConfig.showNamaToko ? `<h4 class="font-bold uppercase">${notaConfig.namaToko}</h4>` : ''}
                 ${notaConfig.showAlamat ? `<p class="uppercase">${notaConfig.alamatToko}</p>` : ''}
                 ${notaConfig.showTelp ? `<p>TELP: ${notaConfig.telpToko}</p>` : ''}
-                ${notaConfig.showNoStruk ? `<p class="font-bold">NO.STRUK: ${transaksiData.noStruk || '100505'}</p>` : ''}
+                ${notaConfig.showNoStruk ? `<p class="font-bold">NO.STRUK:${transaksiData.noStruk ||transaksiData.invoice_number ||'100505'}</p>`: ''}
                 ${notaConfig.showWaktu ? `<p>${waktu}</p>` : ''}
             </div>
 
             <div class="border-b"></div>
 
             <table>
-                ${transaksiData.items.map(item => `
+                ${(transaksiData.items || []).map(item => {
+                const nama =
+                    item.name ||
+                    item.product_name_snapshot ||
+                    item.customName ||
+                    '-';
+                const qty =
+                    item.quantity ||
+                    item.qty ||
+                    0;
+                const harga =
+                    item.price ??
+                    item.price_at_sale ??
+                    0;
+                const total =
+                    item.total ??
+                    (qty * harga);
+                return `
                     <tr>
-                        <td colspan="2" class="font-bold uppercase">${item.name || item.customName}</td>
+                        <td colspan="2" class="font-bold uppercase">
+                            ${nama}
+                        </td>
                     </tr>
                     <tr>
-                        <td>${item.quantity} x ${formatRupiah(item.price || 0)}</td>
-                        <td style="text-align:right">${formatRupiah((item.price * item.quantity) || 0)}</td>
+                        <td>
+                            ${qty} x ${formatRupiah(harga)}
+                        </td>
+                        <td style="text-align:right">
+                            ${formatRupiah(total)}
+                        </td>
                     </tr>
-                `).join('')}
+                `;
+            }).join("")}
             </table>
 
             <div class="border-b"></div>
@@ -210,7 +238,7 @@ const cetakStrukLangsung = (transaksiData) => {
             <div class="font-bold">
         <div class="flex-between">
             <span>SUBTOTAL =</span>
-            <span>${formatRupiah(transaksiData.subtotal || 0)}</span>
+            <span>${formatRupiah(transaksiData.subtotal ?? transaksiData.grand_total ?? 0)}</span>
         </div>
         ${transaksiData.promoName ? `
     <div class="flex-between">
@@ -227,12 +255,12 @@ const cetakStrukLangsung = (transaksiData) => {
 
         <div class="flex-between">
             <span>TOTAL RP. =</span>
-            <span>${formatRupiah(transaksiData.total || 0)}</span>
+            <span>${formatRupiah(transaksiData.total ?? transaksiData.grand_total ?? 0)}</span>
         </div>
 
         <div class="flex-between">
             <span>${transaksiData.metode || 'TUNAI'} =</span>
-            <span>${formatRupiah(transaksiData.bayar || 0)}</span>
+            <span>${formatRupiah(transaksiData.bayar ?? transaksiData.grand_total ?? 0)}</span>
         </div>
 
     </div>
@@ -256,6 +284,25 @@ const cetakStrukLangsung = (transaksiData) => {
     iframe.contentWindow.focus();
     iframe.contentWindow.print();
     setTimeout(() => document.body.removeChild(iframe), 1000);
+};
+const handlePrintHistory = (sale) => {
+    const transaksiData = {
+        noStruk: sale.invoice_number,
+        subtotal: sale.grand_total || 0,
+        total: sale.grand_total || 0,
+        bayar: sale.grand_total || 0,
+        kembali: 0,
+        metode: sale.payment_method || "TUNAI",
+        discount: sale.discount || 0,
+        promoName: sale.promo_name || "",
+        items: (sale.transaction_items || []).map(item => ({
+            name: item.product_name_snapshot,
+            quantity: item.quantity,
+            price: item.price_at_sale,
+            total: item.quantity * item.price_at_sale
+        }))
+    };
+    cetakStrukLangsung(transaksiData);
 };
 
 useEffect(() => {
@@ -307,16 +354,33 @@ const handleProsesBayarFinal = async () => {
         // LOGIKA HARUS DI DALAM SINI
         if (result.success) {
             // 1. Update stok di layar secara instan
-            setDisplayProducts(prevProducts => 
-                prevProducts.map(p => {
-                    const itemInCart = cart.find(c => (c.product_id || c.id) === (p.product_id || p.id));
-                    if (itemInCart) {
-                        return { ...p, stock: Math.max(0, p.stock - itemInCart.quantity) };
-                    }
-                    return p;
+            setDisplayProducts(prevProducts =>
+                prevProducts.map(product => {
+                    const cartItems = cart.filter(
+                        c => (c.product_id || c.id) === product.id
+                    );
+
+                    if (cartItems.length === 0) return product;
+
+                    return {
+                        ...product,
+                        variants: product.variants?.map(v => {
+                            const match = cartItems.find(
+                                c =>
+                                    c.varianWarna === (typeof v.color === 'string' ? v.color : v.color?.nama) &&
+                                    c.varianUkuran === v.size
+                            );
+
+                            if (!match) return v;
+
+                            return {
+                                ...v,
+                                stock: Math.max(0, v.stock - match.quantity)
+                            };
+                        })
+                    };
                 })
             );
-            setProductsVersion(prev => prev + 1);
 
             // 2. Jika server mengembalikan data produk terbaru, timpa dengan data dari server
             if (result.products) {
@@ -347,35 +411,101 @@ const handleProsesBayarFinal = async () => {
             setInputUangDiterima(''); 
             setSelectedPayment('Tunai'); 
             setIsCheckoutView(false);
-        } else {
-            // Jika transaksi gagal dari sisi server
-            setAppNotification({ isOpen: true, type: 'error', title: 'Transaksi Gagal', message: result.message || 'Gagal transaksi' });
-        }
-    } catch (error) {
-        setAppNotification({ isOpen: true, type: 'error', title: 'Server Error', message: 'Terjadi kesalahan server' });
-    } finally {
-        setIsProcessing(false);
-    }
-};
+                } else {
+                    // Jika transaksi gagal dari sisi server
+                    setAppNotification({ isOpen: true, type: 'error', title: 'Transaksi Gagal', message: result.message || 'Gagal transaksi' });
+                }
+            } catch (error) {
+                setAppNotification({ isOpen: true, type: 'error', title: 'Server Error', message: 'Terjadi kesalahan server' });
+            } finally {
+                setIsProcessing(false);
+            }
+        };
 
-    const handleTutupKasir = () => {
-    formTutupKasir.post(route('pos.tutup-kasir'), {
-        preserveScroll: true,
-        onSuccess: () => {
-            setShowModalTutup(false);
-        },
-        onError: (errors) => {
-            console.error(errors);
+    const handleTutupKasir = async () => {
+
+    try {
+
+        const response = await fetch(route('pos.tutup-kasir'), {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "Accept": "application/json",
+                "X-CSRF-TOKEN": document
+                    .querySelector('meta[name="csrf-token"]')
+                    .getAttribute("content"),
+            },
+            body: JSON.stringify({
+                physical_cash: Number(formTutupKasir.data.physical_cash)
+            })
+        });
+
+        const result = await response.json();
+
+        if (!result.success) {
+            alert("Gagal menutup kasir");
+            return;
         }
-    });
+
+        // tutup modal
+        setShowModalTutup(false);
+
+        // simpan data untuk dicetak
+        setShiftReport(result.shift_report);
+
+    } catch (err) {
+
+        console.error(err);
+        alert("Terjadi kesalahan.");
+
+    }
+
 };
-console.log(
-    salesHistory.map(trx => ({
-        nama: trx.pelanggan,
-        payment_method: trx.payment_method
-    }))
-);
-console.log("DEBUG_INDEX: Isi cart di Index saat ini:", cart);
+    const handleVoid = async (sale) => {
+        try {
+
+            const response = await fetch(
+                route('transactions.void', sale.id),
+                {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-TOKEN': document
+                            .querySelector('meta[name="csrf-token"]')
+                            .getAttribute('content'),
+                        'Accept': 'application/json',
+                    }
+                }
+            );
+
+            const result = await response.json();
+
+            if (result.success) {
+
+                setSalesHistory(prev =>
+                    prev.map(item =>
+                        item.id === sale.id
+                            ? { ...item, status: 'void' }
+                            : item
+                    )
+                );
+
+                await loadSidebarData();
+
+            } else {
+                console.error(result.message);
+            }
+
+        } catch (err) {
+            console.error(err);
+        }
+    };
+    const [shiftReport, setShiftReport] = useState(null);
+
+        useEffect(() => {
+            if (props.flash?.print_rekap_shift) {
+                setShiftReport(props.flash.print_rekap_shift);
+            }
+        }, [props.flash]);
     return (
         <div className="bg-[#f4f6f9] h-screen w-screen flex flex-col font-sans overflow-hidden select-none text-gray-700">
             <Head title={`Kasa POS - ${outlet_name || 'Outlet'}`} />
@@ -548,7 +678,7 @@ console.log("DEBUG_INDEX: Isi cart di Index saat ini:", cart);
                     <div className="flex-1 flex overflow-hidden w-full h-full">
                         {activeMenu === 'kasir' && (<KasirPosView  promos={promos} selectedPromo={selectedPromo} setSelectedPromo={setSelectedPromo} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} isSidebarOpen={isSidebarOpen} />)}
                         {/* ... (Menu lainnya tetap sama) */}
-                        {activeMenu === 'penjualan' && (<DataPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} onPrint={cetakStrukLangsung} onVoid={(sale) => { console.log('VOID:', sale); }} />)}
+                        {activeMenu === 'penjualan' && (<DataPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} onPrint={handlePrintHistory} onVoid={handleVoid} />)}
                         {activeMenu === 'laporan-ringkasan' && (<RingkasanPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
                         {activeMenu === 'void' && (<VoidTransaksi voidHistory={voidHistory} formatRupiah={formatRupiah} />)}
                         {activeMenu === 'laporan-kasir-sesi' && (<KasirAktivitas sessionHistory={sessionHistory} formatRupiah={formatRupiah} />)}
@@ -584,17 +714,45 @@ console.log("DEBUG_INDEX: Isi cart di Index saat ini:", cart);
                         {activeMenu === 'laporan-produk-terjual' && (<ProdukTerjual salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
                         {activeMenu === 'laporan-jenis-bayar' && (<JenisBayar salesHistory={salesHistory} formatRupiah={formatRupiah} />)}
                         {activeMenu === 'inventory-penerimaan' && (
-  <InventoryPenerimaanView
-    penerimaanList={penerimaanList}
-    outletSlug={outletSlug}
-    userName={auth?.user?.name || 'Kasir'}
-  />
-)}
-                        {activeMenu === 'inventory-stock' && (<InventoryStockView />)}
+                        <InventoryPenerimaanView
+                            penerimaanList={penerimaanList}
+                            outletSlug={outletSlug}
+                            userName={auth?.user?.name || 'Kasir'}
+                        />
+                        )}
+                        {activeMenu === 'inventory-stock' && (
+                            <InventoryStockView
+                                products={products_from_db}
+                                categories={categories}
+                            />
+                        )}
                         {activeMenu === 'absensi' && (<Absensi attendances={attendances} />)}
                         {activeMenu === 'pengaturan-nota' && (<PengaturanNotaView formatRupiah={formatRupiah} />)}
                         {activeMenu === 'pengaturan-printer' && (<PengaturanPrinterView />)}
                         {activeMenu === 'pengaturan-toko' && (<PengaturanTokoView />)}
+                        {shiftReport && (
+    <PrintShiftReport
+        data={shiftReport}
+        formatRupiah={formatRupiah}
+        onFinished={async () => {
+
+            setShiftReport(null);
+
+            await fetch(route('pos.logout-after-print'), {
+                method: "POST",
+                headers: {
+                    "X-CSRF-TOKEN": document
+                        .querySelector('meta[name="csrf-token"]')
+                        ?.content,
+                    "Accept": "application/json",
+                },
+            });
+
+            window.location.href = "/login";
+
+        }}
+    />
+)}
                     </div>
                 </div>
             </div>
