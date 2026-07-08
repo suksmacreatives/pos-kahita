@@ -81,7 +81,7 @@ export default function PengaturanTokoView() {
                                     type="text" 
                                     value={toko.telp} 
                                     onChange={(e) => setToko({...toko, telp: e.target.value})} 
-                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
+                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2  font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
                                     required
                                 />
                             </div>
@@ -93,7 +93,7 @@ export default function PengaturanTokoView() {
                                     type="text" 
                                     value={toko.registrasi} 
                                     onChange={(e) => setToko({...toko, registrasi: e.target.value.toUpperCase()})} 
-                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 font-mono font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
+                                    className="w-full bg-white border border-slate-200 rounded-l px-3 py-2  font-semibold text-slate-800 placeholder-slate-400 focus:outline-none focus:border-slate-400 transition-all text-xs" 
                                     placeholder="CONTOH: NIB-123456"
                                 />
                             </div>
@@ -148,11 +148,11 @@ export default function PengaturanTokoView() {
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="flex flex-col">
                                     <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">Hotline</span>
-                                    <span className="font-mono text-slate-700 mt-0.5">{toko.telp || '-'}</span>
+                                    <span className=" text-slate-700 mt-0.5">{toko.telp || '-'}</span>
                                 </div>
                                 <div className="flex flex-col">
                                     <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest">ID Registrasi</span>
-                                    <span className="font-mono text-slate-700 mt-0.5 truncate">{toko.registrasi || '-'}</span>
+                                    <span className=" text-slate-700 mt-0.5 truncate">{toko.registrasi || '-'}</span>
                                 </div>
                             </div>
                         </div>

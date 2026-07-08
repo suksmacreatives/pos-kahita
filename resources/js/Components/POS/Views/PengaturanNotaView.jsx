@@ -3,21 +3,24 @@ import React, { useState, useEffect } from 'react';
 export default function PengaturanNotaView({ formatRupiah }) {
     // 1. STATE MASTER UNTUK TEMPLATE NOTA
     const [notaConfig, setNotaConfig] = useState({
-        namaToko: 'KAHITA BUSANA',
-        alamatToko: 'JL. BYPASS DHARMA GIRI',
-        telpToko: '082189833575',
+    namaToko: 'KAHITA BUSANA',
+    alamatToko: 'JL. BYPASS DHARMA GIRI',
+    telpToko: '082189833575',
 
-        showNamaToko: true,
-        showAlamat: true,
-        showTelp: true,
-        showNoStruk: true,
-        showWaktu: true,
-        showHeaderTerimakasih: true,
-        showFooterNote: true,
+    logo: '',
+    showLogo: true,
 
-        teksTerimakasih: 'Terima Kasih',
-        teksFooterNote: 'Mohon diperiksa kembali pembelian anda. Kami tidak menerima keluhan sesudah meninggalkan toko dan tidak menerima penukaran barang.',
-    });
+    showNamaToko: true,
+    showAlamat: true,
+    showTelp: true,
+    showNoStruk: true,
+    showWaktu: true,
+    showHeaderTerimakasih: true,
+    showFooterNote: true,
+
+    teksTerimakasih: 'Terima Kasih',
+    teksFooterNote: 'Mohon diperiksa kembali pembelian anda.',
+});
 
     // Load data jika sebelumnya sudah pernah disimpan di localStorage
     useEffect(() => {
@@ -60,6 +63,41 @@ export default function PengaturanNotaView({ formatRupiah }) {
 
     alert('Template nota berhasil disimpan');
 };
+const handleUploadLogo = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const img = new Image();
+        img.onload = () => {
+            const size = Math.min(img.width, img.height);
+            const sx = (img.width - size) / 2;
+            const sy = (img.height - size) / 2;
+            const canvas = document.createElement("canvas");
+            canvas.width = 300;
+            canvas.height = 300;
+            const ctx = canvas.getContext("2d");
+            ctx.drawImage(
+                img,
+                sx,
+                sy,
+                size,
+                size,
+                0,
+                0,
+                300,
+                300
+            );
+            const cropped = canvas.toDataURL("image/png");
+            setNotaConfig(prev => ({
+                ...prev,
+                logo: cropped
+            }));
+        };
+        img.src = event.target.result;
+    };
+  reader.readAsDataURL(file);
+};
 
     return (
         // Ditambahkan class 'print:p-0 print:bg-white' agar kertas thermal bersih dari padding luar saat dicetak
@@ -84,6 +122,40 @@ export default function PengaturanNotaView({ formatRupiah }) {
                     {/* SEKSI 1: EDIT DATA IDENTITAS TOKO */}
                     <div className="space-y-3 bg-gray-50/40 p-4 rounded-l border border-gray-100">
                         <h4 className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Identitas Atas Nota</h4>
+                        <div className="space-y-3 bg-gray-50/60 p-4 rounded-xl border border-gray-200">
+                            <label className="block text-[11px] font-semibold text-gray-700">
+                                Logo Toko
+                            </label>
+                            <div className="flex items-center gap-4">
+                                <div className="w-24 h-24 rounded-xl border-2 border-dashed border-gray-300 overflow-hidden bg-white flex items-center justify-center flex-shrink-0">
+                                    {notaConfig.logo ? (
+                                        <img
+                                            src={notaConfig.logo}
+                                            alt="Logo"
+                                            className="w-full h-full object-cover"
+                                        />
+                                    ) : (
+                                        <div className="text-center text-gray-400">
+                                            <div className="text-2xl">🖼️</div>
+                                            <div className="text-[10px] mt-1">
+                                                Belum ada logo
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex-1">
+                                    <label className="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg cursor-pointer transition text-xs font-semibold">
+                                        📁 Pilih Logo
+                                        <input
+                                            type="file"
+                                            accept="image/png,image/jpeg,image/jpg,image/webp"
+                                            onChange={handleUploadLogo}
+                                            className="hidden"
+                                        />
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
                         <div className="space-y-1">
                             <label className="text-[10px] text-gray-500">Nama Toko</label>
                             <input type="text" value={notaConfig.namaToko} onChange={(e) => setNotaConfig({...notaConfig, namaToko: e.target.value})} className="w-full border border-gray-200 rounded-l px-3 py-2 font-bold text-gray-800 focus:outline-none focus:border-emerald-500"/>
@@ -102,6 +174,20 @@ export default function PengaturanNotaView({ formatRupiah }) {
                     <div className="space-y-2.5 bg-gray-50/60 p-4 rounded-l border border-gray-100">
                         <h4 className="text-[10px] text-gray-400 font-black uppercase tracking-wider">Komponen Yang Ditampilkan</h4>
                         
+                        <label className="flex items-center space-x-3">
+                            <input
+                                type="checkbox"
+                                checked={notaConfig.showLogo}
+                                onChange={(e)=>
+                                    setNotaConfig({
+                                        ...notaConfig,
+                                        showLogo:e.target.checked
+                                    })
+                                }
+                            />
+
+                            <span>Tampilkan Logo</span>
+                        </label>
                         <label className="flex items-center space-x-3 cursor-pointer select-none">
                             <input type="checkbox" checked={notaConfig.showNamaToko} onChange={(e) => setNotaConfig({...notaConfig, showNamaToko: e.target.checked})} className="rounded text-emerald-600 focus:ring-emerald-500 w-4 h-4"/>
                             <span className="text-gray-700">Tampilkan Nama Toko</span>
@@ -163,39 +249,54 @@ export default function PengaturanNotaView({ formatRupiah }) {
                 
                 {/* Kontainer Utama Kertas Thermal (Akan dicetak presisi tanpa shadow/border) */}
                 <div
-  id="print-area-nota"
-  className="bg-white w-full shadow-sm px-4 py-10 text-black font-mono text-[11px] leading-relaxed flex flex-col border-t-2 border-dashed border-gray-300"
->
+                        id="print-area-nota"
+                        className="
+                            bg-white
+                            w-[72mm]
+                            text-[11px]
+                            font-mono
+                            text-black
+                            p-2
+                            leading-[1.2]
+                            shadow-md
+                            border
+                            border-gray-200
+                        "
+                    >
                     
                     {/* 1. SEKSI KOP NOTA ATAS */}
-                    <div className="text-center mb-4 text-[11px] leading-6">
-                        {notaConfig.showNamaToko && <h4 className="font-bold tracking-wide block uppercase w-full text-center">{notaConfig.namaToko}</h4>}
-                        {notaConfig.showAlamat && <p className="block uppercase w-full text-center">{notaConfig.alamatToko}</p>}
-                        {notaConfig.showTelp && <p className="block w-full text-center">TELP: {notaConfig.telpToko}</p>}
-                        {notaConfig.showNoStruk && <p className="block w-full text-center font-bold">NO.STRUK: 100505</p>}
-                        {notaConfig.showWaktu && <p className="block w-full text-center">{waktuCetak}</p>}
+                    <div className="text-center mb-2">
+                        {notaConfig.showLogo && notaConfig.logo && (
+                            <div className="flex justify-center mb-2">
+                                <img src={notaConfig.logo}className="w-[60px] h-[60px] mx-auto rounded object-cover mb-1"/>
+                            </div>
+                        )}
+                        {notaConfig.showNamaToko && <h4 className="font-bold uppercase text-[12px] leading-none">{notaConfig.namaToko}</h4>}
+                        {notaConfig.showAlamat && <p className="uppercase leading-none mt-1">{notaConfig.alamatToko}</p>}
+                        {notaConfig.showTelp && <p className="leading-none mt-1">TELP: {notaConfig.telpToko}</p>}
+                        {notaConfig.showNoStruk && <p className="font-bold leading-none mt-1">NO.STRUK: 100505</p>}
+                        {notaConfig.showWaktu && <p className="leading-none mt-1">{waktuCetak}</p>}
                     </div>
 
                     {/* 2. DAFTAR ITEM BARANG */}
-                    <div className="space-y-1.5 border-b border-dashed border-black pb-1.5 w-full">
+                    <div className="border-dashed border-black my-2">
                         {mockItems.map((item, idx) => (
-                            <div key={idx} className="w-full flex flex-col">
-                                <span className="font-bold block uppercase">{item.name}</span>
+                            <div key={idx} className="mb-1">
+                                <div className="font-bold uppercase">{item.name}</div>
                                 <div className="flex justify-between">
-    <span>
-        {item.qty} x {item.price.toLocaleString('id-ID')}
-    </span>
-
-    <span>
-        {item.total.toLocaleString('id-ID')}
-    </span>
-</div>
+                        <span>
+                            {item.qty} x {item.price.toLocaleString('id-ID')}
+                        </span>
+                        <span>
+                            {item.total.toLocaleString('id-ID')}
+                        </span>
+                    </div>
                             </div>
                         ))}
                     </div>
 
                     {/* 3. AKUMULASI TOTAL */}
-                    <div className="py-1.5 space-y-1 border-b border-dashed border-black w-full">
+                    <div className="mt-2 border-b border-dashed border-black w-full">
                         <div className="w-full flex justify-between">
                             <span>TOTAL RP. =</span>
                             <span className="font-bold">{formatRupiah ? formatRupiah(86000) : '86.000'}</span>
@@ -215,14 +316,14 @@ export default function PengaturanNotaView({ formatRupiah }) {
 
                     {/* 4. SALAM PENUTUP */}
                     {notaConfig.showHeaderTerimakasih && (
-                        <div className="text-center mb-3 font-bold text-[11px] block w-full">
+                        <div className="text-center mt-2 font-bold text-[11px] block w-full">
                             {notaConfig.teksTerimakasih}
                         </div>
                     )}
 
                     {/* 5. FOOTER SYARAT TOKO */}
                     {notaConfig.showFooterNote && (
-                        <div className="text-center text-[10px] leading-5 px-2 whitespace-pre-wrap">
+                        <div className="text-center text-[10px] leading-4 px-2 whitespace-pre-wrap">
                             {notaConfig.teksFooterNote}
                         </div>
                     )}

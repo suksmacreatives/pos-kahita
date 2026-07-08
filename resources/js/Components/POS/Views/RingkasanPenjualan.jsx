@@ -282,7 +282,7 @@ console.log("Data Pertama:", salesHistory[0]);
     const listProduk = analisis_produk?.list_tabel || [];
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#f8fafc] overflow-hidden text-slate-600 font-sans tracking-tight">
+        <div className="flex-1 bg-[#f7f8fa] p-5 overflow-y-auto">
             
             {/* ====== AREA FILTER UTAMA ====== */}
             <div className="bg-white p-4 border-b border-slate-100 flex-shrink-0 w-full">
@@ -293,7 +293,7 @@ console.log("Data Pertama:", salesHistory[0]);
                         <select 
                             value={periodeMakro}
                             onChange={(e) => setPeriodeMakro(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
                         >
                             <option value="hari">Hari ini</option>
                             <option value="bulan">Bulan ini</option>
@@ -306,7 +306,7 @@ console.log("Data Pertama:", salesHistory[0]);
                         <button 
                             type="button"
                             onClick={() => geserTanggal(-1)}
-                            className="px-3 text-xs font-medium text-slate-500 hover:bg-slate-50 transition border-r border-slate-200 h-full"
+                            className="px-3 text-sm text-slate-500 hover:bg-slate-50 transition border-r border-slate-200 h-full"
                         >
                             &lt;
                         </button>
@@ -314,7 +314,7 @@ console.log("Data Pertama:", salesHistory[0]);
                         <button
                             type="button"
                             onClick={pemicuKalenderKlik}
-                            className="px-4 text-xs font-medium text-slate-700 hover:bg-slate-50/50 transition h-full flex-1"
+                            className="px-4 text-sm text-slate-700 hover:bg-slate-50/50 transition h-full flex-1"
                         >
                             {formatLabelTanggal(rangeTanggal.start)} - {formatLabelTanggal(rangeTanggal.end)}
                         </button>
@@ -329,7 +329,7 @@ console.log("Data Pertama:", salesHistory[0]);
                         <button 
                             type="button"
                             onClick={() => geserTanggal(1)}
-                            className="px-3 text-xs font-medium text-slate-500 hover:bg-slate-50 transition border-l border-slate-200 h-full"
+                            className="px-3 text-sm text-slate-500 hover:bg-slate-50 transition border-l border-slate-200 h-full"
                         >
                             &gt;
                         </button>
@@ -340,7 +340,7 @@ console.log("Data Pertama:", salesHistory[0]);
                         <select 
                             value={selectedOutlet}
                             onChange={(e) => setSelectedOutlet(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-xl px-3 py-1.5 text-sm text-slate-700 focus:outline-none focus:border-slate-400 cursor-pointer w-full"
                         >
                             <option value="all">Semua Outlet</option>
                             {Array.isArray(outlets) && outlets.map((out, idx) => (
@@ -354,43 +354,51 @@ console.log("Data Pertama:", salesHistory[0]);
             </div>
 
             {/* ====== AREA KONTEN UTAMA DENGAN GRAFIK DINAMIS ========= */}
-            <div className="flex-1 overflow-y-auto p-5 space-y-5">
+            <div className="flex-1  p-5 space-y-5">
 
                 
                 {/* 1. CARDS METRIK UTAMA */}
                 <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
-                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Omset</span>
-                        <span className="text-sm font-bold text-slate-800 mt-1 block font-mono">
+                    <div className="bg-white border border-slate-200/60 rounded-lg p-4 shadow-sm">
+                        <span className="text-xs text-slate-500">Omset</span>
+                        <h2 className="text-xl font-black mt-1 text-gray-800">
                             {renderRupiah(dataProses.omset)}
-                        </span>
+                        </h2>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Transaksi</span>
-                        <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.transaksi} Nota</span>
+                    <div className="bg-white border border-slate-200/60 rounded-lg p-4 shadow-sm">
+                        <span className="text-xs text-slate-500">Transaksi</span>
+                        <h2 className="text-xl font-black mt-1 text-gray-800">
+                            {dataProses.transaksi}
+                        </h2>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Produk Terjual</span>
-                        <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.produkTerjual} Item</span>
+                    <div className="bg-white border border-slate-200/60 rounded-lg p-4 shadow-sm">
+                        <span className="text-xs text-slate-500">Produk Terjual</span>
+                        <h2 className="text-xl font-black mt-1 text-gray-800">
+                            {dataProses.produkTerjual}
+                        </h2>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Pelanggan</span>
-                        <span className="text-sm font-bold text-slate-800 mt-1 block">{dataProses.pelanggan} Orang</span>
+                    <div className="bg-white border border-slate-200/60 rounded-lg p-4 shadow-sm">
+                        <span className="text-xs text-slate-500">Pelanggan</span>
+                        <h2 className="text-xl font-black mt-1 text-gray-800">
+                            {dataProses.pelanggan}
+                        </h2>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Rata Belanja</span>
-                        <span className="text-sm font-bold text-slate-800 mt-1 block font-mono">
+                    <div className="bg-white border border-slate-200/60 rounded-lg p-4 shadow-sm">
+                        <span className="text-xs text-slate-500">Rata Belanja</span>
+                        <h2 className="text-xl font-black mt-1 text-gray-800">
                             {renderRupiah(dataProses.rataBelanja || 0 )}
-                        </span>
+                        </h2>
                     </div>
 
-                    <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-2xs">
-                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Refund/Void</span>
-                        <span className="text-sm font-bold text-rose-600 mt-1 block">{dataProses.refundVoid} Kasus</span>
+                    <div className="bg-white border border-slate-200/60 rounded-lg p-4 shadow-sm">
+                        <span className="text-xs text-slate-500">Refund/Void</span>
+                        <h2 className="text-xl font-black mt-1 text-rose-600">
+                            {dataProses.refundVoid} Kasus
+                        </h2>
                     </div>
                 </div>
 
@@ -398,22 +406,22 @@ console.log("Data Pertama:", salesHistory[0]);
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
                     
                     {/* CORE GRAFIK */}
-                    <div className="lg:col-span-2 bg-white border border-slate-200/60 rounded-l p-5 flex flex-col justify-between min-h-[270px] shadow-2xs">
+                    <div className="lg:col-span-2 bg-white border border-slate-200/60 rounded-xl p-5 flex flex-col justify-between min-h-[270px] shadow-sm">
                         <div className="flex justify-between items-center border-b border-slate-100 pb-3">
                             <div>
-                                <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                                <h2 className="text-lg font-black text-slate-800">
                                     Grafik Performa ({chartMode === 'hari' ? 'Jam Kerja' : chartMode === 'minggu' ? 'Harian' : 'Mingguan'})
-                                </h4>
-                                <p className="text-[10px] text-slate-400">Gunakan filter disamping untuk merubah sumbu penyajian data</p>
+                                </h2>
+                                <p className="text-sm text-slate-500">Gunakan filter disamping untuk merubah sumbu penyajian data</p>
                             </div>
                             
-                            <div className="bg-slate-100 p-0.5 rounded-l flex text-[9px] font-bold">
+                            <div className="bg-slate-100 p-0.5 rounded-l flex text-xs font-bold">
                                 {[["hari", "Hari"], ["minggu", "Minggu"], ["bulan", "Bulan"]].map(([key, label]) => (
                                     <button 
                                         key={key}
                                         type="button"
                                         onClick={() => setChartMode(key)}
-                                        className={`px-2.5 py-1 rounded-md transition uppercase ${chartMode === key ? 'bg-white text-slate-800 shadow-2xs' : 'text-slate-400'}`}
+                                        className={`px-2.5 py-1 rounded-md transition uppercase ${chartMode === key ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500'}`}
                                     >
                                         {label}
                                     </button>
@@ -425,14 +433,14 @@ console.log("Data Pertama:", salesHistory[0]);
                             <div className="flex items-end justify-between px-2 h-36 space-x-6 min-w-[580px]">
                                 {dataProses.SusunanChart.map((item, idx) => (
                                     <div key={idx} className="flex-1 flex flex-col items-center group relative h-full justify-end">
-                                        <div className="absolute -top-6 bg-slate-800 text-white text-[9px] px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-10 font-mono">
+                                        <div className="absolute -top-6 bg-slate-800 text-white text-xs px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100 transition whitespace-nowrap pointer-events-none z-10">
                                             {renderRupiah(item.nilai)}
                                         </div>
                                         <div 
                                             style={{ height: `${item.percentage || 4}%` }}
                                             className="w-full bg-slate-100 group-hover:bg-[#009664] rounded-t transition-colors duration-300"
                                         />
-                                        <span className="text-[10px] text-slate-400 font-bold mt-2 whitespace-nowrap">{item.label}</span>
+                                        <span className="text-xs text-slate-500 font-bold mt-2 whitespace-nowrap">{item.label}</span>
                                     </div>
                                 ))}
                             </div>
@@ -440,18 +448,18 @@ console.log("Data Pertama:", salesHistory[0]);
                     </div>
 
                     {/* METODE PEMBAYARAN */}
-                    <div className="bg-white border border-slate-200/60 rounded-l p-5 flex flex-col justify-between shadow-2xs">
+                    <div className="bg-white border border-slate-200/60 rounded-xl p-5 flex flex-col justify-between shadow-sm">
                         <div className="border-b border-slate-100 pb-2">
-                            <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Metode Pembayaran</h4>
-                            <p className="text-[10px] text-slate-400">Distribusi jalur penyelesaian transaksi</p>
+                            <h2 className="text-lg font-black text-slate-800">Metode Pembayaran</h2>
+                            <p className="text-sm text-slate-500">Distribusi jalur penyelesaian transaksi</p>
                         </div>
 
                         <div className="space-y-3.5 my-auto py-2">
                             {dataProses.listMetodeBayar.map((p, idx) => (
                                 <div key={idx} className="space-y-1">
-                                    <div className="flex justify-between text-[10px] font-bold">
+                                    <div className="flex justify-between text-xs font-bold">
                                         <span className="text-slate-600 uppercase tracking-wide">{p.metode}</span>
-                                        <span className="text-slate-400 font-mono">{p.persentase}%</span>
+                                        <span className="text-slate-500 ">{p.persentase}%</span>
                                     </div>
                                     <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
                                         <div 
@@ -466,27 +474,27 @@ console.log("Data Pertama:", salesHistory[0]);
                 </div>
 
                 {/* 3. PRODUCT INSIGHTS */}
-                <div className="bg-white border border-slate-200/60 rounded-l p-5 shadow-2xs">
+                <div className="bg-white border border-slate-200/60 rounded-xl p-5 shadow-sm">
                     <div className="border-b border-slate-100 pb-3 mb-4">
-                        <h4 className="text-xs font-bold text-slate-700 uppercase tracking-wider">Produk Terlaris</h4>
-                        <p className="text-[10px] text-slate-400">Daftar item dengan volume penjualan tertinggi</p>
+                        <h2 className="text-lg font-black text-slate-800">Produk Terlaris</h2>
+                        <p className="text-sm text-slate-500">Daftar item dengan volume penjualan tertinggi</p>
                     </div>
 
                     {listProduk.length === 0 ?  (
-                        <p className="text-xs text-slate-400 py-2 text-center italic">Tidak ada data penjualan produk pada rentang ini.</p>
+                        <p className="text-xs text-slate-500 py-2 text-center italic">Tidak ada data penjualan produk pada rentang ini.</p>
                     ) : (
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                             {(analisis_produk?.list_tabel || []).map((item, idx) => (
                                 <div key={idx} className="border border-slate-100 rounded-xl p-3.5 flex items-center justify-between bg-slate-50/40">
                                     <div className="flex items-center space-x-2.5">
-                                        <span className="text-xs font-bold text-slate-400">0{idx + 1}.</span>
+                                        <span className="text-xs font-bold text-slate-500">0{idx + 1}.</span>
                                         <div>
-                                            <span className="text-xs font-semibold text-slate-800 block uppercase tracking-wide">{item.nama_produk}</span>
-                                            <span className="text-[10px] text-slate-400 mt-0.5 block">Terjual: <strong className="text-slate-600 font-bold">{item.produkTerjual} Pcs</strong></span>
+                                            <span className="font-bold text-slate-800 text-slate-800 block uppercase tracking-wide">{item.nama_produk}</span>
+                                            <span className="text-xs text-slate-500 mt-0.5 block">Terjual: <strong className="text-slate-600 font-bold">{item.produkTerjual} Pcs</strong></span>
                                         </div>
                                     </div>
                                     <div className="text-right">
-                                        <span className={`text-[9px] px-2 py-0.5 rounded-l font-bold border ${
+                                        <span className={`text-xs px-2 py-0.5 rounded-xl font-bold border ${
                                             (item.stok || 0) <= 7 ? 'bg-rose-50 text-rose-600 border-rose-100' : 'bg-slate-50 text-slate-500 border-slate-200'
                                         }`}>
                                             Sisa Stok: {item.stok}

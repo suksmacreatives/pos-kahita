@@ -80,7 +80,7 @@ export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, 
       <div className="p-5 border-b border-gray-100 bg-gray-50/40 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h3 className="text-sm font-bold text-gray-800">Riwayat Penerimaan Gudang</h3>
-          <p className="text-[10px] text-gray-400 font-medium">Pengiriman stok terdistribusikan dari gudang pusat</p>
+          <p className="text-[10px] text-gray-400">Pengiriman stok terdistribusikan dari gudang pusat</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
@@ -132,7 +132,7 @@ export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, 
           <tbody className="divide-y divide-gray-100 text-xs text-gray-700">
             {filteredList.length === 0 ? (
               <tr>
-                <td colSpan={selectedOutlet === 'all' ? 10 : 9} className="text-center py-10 text-gray-400 font-medium">
+                <td colSpan={selectedOutlet === 'all' ? 10 : 9} className="text-center py-10 text-gray-400">
                   Tidak ada dokumen pengiriman ditemukan
                 </td>
               </tr>
@@ -155,10 +155,10 @@ export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, 
                           {row.outletId}
                         </td>
                       )}
-                      <td className="px-5 py-3 font-mono font-semibold text-gray-800">{row.nomor_do}</td>
-                      <td className="px-5 py-3 font-mono text-gray-500">{row.nomor_terima || '-'}</td>
-                      <td className="px-5 py-3 font-medium text-gray-650">{row.tgl_kirim_gudang}</td>
-                      <td className="px-5 py-3 font-medium text-gray-600">{row.tgl_terima_outlet || '-'}</td>
+                      <td className="px-5 py-3 font-semibold text-gray-800">{row.nomor_do}</td>
+                      <td className="px-5 py-3 text-gray-500">{row.nomor_terima || '-'}</td>
+                      <td className="px-5 py-3 text-gray-650">{row.tgl_kirim_gudang}</td>
+                      <td className="px-5 py-3 text-gray-600">{row.tgl_terima_outlet || '-'}</td>
                       <td className="px-5 py-3 text-right font-bold text-gray-500">{row.total_item}</td>
                       <td className="px-5 py-3 text-right font-extrabold text-gray-800">{row.total_qty} pcs</td>
                       <td className="px-5 py-3 text-center">{getStatusChip(row.status)}</td>
@@ -189,7 +189,7 @@ export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, 
                             <div className="px-4 py-2.5 bg-gray-50/80 border-b border-gray-200 flex justify-between items-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
                               <span>Detail Item DO</span>
                               {row.diterima_oleh && (
-                                <span className="normal-case text-gray-400 font-medium">Diterima oleh: <strong className="text-gray-600">{row.diterima_oleh}</strong></span>
+                                <span className="normal-case text-gray-400">Diterima oleh: <strong className="text-gray-600">{row.diterima_oleh}</strong></span>
                               )}
                             </div>
                             <table className="w-full text-left">
@@ -212,13 +212,13 @@ export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, 
                                     </td>
                                     <td className="px-4 py-2 flex items-center gap-1.5">
                                       {/* <span className="w-3.5 h-3.5 rounded-full border border-gray-200" style={{ backgroundColor: it.warna }} /> */}
-                                      <span className="text-[10px] text-gray-400 font-mono">{it.warna || '-'}</span>
+                                      <span className="text-[10px] text-gray-400">{it.warna || '-'}</span>
                                     </td>
                                     <td className="px-4 py-2 text-right font-bold text-gray-450">{it.qty_kirim}</td>
                                     <td className={`px-4 py-2 text-right font-extrabold ${it.qty_terima < it.qty_kirim ? 'text-rose-600' : 'text-gray-800'}`}>
                                       {it.qty_terima !== undefined ? it.qty_terima : '-'}
                                     </td>
-                                    <td className="px-4 py-2 text-gray-500 font-medium italic">{it.catatan || '-'}</td>
+                                    <td className="px-4 py-2 text-gray-500 italic">{it.catatan || '-'}</td>
                                   </tr>
                                 ))}
                               </tbody>

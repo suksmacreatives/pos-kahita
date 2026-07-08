@@ -33,15 +33,15 @@ export default function DataPenjualan({
 }, [toast.show]);
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#f4f6f9] overflow-hidden">
+        <div className="flex-1 flex flex-col h-full bg-[#f7f8fa] overflow-hidden">
 
             {/* HEADER */}
             <div className="bg-white px-4 py-3 border-b border-gray-200 flex-shrink-0">
-                <h2 className="text-sm font-black text-gray-800 uppercase tracking-wide">
+                <h2 className="text-2xl font-black text-slate-800">
                     Data Penjualan
                 </h2>
 
-                <p className="text-[11px] text-gray-400 font-semibold">
+                <p className="text-sm text-slate-500">
                     Daftar invoice dan riwayat transaksi selesai
                 </p>
             </div>
@@ -49,12 +49,12 @@ export default function DataPenjualan({
             {/* TABLE */}
             <div className="flex-1 overflow-y-auto p-4">
 
-                <div className="bg-white border border-gray-200 rounded-l shadow-sm overflow-hidden text-xs">
+                <div className="bg-white border rounded-xl overflow-hidden">
 
                     <table className="w-full text-left border-collapse">
 
                         {/* TABLE HEAD */}
-                        <thead className="bg-gray-50 text-gray-400 font-bold text-[10px] uppercase border-b border-gray-200">
+                        <thead className="bg-slate-50 text-slate-600 text-xs uppercase">
                             <tr>
                                 <th className="p-3">No. Invoice</th>
                                 <th className="p-3">Waktu</th>
@@ -66,23 +66,23 @@ export default function DataPenjualan({
                         </thead>
 
                         {/* TABLE BODY */}
-                        <tbody className="divide-y divide-gray-100 text-gray-600 font-medium">
+                        <tbody className="divide-y divide-slate-100 text-slate-700">
 
                             {salesHistory.map((sale) => (
 
                                 <tr
                                     key={sale.id}
                                     onClick={() => setSelectedSale(sale)}
-                                    className="hover:bg-emerald-50/40 cursor-pointer transition"
+                                    className="hover:bg-slate-50 cursor-pointer transition"
                                 >
 
                                     {/* INVOICE */}
-                                    <td className="p-3 font-bold text-gray-800">
+                                    <td className="p-3 font-bold text-slate-800">
                                         {sale.invoice_number || `INV-${sale.id}`}
                                     </td>
 
                                     {/* WAKTU */}
-                                    <td className="p-3 text-gray-400">
+                                    <td className="p-3 text-slate-400">
                                         {
                                             sale.created_at
                                                 ? new Date(sale.created_at).toLocaleTimeString(
@@ -103,7 +103,7 @@ export default function DataPenjualan({
 
                                     {/* METODE */}
                                     <td className="p-3">
-                                        <span className="bg-emerald-50 text-emerald-600 px-2 py-0.5 rounded text-[10px] font-bold">
+                                        <span className="bg-slate-100 text-slate-700 px-2 py-0.5 rounded text-[10px] font-bold">
                                             {sale.payment_method || 'Tunai'}
                                         </span>
                                     </td>
@@ -122,7 +122,7 @@ export default function DataPenjualan({
                                     </td>
 
                                     {/* TOTAL */}
-                                    <td className="p-3 text-right font-black text-gray-900">
+                                    <td className="p-3 text-right font-bold text-slate-800">
                                         {formatRupiah(
                                             sale.grand_total || 0
                                         )}
@@ -137,7 +137,7 @@ export default function DataPenjualan({
                                 <tr>
                                     <td
                                         colSpan="6"
-                                        className="p-8 text-center text-gray-400 italic"
+                                        className="p-8 text-center text-slate-400 italic"
                                     >
                                         Belum ada riwayat penjualan hari ini.
                                     </td>
@@ -163,18 +163,18 @@ export default function DataPenjualan({
                         <div className="p-4 border-b border-gray-200 flex justify-between items-center">
 
                             <div>
-                                <h3 className="text-sm font-black text-gray-800 uppercase">
+                                <h3 className="text-xl font-black text-slate-800">
                                     Detail Transaksi
                                 </h3>
 
-                                <p className="text-[11px] text-gray-400 font-semibold mt-1">
+                                <p className="text-sm text-slate-500 font-semibold mt-1">
                                     {selectedSale.invoice_number || `INV-${selectedSale.id}`}
                                 </p>
                             </div>
 
                             <button
                                 onClick={() => setSelectedSale(null)}
-                                className="text-gray-400 hover:text-gray-700 text-lg"
+                                className="text-slate-400 hover:text-slate-700 text-lg"
                             >
                                 ✕
                             </button>
@@ -187,18 +187,18 @@ export default function DataPenjualan({
                             {/* INFO */}
                             <div className="grid grid-cols-2 gap-3 text-xs mb-4">
 
-                                <div className="bg-gray-50 border border-gray-100 rounded-l p-3">
-                                    <span className="text-gray-400 font-semibold block mb-1">
+                                <div className="bg-slate-50 border rounded-xl p-3">
+                                    <span className="text-slate-500 font-semibold block mb-1">
                                         Pelanggan
                                     </span>
 
-                                    <p className="font-black text-gray-800">
+                                    <p className="font-black text-slate-800">
                                         {selectedSale.customer_name || 'Umum'}
                                     </p>
                                 </div>
 
-                                <div className="bg-gray-50 border border-gray-100 rounded-l p-3">
-                                    <span className="text-gray-400 font-semibold block mb-1">
+                                <div className="bg-slate-50 border rounded-xl p-3">
+                                    <span className="text-slate-500 font-semibold block mb-1">
                                         Metode Pembayaran
                                     </span>
 
@@ -212,13 +212,13 @@ export default function DataPenjualan({
                             {/* ITEM LIST */}
                             <div className="border border-gray-200 rounded-l overflow-hidden">
 
-                                <div className="bg-gray-50 px-4 py-2 border-b border-gray-200 text-[10px] uppercase font-bold text-gray-400 tracking-wide">
+                                <div className="bg-slate-50 px-4 py-2 border-b border-gray-200 text-[10px] uppercase font-bold text-slate-500 tracking-wide">
                                     Detail Item
                                 </div>
 
                                 {(selectedSale.transaction_items || []).length === 0 ? (
 
-                                    <div className="p-6 text-center text-gray-400 text-xs italic">
+                                    <div className="p-6 text-center text-slate-500 text-xs italic">
                                         Tidak ada detail item transaksi.
                                     </div>
 
@@ -233,27 +233,27 @@ export default function DataPenjualan({
 
                                             <div className="flex-1 pr-3">
 
-                                                <h4 className="font-black text-gray-800 uppercase">
+                                                <h4 className="font-black text-slate-800 uppercase">
                                                     {item.product_name_snapshot}
                                                 </h4>
 
                                                 <div className="flex flex-wrap gap-1 mt-1">
 
                                                     {item.variant_color && (
-                                                        <span className="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                                        <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[9px] font-bold">
                                                             {item.variant_color}
                                                         </span>
                                                     )}
 
                                                     {item.variant_size && (
-                                                        <span className="bg-emerald-50 text-[#009664] px-1.5 py-0.5 rounded text-[9px] font-bold">
+                                                        <span className="bg-slate-100 text-slate-700 px-1.5 py-0.5 rounded text-[9px] font-bold">
                                                             Size: {item.variant_size}
                                                         </span>
                                                     )}
 
                                                 </div>
 
-                                                <span className="text-gray-400 text-[10px] font-semibold block mt-1">
+                                                <span className="text-slate-500 text-[10px] font-semibold block mt-1">
                                                     {item.quantity} x {formatRupiah(item.price_at_sale)}
                                                 </span>
 
@@ -278,11 +278,11 @@ export default function DataPenjualan({
                             </div>
 
                             {/* TOTAL */}
-                            <div className="mt-4 bg-gray-50 border border-gray-100 rounded-xl p-4">
+                            <div className="mt-4 bg-slate-50 border border-gray-200 rounded-xl p-4">
 
                                 <div className="flex justify-between items-center text-xs">
 
-                                    <span className="font-bold text-gray-400 uppercase">
+                                    <span className="font-bold text-slate-500 uppercase">
                                         Total Belanja
                                     </span>
 
@@ -301,7 +301,7 @@ export default function DataPenjualan({
                         </div>
 
                         {/* FOOTER */}
-                        <div className="p-4 border-t border-gray-200 bg-gray-50 flex gap-2">
+                        <div className="p-4 border-t border-gray-200 bg-slate-50 border flex gap-2">
 
                             {/* PRINT */}
                             <button
@@ -332,11 +332,11 @@ export default function DataPenjualan({
 
         <div className="bg-white rounded-2xl p-6 w-[400px]">
 
-            <h3 className="font-black text-lg text-gray-800">
+            <h3 className="font-black text-lg text-slate-800">
                 Void Transaksi
             </h3>
 
-            <p className="text-sm text-gray-500 mt-2">
+            <p className="text-sm text-slate-500 mt-2">
                 Yakin ingin void transaksi
                 <br />
                 <b>{selectedVoidSale.invoice_number}</b> ?

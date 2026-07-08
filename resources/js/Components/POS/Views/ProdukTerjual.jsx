@@ -87,22 +87,22 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
             <div className="grid grid-cols-4 gap-4 w-full flex-shrink-0">
                 <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Omset Penjualan</p>
-                    <p className="text-base font-bold text-slate-800 mt-1 font-mono">{renderRupiah(analisis.totalOmset)}</p>
+                    <p className="text-base font-bold text-gray-800 mt-1 ">{renderRupiah(analisis.totalOmset)}</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Volume Produk Terjual</p>
-                    <p className="text-base font-bold text-slate-800 mt-1">{analisis.totalKuantitas} Pcs</p>
+                    <p className="text-base font-bold text-gray-800 mt-1">{analisis.totalKuantitas} Pcs</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Model Terjual</p>
-                    <p className="text-base font-bold text-slate-800 mt-1">{analisis.totalProdukUnik} SKU</p>
+                    <p className="text-base font-bold text-gray-800 mt-1">{analisis.totalProdukUnik} SKU</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Rata-rata Omset / Model</p>
-                    <p className="text-base font-bold text-slate-800 mt-1 font-mono">{renderRupiah(analisis.rataRataOmsetPerItem)}</p>
+                    <p className="text-base font-bold text-gray-800 mt-1">{renderRupiah(analisis.rataRataOmsetPerItem)}</p>
                 </div>
             </div>
 
@@ -128,7 +128,7 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
                                 {analisis.products.map((item, i) => (
                                     <tr key={i} className="hover:bg-slate-50/30 transition-colors">
                                         {/* Nomor */}
-                                        <td className="py-3.5 px-5 text-center font-mono text-slate-400">
+                                        <td className="py-3.5 px-5 text-center text-slate-400">
                                             {i + 1}
                                         </td>
                                         
@@ -138,7 +138,7 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
                                         </td>
 
                                         {/* Harga Satuan */}
-                                        <td className="py-3.5 px-5 text-right font-mono text-slate-500">
+                                        <td className="py-3.5 px-5 text-right text-slate-500">
                                             {renderRupiah(item.price)}
                                         </td>
 
@@ -148,12 +148,12 @@ export default function ProdukTerjual({ salesHistory = [], formatRupiah }) {
                                         </td>
 
                                         {/* Persentase Kontribusi Omset */}
-                                        <td className="py-3.5 px-5 text-right font-mono text-slate-400">
+                                        <td className="py-3.5 px-5 text-right text-slate-400">
                                             {item.kontribusiOmset.toFixed(1)}%
                                         </td>
 
                                         {/* Total Per Item */}
-                                        <td className="py-3.5 px-5 text-right font-bold text-slate-900 text-sm font-mono">
+                                        <td className="py-3.5 px-5 text-right font-bold text-slate-900 text-sm">
                                             {renderRupiah(item.subtotal)}
                                         </td>
                                     </tr>

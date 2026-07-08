@@ -50,7 +50,7 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
     }, [salesHistory]);
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#f8fafc] text-slate-600 font-sans tracking-tight p-6 gap-6 overflow-hidden">
+        <div className="flex-1 flex flex-col h-full bg-[#f8fafc] text-slate-600 tracking-tight p-6 gap-6 overflow-hidden">
 
             {/* ======================================================== */}
             {/* METRIK MINI RINGKASAN                                    */}
@@ -58,7 +58,7 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
             <div className="grid grid-cols-2 gap-4 w-full flex-shrink-0">
                 <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
                     <p className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Total Penjualan Masuk (Sales)</p>
-                    <p className="text-base font-bold text-slate-800 mt-1 font-mono">{renderRupiah(analisisPembayaran.grandTotal)}</p>
+                    <p className="text-base font-bold text-slate-800 mt-1">{renderRupiah(analisisPembayaran.grandTotal)}</p>
                 </div>
 
                 <div className="bg-white p-4 rounded-l border border-slate-200 shadow-xs">
@@ -88,7 +88,7 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
                                 {analisisPembayaran.dataMetode.map((item, i) => (
                                     <tr key={i} className="hover:bg-slate-50/30 transition-colors">
                                         {/* Nomor */}
-                                        <td className="py-4 px-5 text-center font-mono text-slate-400">
+                                        <td className="py-4 px-5 text-center text-slate-400">
                                             {i + 1}
                                         </td>
                                         
@@ -103,12 +103,12 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
                                         </td>
 
                                         {/* Kontribusi Persentase Finansial */}
-                                        <td className="py-4 px-5 text-right font-mono text-slate-400">
+                                        <td className="py-4 px-5 text-right text-slate-400">
                                             {item.kontribusiPersen.toFixed(1)}%
                                         </td>
 
                                         {/* Total Nominal Uang Masuk */}
-                                        <td className="py-4 px-5 text-right font-bold text-slate-900 text-sm font-mono">
+                                        <td className="py-4 px-5 text-right font-bold text-slate-900 text-sm">
                                             {renderRupiah(item.nominal)}
                                         </td>
                                     </tr>

@@ -86,22 +86,22 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
         switch (status?.toLowerCase()) {
             case 'disetujui':
             case 'sukses':
-                return <span className="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-rose-50 text-rose-600 border border-rose-100">Disetujui</span>;
+                return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-rose-50 text-rose-600 border border-rose-100">Disetujui</span>;
             case 'menunggu':
             case 'pending':
-                return <span className="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-amber-50 text-amber-600 border border-amber-100">Menunggu</span>;
+                return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-amber-50 text-amber-600 border border-amber-100">Menunggu</span>;
             case 'ditolak':
-                return <span className="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-slate-100 text-slate-600 border border-slate-200">Ditolak</span>;
+                return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-100 text-slate-600 border border-slate-200">Ditolak</span>;
             default:
-                return <span className="px-2.5 py-1 text-[11px] font-semibold rounded-full bg-slate-50 text-slate-500">{status || 'Disetujui'}</span>;
+                return <span className="px-2.5 py-1 text-xs font-bold rounded-full bg-slate-50 text-slate-500">{status || 'Disetujui'}</span>;
         }
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#f8fafc] overflow-hidden text-slate-600 font-sans tracking-tight">
+        <div className="flex-1 bg-[#f7f8fa] p-5 overflow-y-auto">
             
             {/* ====== AREA FILTER UTAMA (SAMA PERSIS GAYA POSISI & STYLE) ====== */}
-            <div className="bg-white p-4 border-b border-slate-100 flex-shrink-0 w-full">
+            <div className="bg-white border rounded-xl p-4 mb-5 flex-shrink-0 w-full">
                 <div className="flex flex-row items-center justify-between gap-4 w-full">
                     
                     {/* Filter Kiri: Pilihan Makro */}
@@ -109,7 +109,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                         <select 
                             value={periodeMakro}
                             onChange={(e) => setPeriodeMakro(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
                         >
                             <option value="hari">Hari ini</option>
                             <option value="bulan">Bulan ini</option>
@@ -118,11 +118,11 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                     </div>
 
                     {/* Filter Tengah: Date Range Picker Interaktif */}
-                    <div className="flex items-center bg-white border border-slate-200 rounded-l overflow-hidden h-[33px] min-w-[300px] flex-1 relative">
+                    <div className="flex items-center bg-white border border-slate-200 rounded-lg overflow-hidden h-[33px] min-w-[300px] flex-1 relative">
                         <button 
                             type="button"
                             onClick={() => geserTanggal(-1)}
-                            className="px-3 text-xs font-medium text-slate-500 hover:bg-slate-50 transition border-r border-slate-200 h-full"
+                            className="px-3 text-sm text-slate-500 hover:bg-slate-50 transition border-r border-slate-200 h-full"
                         >
                             &lt;
                         </button>
@@ -130,7 +130,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                         <button
                             type="button"
                             onClick={pemicuKalenderKlik}
-                            className="px-4 text-xs font-medium text-slate-700 hover:bg-slate-50/50 transition h-full flex-1"
+                            className="px-4 text-sm text-slate-700 hover:bg-slate-50/50 transition h-full flex-1"
                         >
                             {formatLabelTanggal(rangeTanggal.start)} - {formatLabelTanggal(rangeTanggal.end)}
                         </button>
@@ -145,7 +145,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                         <button 
                             type="button"
                             onClick={() => geserTanggal(1)}
-                            className="px-3 text-xs font-medium text-slate-500 hover:bg-slate-50 transition border-l border-slate-200 h-full"
+                            className="px-3 text-sm text-slate-500 hover:bg-slate-50 transition border-l border-slate-200 h-full"
                         >
                             &gt;
                         </button>
@@ -156,7 +156,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                         <select 
                             value={selectedOutlet}
                             onChange={(e) => setSelectedOutlet(e.target.value)}
-                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
+                            className="bg-white border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
                         >
                             <option value="all">Semua Status</option>
                         </select>
@@ -170,29 +170,29 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                 {/* BARIS TERPISAH: PENCARIAN (SEARCH BAR) */}
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4">
                     <div className="relative w-full md:w-72">
-                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400 text-xs">
+                        <span className="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-500">
                             🔍
                         </span>
                         <input 
                             type="text"
                             placeholder="Cari No. Nota, kasir, alasan..."
-                            className="w-full bg-white border border-slate-200 rounded-l pl-9 pr-4 py-1.5 text-xs focus:outline-none focus:border-emerald-500 transition shadow-2xs"
+                            className="w-full border rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:border-emerald-500 transition shadow-2xs"
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
                         />
                     </div>
                     
-                    <div className="text-xs text-slate-400 font-medium w-full md:w-auto text-right">
-                        Ditemukan <span className="font-bold text-slate-600">{filteredData.length}</span> log void
+                    <div className="text-sm text-slate-500  w-full md:w-auto text-right">
+                        Ditemukan <span className="font-semibold text-slate-800">{filteredData.length}</span> log void
                     </div>
                 </div>
 
                 {/* DATA TABEL LOG VOID */}
-                <div className="bg-white rounded-l border border-slate-200/60 shadow-sm overflow-hidden">
+                <div className="bg-white rounded-lg border border-slate-200/60 shadow-sm overflow-hidden">
                     <div className="overflow-x-auto">
                         <table className="w-full text-left border-collapse">
                             <thead>
-                                <tr className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                                <tr className="bg-slate-50/50 border-b border-slate-100 text-xs text-slate-600 uppercase">
                                     <th className="p-3.5 px-5">Waktu Keluar Log</th>
                                     <th className="p-3.5 px-4">No. Nota Asal</th>
                                     <th className="p-3.5 px-4">Kasir Peminta</th>
@@ -201,17 +201,17 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                                     <th className="p-3.5 px-5 text-center">Status</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-slate-100 text-xs text-slate-600 font-medium">
+                            <tbody className="divide-y divide-slate-100 text-sm text-slate-600">
                                 {filteredData.length > 0 ? (
                                     filteredData.map((item) => (
                                         <tr key={item.id} className="hover:bg-slate-50/40 transition">
-                                            <td className="p-3.5 px-5 whitespace-nowrap text-slate-400">
+                                            <td className="p-3.5 px-5 whitespace-nowrap text-slate-500">
                                                 {item.created_at ? new Date(item.created_at).toLocaleString('id-ID', {
                                                     dateStyle: 'medium',
                                                     timeStyle: 'short'
                                                 }) : '-'}
                                             </td>
-                                            <td className="p-3.5 px-4 font-bold text-slate-800 whitespace-nowrap">
+                                            <td className="p-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
                                                 {item.penjualan?.no_nota || item.penjualan?.invoice || 'N/A'}
                                             </td>
                                             <td className="p-3.5 px-4">
@@ -219,10 +219,10 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                                                     {item.kasir_peminta?.name || item.nama_kasir || 'Kasir'}
                                                 </span>
                                             </td>
-                                            <td className="p-3.5 px-4 max-w-xs truncate text-slate-400" title={item.alasan_void || item.alasan}>
+                                            <td className="p-3.5 px-4 max-w-xs truncate text-slate-500" title={item.alasan_void || item.alasan}>
                                                 {item.alasan_void || item.alasan || '-'}
                                             </td>
-                                            <td className="p-3.5 px-4 text-right font-bold text-slate-700 whitespace-nowrap">
+                                            <td className="p-3.5 px-4 text-right font-semibold text-slate-700 whitespace-nowrap">
                                                 {formatRupiah ? formatRupiah(item.penjualan?.total_harga || item.penjualan?.total || 0) : `Rp ${(item.penjualan?.total_harga || item.penjualan?.total || 0).toLocaleString('id-ID')}`}
                                             </td>
                                             <td className="p-3.5 px-5 text-center whitespace-nowrap">
@@ -232,7 +232,7 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                                     ))
                                 ) : (
                                     <tr>
-                                        <td colSpan="6" className="p-8 text-center text-slate-400 italic">
+                                        <td colSpan="6" className="p-8 text-center text-sm text-slate-500 italic">
                                             Tidak ada log data void yang cocok dengan filter.
                                         </td>
                                     </tr>

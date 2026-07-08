@@ -129,8 +129,8 @@ const dataTabel = dataAbsensi.map(item => ({
             {/* ====== HEADER BANNER ====== */}
             <div className="bg-white px-6 py-4 border-b border-slate-100 flex-shrink-0 flex justify-end items-center">
                 <div className="bg-slate-50 border border-slate-200/60 rounded-l px-4 py-1.5 text-right flex items-center space-x-3">
-                    <span className="text-[10px] font-bold text-slate-400 tracking-wider font-mono">JAM SYSTEM</span>
-                    <span className="text-sm font-black text-slate-700 font-mono tracking-tight">{formatTimeReal(currentTime)}</span>
+                    <span className="text-[10px] font-bold text-slate-400 tracking-wider">JAM SYSTEM</span>
+                    <span className="text-sm font-black text-slate-700 tracking-tight">{formatTimeReal(currentTime)}</span>
                 </div>
             </div>
 
@@ -178,14 +178,14 @@ const dataTabel = dataAbsensi.map(item => ({
                     <div className="bg-white border border-slate-200/60 rounded-l p-4 shadow-sm grid grid-cols-2 gap-3 text-center flex-1 min-h-[110px] items-center">
                         <div className="border-r border-slate-100">
                             <PersonStanding size={24} className="mx-auto mb-1 text-emerald-600" />
-                            <span className="text-2xl font-black text-slate-800 font-mono">
+                            <span className="text-2xl font-black text-slate-800">
                                 {dataAbsensi.filter(i => i.status === 'Aktif Bekerja').length}
                             </span>
                             <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Staf Standby</p>
                         </div>
                         <div>
                             <BookmarkCheck size={24} className="mx-auto mb-1 text-orange-500" />
-                            <span className="text-2xl font-black text-slate-800 font-mono">
+                            <span className="text-2xl font-black text-slate-800">
                                 {dataAbsensi.filter(i => i.status === 'Sudah Pulang').length}
                             </span>
                             <p className="text-[10px] text-slate-400 font-bold uppercase mt-0.5">Selesai Shift</p>
@@ -229,10 +229,10 @@ const dataTabel = dataAbsensi.map(item => ({
                                                 <div className="font-bold text-slate-800 uppercase tracking-wide">{row.nama}</div>
                                                 <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">{row.role}</div>
                                             </td>
-                                            <td className="py-3 px-3 font-mono font-bold text-slate-600">
+                                            <td className="py-3 px-3 font-bold text-slate-600">
                                                 <span className="text-emerald-500 mr-1"></span> {row.jamMasuk}
                                             </td>
-                                            <td className="py-3 px-3 font-mono font-bold">
+                                            <td className="py-3 px-3 font-bold">
                                                 {row.jamPulang ? (
                                                     <span className="text-slate-600"><span className="text-orange-500 mr-1"></span> {row.jamPulang}</span>
                                                 ) : (

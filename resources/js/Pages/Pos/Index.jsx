@@ -153,13 +153,24 @@ export default function Index({
 const cetakStrukLangsung = (transaksiData) => {
     // 1. Ambil konfigurasi dari localStorage (sama seperti di PengaturanNotaView)
     const savedConfig = localStorage.getItem('master_nota_config');
-    const notaConfig = savedConfig ? JSON.parse(savedConfig) : {
+    const notaConfig = savedConfig
+    ? JSON.parse(savedConfig)
+    : {
         namaToko: 'KAHITA BUSANA',
         alamatToko: 'JL. BYPASS DHARMA GIRI',
         telpToko: '082189833575',
-        showNamaToko: true, showAlamat: true, showTelp: true,
-        showNoStruk: true, showWaktu: true,
-        showHeaderTerimakasih: true, showFooterNote: true,
+
+        showLogo: true,
+        logo: "",
+
+        showNamaToko: true,
+        showAlamat: true,
+        showTelp: true,
+        showNoStruk: true,
+        showWaktu: true,
+        showHeaderTerimakasih: true,
+        showFooterNote: true,
+
         teksTerimakasih: 'Terima Kasih',
         teksFooterNote: 'Mohon diperiksa kembali pembelian anda...'
     };
@@ -177,88 +188,224 @@ const cetakStrukLangsung = (transaksiData) => {
         <html>
         <head>
             <style>
-                body { font-family: 'Courier New', monospace; width: 70mm; font-size: 11px; line-height: 1.4; color: #000; }
-                .text-center { text-align: center; }
-                .font-bold { font-weight: bold; }
-                .uppercase { text-transform: uppercase; }
-                .border-b { border-bottom: 1px dashed #000; margin: 5px 0; }
-                table { width: 100%; border-collapse: collapse; }
-                .flex-between { display: flex; justify-content: space-between; }
-            </style>
+    @page{
+    margin:0;
+    size:72mm auto;
+}
+
+body{
+    width:72mm;
+    margin:0;
+    padding:8px;
+    font-family:"Courier New",monospace;
+    font-size:11px;
+    line-height:1.2;
+    color:#000;
+    box-sizing:border-box;
+}
+
+.text-center{
+    text-align:center;
+}
+
+.font-bold{
+    font-weight:bold;
+}
+
+.uppercase{
+    text-transform:uppercase;
+}
+
+.logo{
+    width:60px;
+    height:60px;
+    margin:0 auto 6px;
+}
+
+.logo img{
+    width:100%;
+    height:100%;
+    object-fit:cover;
+    border-radius:4px;
+}
+
+.header{
+    margin-bottom:8px;
+}
+
+.header h4{
+    margin:0;
+    font-size:12px;
+    font-weight:bold;
+}
+
+.header p{
+    margin:2px 0;
+}
+
+hr{
+    border:none;
+    border-top:1px dashed #000;
+    margin:6px 0;
+}
+
+.item{
+    margin-bottom:4px;
+}
+
+.item-name{
+    font-weight:bold;
+    text-transform:uppercase;
+    word-break:break-word;
+}
+
+.item-row{
+    display:flex;
+    justify-content:space-between;
+}
+
+.summary{
+    margin-top:4px;
+}
+
+.summary-row{
+    display:flex;
+    justify-content:space-between;
+    margin:2px 0;
+}
+
+.footer{
+    margin-top:8px;
+    text-align:center;
+}
+
+.footer-note{
+    margin-top:6px;
+    font-size:10px;
+    line-height:1.3;
+}
+</style>
         </head>
         <body>
-            <div class="text-center">
-                ${notaConfig.showNamaToko ? `<h4 class="font-bold uppercase">${notaConfig.namaToko}</h4>` : ''}
-                ${notaConfig.showAlamat ? `<p class="uppercase">${notaConfig.alamatToko}</p>` : ''}
-                ${notaConfig.showTelp ? `<p>TELP: ${notaConfig.telpToko}</p>` : ''}
-                ${notaConfig.showNoStruk ? `<p class="font-bold">NO.STRUK:${transaksiData.noStruk ||transaksiData.invoice_number ||'100505'}</p>`: ''}
-                ${notaConfig.showWaktu ? `<p>${waktu}</p>` : ''}
-            </div>
+            <div class="text-center header">
+
+    ${
+        notaConfig.showLogo && notaConfig.logo
+            ? `
+                <div class="logo">
+                    <img src="${notaConfig.logo}">
+                </div>
+            `
+            : ''
+    }
+
+    ${
+        notaConfig.showNamaToko
+            ? `<h4 class="font-bold uppercase">${notaConfig.namaToko}</h4>`
+            : ''
+    }
+
+    ${
+        notaConfig.showAlamat
+            ? `<p class="uppercase">${notaConfig.alamatToko}</p>`
+            : ''
+    }
+
+    ${
+        notaConfig.showTelp
+            ? `<p>TELP: ${notaConfig.telpToko}</p>`
+            : ''
+    }
+
+    ${
+        notaConfig.showNoStruk
+            ? `<p class="font-bold">NO.STRUK : ${transaksiData.noStruk || transaksiData.invoice_number || '100505'}</p>`
+            : ''
+    }
+
+    ${
+        notaConfig.showWaktu
+            ? `<p>${waktu}</p>`
+            : ''
+    }
+
+</div>
 
             <div class="border-b"></div>
 
-            <table>
-                ${(transaksiData.items || []).map(item => {
-                const nama =
-                    item.name ||
-                    item.product_name_snapshot ||
-                    item.customName ||
-                    '-';
-                const qty =
-                    item.quantity ||
-                    item.qty ||
-                    0;
-                const harga =
-                    item.price ??
-                    item.price_at_sale ??
-                    0;
-                const total =
-                    item.total ??
-                    (qty * harga);
-                return `
-                    <tr>
-                        <td colspan="2" class="font-bold uppercase">
-                            ${nama}
-                        </td>
-                    </tr>
-                    <tr>
-                        <td>
-                            ${qty} x ${formatRupiah(harga)}
-                        </td>
-                        <td style="text-align:right">
-                            ${formatRupiah(total)}
-                        </td>
-                    </tr>
-                `;
-            }).join("")}
-            </table>
+            <hr>
+
+${
+(transaksiData.items || []).map(item=>{
+
+const nama =
+item.name ||
+item.product_name_snapshot ||
+item.customName ||
+'-';
+
+const qty =
+item.quantity ||
+item.qty ||
+0;
+
+const harga =
+item.price ??
+item.price_at_sale ??
+0;
+
+const total =
+item.total ??
+(qty*harga);
+
+return`
+
+<div class="item">
+
+<div class="item-name">
+${nama}
+</div>
+
+<div class="item-row">
+<span>${qty} x ${formatRupiah(harga)}</span>
+<span>${formatRupiah(total)}</span>
+</div>
+
+</div>
+
+`;
+
+}).join('')
+}
+
+<hr>
 
             <div class="border-b"></div>
 
-            <div class="font-bold">
-        <div class="flex-between">
+            <div class="summary">
+        <div class="summary-row">
             <span>SUBTOTAL =</span>
             <span>${formatRupiah(transaksiData.subtotal ?? transaksiData.grand_total ?? 0)}</span>
         </div>
         ${transaksiData.promoName ? `
-    <div class="flex-between">
+    <div class="summary-row">
         <span>PROMO =</span>
         <span>${transaksiData.promoName}</span>
     </div>
 ` : ''}
         ${(transaksiData.discount > 0) ? `
-            <div class="flex-between">
+            <div class="summary-row">
                 <span>DISKON =</span>
                 <span>- ${formatRupiah(transaksiData.discount)}</span>
             </div>
         ` : ''}
 
-        <div class="flex-between">
+        <div class="summary-row">
             <span>TOTAL RP. =</span>
             <span>${formatRupiah(transaksiData.total ?? transaksiData.grand_total ?? 0)}</span>
         </div>
 
-        <div class="flex-between">
+        <div class="summary-row">
             <span>${transaksiData.metode || 'TUNAI'} =</span>
             <span>${formatRupiah(transaksiData.bayar ?? transaksiData.grand_total ?? 0)}</span>
         </div>
@@ -267,16 +414,16 @@ const cetakStrukLangsung = (transaksiData) => {
 
             ${(transaksiData.metode === 'TUNAI' || !transaksiData.metode) ? `
                 <div class="border-b"></div>
-                <div class="font-bold flex-between">
+                <div class="summary-row font-bold">
                     <span>KEMBALI RP. =</span><span>${formatRupiah(transaksiData.kembali || 0)}</span>
                 </div>
             ` : ''}
 
             <div class="border-b"></div>
 
-            ${notaConfig.showHeaderTerimakasih ? `<div class="text-center font-bold" style="margin: 10px 0;">${notaConfig.teksTerimakasih}</div>` : ''}
+            ${notaConfig.showHeaderTerimakasih ? `<div class="footer"><div class="font-bold">${notaConfig.teksTerimakasih}</div>` : ''}
             
-            ${notaConfig.showFooterNote ? `<div class="text-center" style="font-size: 10px;">${notaConfig.teksFooterNote}</div>` : ''}
+            ${notaConfig.showFooterNote ? `<div class="footer-note">${notaConfig.teksFooterNote}</div>` : ''}
         </body>
         </html>
     `);
@@ -365,17 +512,21 @@ const handleProsesBayarFinal = async () => {
                     return {
                         ...product,
                         variants: product.variants?.map(v => {
-                            const match = cartItems.find(
-                                c =>
-                                    c.varianWarna === (typeof v.color === 'string' ? v.color : v.color?.nama) &&
+                            const qtyTerjual = cartItems
+                                .filter(c =>
+                                    
+                                    c.varianWarna === (typeof v.color === 'string'
+                                        ? v.color
+                                        : v.color?.nama) &&
                                     c.varianUkuran === v.size
-                            );
+                                )
+                                .reduce((t, c) => t + Number(c.quantity || 0), 0);
 
-                            if (!match) return v;
+                            if (qtyTerjual === 0) return v;
 
                             return {
                                 ...v,
-                                stock: Math.max(0, v.stock - match.quantity)
+                                stock: Math.max(0, Number(v.stock) - qtyTerjual)
                             };
                         })
                     };
@@ -506,6 +657,7 @@ const handleProsesBayarFinal = async () => {
                 setShiftReport(props.flash.print_rekap_shift);
             }
         }, [props.flash]);
+
     return (
         <div className="bg-[#f4f6f9] h-screen w-screen flex flex-col font-sans overflow-hidden select-none text-gray-700">
             <Head title={`Kasa POS - ${outlet_name || 'Outlet'}`} />
@@ -557,11 +709,16 @@ const handleProsesBayarFinal = async () => {
             </div>
 
             <form
-                onSubmit={(e) => {
-                    e.preventDefault();
-                    formBukaKasir.post(route('pos.buka-kasir'));
-                }}
-            >
+    onSubmit={(e) => {
+        e.preventDefault();
+
+        formBukaKasir.post(route('pos.buka-kasir'), {
+            onSuccess: async () => {
+                await loadSidebarData();
+            }
+        });
+    }}
+>
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                         Modal Awal Kasir

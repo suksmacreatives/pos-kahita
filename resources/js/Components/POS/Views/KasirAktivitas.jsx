@@ -235,7 +235,7 @@ export default function AktivitasSesiKasir({
     };
 
     return (
-        <div className="flex-1 flex flex-col h-full bg-[#f8fafc] overflow-hidden text-slate-600 font-sans tracking-tight relative">
+        <div className="flex-1 flex flex-col h-full bg-[#f4f6f9] overflow-hidden">
 
             {/* FILTER */}
             <div className="bg-white p-4 border-b border-slate-100 flex-shrink-0 w-full">
@@ -247,7 +247,7 @@ export default function AktivitasSesiKasir({
                             onChange={(e) =>
                                 setPeriodeMakro(e.target.value)
                             }
-                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full shadow-2xs"
+                            className="bg-white border border-gray-200 rounded-l px-3 py-1.5 text-xs font-medium text-gray-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
                         >
                             <option value="hari">Hari ini</option>
                             <option value="bulan">Bulan ini</option>
@@ -258,12 +258,12 @@ export default function AktivitasSesiKasir({
                         </select>
                     </div>
 
-                    <div className="flex items-center bg-white border border-slate-200 rounded-l overflow-hidden h-[33px] min-w-[300px] flex-1 relative shadow-2xs">
+                    <div className="flex items-center bg-white border border-gray-200 rounded-l overflow-hidden h-[33px] min-w-[300px] flex-1 relative">
 
                         <button
                             type="button"
                             onClick={() => geserTanggal(-1)}
-                            className="px-3 text-xs font-medium text-slate-500 hover:bg-slate-50 transition border-r border-slate-200 h-full"
+                            className="px-3 text-xs font-medium text-gray-500 hover:bg-slate-50 transition border-r border-gray-200 h-full"
                         >
                             &lt;
                         </button>
@@ -296,7 +296,7 @@ export default function AktivitasSesiKasir({
                         <button
                             type="button"
                             onClick={() => geserTanggal(1)}
-                            className="px-3 text-xs font-medium text-slate-500 hover:bg-slate-50 transition border-l border-slate-200 h-full"
+                            className="px-3 text-xs font-medium text-gray-500 hover:bg-slate-50 transition border-l border-gray-200 h-full"
                         >
                             &gt;
                         </button>
@@ -309,7 +309,7 @@ export default function AktivitasSesiKasir({
                             onChange={(e) =>
                                 setStatusFilter(e.target.value)
                             }
-                            className="bg-white border border-slate-200 rounded-l px-3 py-1.5 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full shadow-2xs"
+                            className="bg-white border border-gray-200 rounded-l px-3 py-1.5 text-xs font-medium text-gray-700 focus:outline-none focus:border-[#009664] cursor-pointer w-full"
                         >
                             <option value="all">
                                 Semua Status
@@ -331,12 +331,12 @@ export default function AktivitasSesiKasir({
             {/* TABLE */}
             <div className="flex-1 overflow-y-auto p-5">
 
-                <div className="bg-white border border-slate-200/80 rounded-l overflow-hidden shadow-2xs">
+                <div className="bg-white border border-gray-200 rounded-l overflow-hidden">
 
                     <table className="w-full text-left border-collapse">
 
                         <thead>
-                            <tr className="bg-slate-50/75 border-b border-slate-100 text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+                            <tr className="bg-gray-50 border-b border-gray-200 text-[10px] uppercase text-gray-400 font-bold">
 
                                 <th className="py-3 px-4">Waktu Buka</th>
                                 <th className="py-3 px-4">Saldo Awal</th>
@@ -348,7 +348,7 @@ export default function AktivitasSesiKasir({
                             </tr>
                         </thead>
 
-                        <tbody className="text-xs divide-y divide-slate-100 font-medium text-slate-700">
+                        <tbody className="divide-y divide-gray-100 text-xs text-gray-600 font-medium">
 
                             {dataTersaring.map((sesi, index) => (
 
@@ -357,29 +357,29 @@ export default function AktivitasSesiKasir({
                                     className="hover:bg-slate-50/40 transition-colors"
                                 >
 
-                                    <td className="py-3.5 px-4 text-slate-500">
+                                    <td className="py-3.5 px-4 text-gray-500">
                                         {sesi.waktuBuka || sesi.waktu_buka}
                                     </td>
 
-                                    <td className="py-3.5 px-4 font-semibold text-slate-800">
+                                    <td className="py-3.5 px-4 font-bold text-gray-800">
                                         {renderRupiah(
                                             sesi.saldoAwal || sesi.saldo_awal
                                         )}
                                     </td>
 
-                                    <td className="py-3.5 px-4 font-semibold text-[#009664]">
+                                    <td className="py-3.5 px-4 font-bold text-[#009664]">
                                         {sesi.kasir ||
                                             sesi.user?.name ||
                                             sesi.nama_kasir}
                                     </td>
 
-                                    <td className="py-3.5 px-4 text-slate-500">
+                                    <td className="py-3.5 px-4 text-gray-500">
                                         {sesi.waktuTutup ||
                                             sesi.waktu_tutup ||
                                             '-'}
                                     </td>
 
-                                    <td className="py-3.5 px-4 font-semibold text-slate-800">
+                                    <td className="py-3.5 px-4 font-bold text-gray-800">
 
                                         {(sesi.waktuTutup || sesi.waktu_tutup)
                                             ? renderRupiah(
@@ -403,7 +403,7 @@ export default function AktivitasSesiKasir({
                                                         : index
                                                 )
                                             }
-                                            className="text-slate-400 hover:text-slate-700 p-1 rounded-md transition hover:bg-slate-100"
+                                            className="text-slate-400 hover:text-gray-700 p-1 rounded transition hover:bg-slate-100"
                                         >
                                             &#8942;
                                         </button>
