@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 
-export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [], onSaveTransaction }) {
+export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [], kasSummary = {}, onSaveTransaction }) {
     const [listKas, setListKas] = useState([]);
     const [isOpenModal, setIsOpenModal] = useState(false);
     const [formData, setFormData] = useState({
@@ -39,53 +39,49 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
     }, [kasHistory, initialCash]);
 
     const ringkasan = useMemo(() => {
-
+    const penjualanTunai = Number(kasSummary?.penjualan_tunai || 0);
+    const penjualanNonTunai = Number(
+        kasSummary?.penjualan_non_tunai || 0
+    );
+    const voidTunai = Number(
+        kasSummary?.void_tunai || 0
+    );
+    const voidNonTunai = Number(
+        kasSummary?.void_non_tunai || 0
+    );
     let pemasukan = Number(initialCash || 0);
-
     let pengeluaran = 0;
-    let totalRefund = 0;
-    let totalPenjualan = 0;
+    let totalRefund =
+        voidTunai + voidNonTunai;
+    let totalPenjualan =
+        (penjualanTunai + penjualanNonTunai)
+        - totalRefund;
+    let totalKasKasir =
+        Number(initialCash || 0)
+        + penjualanTunai
+        - voidTunai;
 
-    let totalKasKasir = Number(initialCash || 0);
 
     listKas.forEach(item => {
 
-        const jumlah = Number(item.jumlah || 0);
-
-        // Abaikan modal awal dummy
+        // Lewati modal awal
         if (item.nama === 'Modal Awal') {
             return;
         }
-
-        // Penjualan
-        if (item.kategori === 'Penjualan') {
-
-            totalPenjualan += jumlah;
-
-            if (
-                item.payment_method &&
-                item.payment_method.toLowerCase() === 'tunai'
-            ) {
-                totalKasKasir += jumlah;
-            }
-
-            return;
+        if (
+            item.kategori === 'Penjualan' ||
+            item.kategori === 'Refund'
+        ) {
+           return;
         }
-
-        // Uang Masuk
+        const jumlah = Number(item.jumlah || 0);
         if (item.jenis === 'Uang Masuk') {
+            pemasukan += jumlah;
             totalKasKasir += jumlah;
         }
-
-        // Uang Keluar
         if (item.jenis === 'Uang Keluar') {
             pengeluaran += jumlah;
-            totalKasKasir -= jumlah;
-        }
-
-        // Refund
-        if (item.kategori === 'Refund') {
-            totalRefund += jumlah;
+           totalKasKasir -= jumlah;
         }
     });
 
@@ -96,8 +92,11 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
         totalPenjualan,
         totalKasKasir
     };
-
-}, [listKas, initialCash]);
+}, [
+    listKas,
+    initialCash,
+    kasSummary
+]);
 
     const renderRupiah = (nilai) => {
         if (formatRupiah) return formatRupiah(nilai);

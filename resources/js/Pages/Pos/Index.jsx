@@ -60,6 +60,12 @@ export default function Index({
     
     const [salesHistory, setSalesHistory] = useState([]);
     const [kasHistory, setKasHistory] = useState([]);
+    const [kasSummary, setKasSummary] = useState({
+    penjualan_tunai: 0,
+    penjualan_non_tunai: 0,
+    void_tunai: 0,
+    void_non_tunai: 0,
+});
     const [voidHistory, setVoidHistory] = useState([]);
     const [sessionHistory, setSessionHistory] = useState([]);
 
@@ -104,6 +110,14 @@ export default function Index({
 
             setVoidHistory((sidebarData.semua_transaksi || []).filter(t => t.status?.toLowerCase() === 'void'));
             setKasHistory(sidebarData.cash_transactions || []);
+            setKasSummary(
+    sidebarData.kas_summary || {
+        penjualan_tunai: 0,
+        penjualan_non_tunai: 0,
+        void_tunai: 0,
+        void_non_tunai: 0,
+    }
+);
 
             const shiftResponse = await fetch(route('pos.riwayat-shift'));
             const shiftData = await shiftResponse.json();
@@ -696,14 +710,14 @@ const handleProsesBayarFinal = async () => {
             {/* MODAL BUKA KASIR */}
 {!isSessionOpen && (
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60">
-        <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+        <div className="bg-white rounded-l shadow-l w-full max-w-md p-6">
 
             <div className="text-center mb-6">
-                <h2 className="text-2xl font-bold text-slate-800">
+                <h2 className="text-2xl font-bold text-gray-800">
                     Buka Sesi Kasir
                 </h2>
 
-                <p className="text-sm text-slate-500 mt-2">
+                <p className="text-sm text-gray-500 mt-1">
                     Masukkan modal awal kasir sebelum memulai transaksi
                 </p>
             </div>
@@ -763,7 +777,7 @@ const handleProsesBayarFinal = async () => {
 
             {showModalTutup && (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
-        <div className="bg-white rounded-xl shadow-xl w-[420px] p-6">
+        <div className="bg-white rounded-l shadow-l w-[420px] p-6">
             
             <h2 className="text-xl font-bold text-gray-800 mb-2">
                 Tutup Kasir
@@ -866,6 +880,7 @@ const handleProsesBayarFinal = async () => {
                                         deskripsi: item.description
                                     }))
                                 ]}
+                                kasSummary={kasSummary}
                             />
                         )}
                         {activeMenu === 'laporan-produk-terjual' && (<ProdukTerjual salesHistory={salesHistory} formatRupiah={formatRupiah} />)}

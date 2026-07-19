@@ -22,7 +22,9 @@ class Transaction extends Model
         'payment_method',
         'promo_id',
         'notes',
-        'status'
+        'status',
+    'void_by',
+    'voided_at',
     ];
 
     public function outlet()
@@ -54,4 +56,8 @@ class Transaction extends Model
     {
         return $this->hasMany(TransactionItem::class);
     }
+   public function voidUser()
+{
+    return $this->belongsTo(User::class, 'void_by');
+}
 }

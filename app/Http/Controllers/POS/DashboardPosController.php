@@ -29,12 +29,16 @@ class DashboardPosController extends Controller
 $semuaTransaksi = collect();
 
 if ($shiftAktif) {
-    $semuaTransaksi = Transaction::where('shift_id', $shiftAktif->id)
-        ->with(['transaction_items', 'user'])
-        ->orderBy('id', 'desc')
-        ->get();
+$semuaTransaksi = Transaction::with([
+    'transaction_items',
+    'user',
+    'voidUser'
+])
+->where('shift_id', $shiftAktif->id)
+->where('outlet_id', $outletId)
+->latest()
+->get();
 }
-
         // 2. LAPORAN KASIR AKTIVITAS SESI (Untuk KasirAktivitas.jsx)
         $riwayatShift = CashRegisterShift::where('outlet_id', $outletId)
             ->with('user')
@@ -96,21 +100,58 @@ if ($shiftAktif) {
             ->where('status', 'completed')
             ->groupBy('payment_method')
             ->get();
+            $penjualanTunai = 0;
+$penjualanNonTunai = 0;
+$voidTunai = 0;
+$voidNonTunai = 0;
+
+if ($shiftAktif) {
+
+    $penjualanTunai = Transaction::where('shift_id', $shiftAktif->id)
+        ->where('outlet_id', $outletId)
+        ->where('payment_method', 'Tunai')
+        ->sum('grand_total');
+
+    $penjualanNonTunai = Transaction::where('shift_id', $shiftAktif->id)
+        ->where('outlet_id', $outletId)
+        ->where('payment_method', '!=', 'Tunai')
+        ->sum('grand_total');
+
+    $voidTunai = Transaction::where('shift_id', $shiftAktif->id)
+        ->where('outlet_id', $outletId)
+        ->where('status', 'void')
+        ->where('payment_method', 'Tunai')
+        ->sum('grand_total');
+
+    $voidNonTunai = Transaction::where('shift_id', $shiftAktif->id)
+        ->where('outlet_id', $outletId)
+        ->where('status', 'void')
+        ->where('payment_method', '!=', 'Tunai')
+        ->sum('grand_total');
+}
 
         // Kumpulkan semua data untuk di-return
         return [
-            'semua_transaksi' => $semuaTransaksi,
-            'cash_transactions' => $cashTransactions,
-            'riwayat_shift' => $riwayatShift,
-            'kas_kasir_aktif' => $kasKasirMasaKini,
-            'analisis_produk' => [
-                'total_omset' => $totalOmset,
-                'volume_terjual' => $volumeTerjual,
-                'variasi_terjual' => $variasiUnikTerjual,
-                'rata_rata_omset' => round($rataRataOmsetPerNota),
-                'list_tabel' => $tabelProdukTerjual
-            ],
-            'jenis_bayar' => $laporanJenisBayar
-        ];
+    'semua_transaksi' => $semuaTransaksi,
+
+    // gabungkan transaksi kas manual + transaksi penjualan/void
+    'cash_transactions' => $cashTransactions,
+    'riwayat_shift' => $riwayatShift,
+    'kas_kasir_aktif' => $kasKasirMasaKini,
+    'analisis_produk' => [
+        'total_omset' => $totalOmset,
+        'volume_terjual' => $volumeTerjual,
+        'variasi_terjual' => $variasiUnikTerjual,
+        'rata_rata_omset' => round($rataRataOmsetPerNota),
+        'list_tabel' => $tabelProdukTerjual,
+    ],
+    'jenis_bayar' => $laporanJenisBayar,
+    'kas_summary' => [
+        'penjualan_tunai'     => $penjualanTunai,
+        'penjualan_non_tunai' => $penjualanNonTunai,
+        'void_tunai'          => $voidTunai,
+        'void_non_tunai'      => $voidNonTunai,
+    ],
+];
     }
 }

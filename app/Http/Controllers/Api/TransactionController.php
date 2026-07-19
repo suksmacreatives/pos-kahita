@@ -91,8 +91,8 @@ if ($existingTransaction) {
             // 2. Cari Variant
             // 2. Cari Variant yang lebih kuat (Robust)
 $variant = ProductVariant::where('product_id', $item['product_id'])->get()->first(function ($v) use ($item) {
-    // Bersihkan data dari database
-    $dbColor = strtolower(trim((string)$v->color));
+    
+$dbColor = strtolower(trim((string)$v->color));
     $dbSize = strtolower(trim((string)$v->size));
 
     // Bersihkan data dari Request (handle jika size kosong/null)
@@ -140,11 +140,60 @@ if (!$variant) {
 
         DB::commit();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Transaksi berhasil disimpan',
-            'data' => $transaction->load('items')
-        ]);
+        $products = Product::with(['variants', 'category'])
+    ->where(function ($q) use ($user) {
+        $q->where('outlet_id', $user->outlet_id)
+          ->orWhereJsonContains('outlet_ids', (string) $user->outlet_id);
+    })
+    ->get()
+    ->map(function ($p) use ($user) {
+
+        return [
+            'id' => $p->id,
+            'name' => $p->name,
+            'sku' => $p->sku,
+            'price' => $p->price,
+
+            'category' => [
+                'id'   => $p->category?->id,
+                'name' => $p->category?->name,
+            ],
+
+            'image' => $p->image
+                ? asset('storage/'.$p->image)
+                : null,
+
+            'variants' => $p->variants->map(function ($v) use ($user) {
+
+                $stock = OutletStock::where(
+                    'product_variant_id',
+                    $v->id
+                )
+                ->where(
+                    'outlet_id',
+                    $user->outlet_id
+                )
+                ->value('stock') ?? 0;
+
+                return [
+                    'id' => $v->id,
+                    'size' => $v->size,
+                    'color' => $v->color,
+                    'sku' => $v->sku,
+                    'stock' => (int)$stock,
+                    'price' => $v->price,
+                    'cost_price' => $v->cost_price,
+                ];
+            }),
+        ];
+    });
+
+return response()->json([
+    'success' => true,
+    'message' => 'Transaksi berhasil disimpan',
+    'data' => $transaction->load('items'),
+    'products' => $products,
+]);
 
     } catch (\Exception $e) {
         DB::rollback();
@@ -182,6 +231,13 @@ if (!$variant) {
         return $color === ($item->variant_color ?? '') && $v->size === ($item->variant_size ?? '');
     });
     
+    dd([
+    'product_id'    => $item->product_id,
+    'warna_transaksi' => $item->variant_color,
+    'ukuran_transaksi' => $item->variant_size,
+
+    'variant' => $variant,
+]);
     
     if ($variant) {
         $outletStock = OutletStock::where('outlet_id', $transaction->outlet_id)
@@ -212,8 +268,10 @@ if (!$variant) {
 
             // UPDATE STATUS
             $transaction->update([
-                'status' => 'void'
-            ]);
+    'status'      => 'void',
+    'void_by'     => Auth::id(),
+    'voided_at'     => now(),
+]);
 
             DB::commit();
             return response()->json([

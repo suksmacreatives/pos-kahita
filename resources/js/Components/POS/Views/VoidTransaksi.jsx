@@ -188,59 +188,195 @@ export default function VoidTransaksi({ voidHistory = [], formatRupiah }) {
                 </div>
 
                 {/* DATA TABEL LOG VOID */}
-                <div className="bg-white rounded-lg border border-slate-200/60 shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left border-collapse">
-                            <thead>
-                                <tr className="bg-slate-50/50 border-b border-slate-100 text-xs text-slate-600 uppercase">
-                                    <th className="p-3.5 px-5">Waktu Keluar Log</th>
-                                    <th className="p-3.5 px-4">No. Nota Asal</th>
-                                    <th className="p-3.5 px-4">Kasir Peminta</th>
-                                    <th className="p-3.5 px-4">Alasan Void</th>
-                                    <th className="p-3.5 px-4 text-right">Nilai Transaksi</th>
-                                    <th className="p-3.5 px-5 text-center">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100 text-sm text-slate-600">
-                                {filteredData.length > 0 ? (
-                                    filteredData.map((item) => (
-                                        <tr key={item.id} className="hover:bg-slate-50/40 transition">
-                                            <td className="p-3.5 px-5 whitespace-nowrap text-slate-500">
-                                                {item.created_at ? new Date(item.created_at).toLocaleString('id-ID', {
-                                                    dateStyle: 'medium',
-                                                    timeStyle: 'short'
-                                                }) : '-'}
-                                            </td>
-                                            <td className="p-3.5 px-4 font-semibold text-slate-800 whitespace-nowrap">
-                                                {item.penjualan?.no_nota || item.penjualan?.invoice || 'N/A'}
-                                            </td>
-                                            <td className="p-3.5 px-4">
-                                                <span className="font-semibold text-slate-700">
-                                                    {item.kasir_peminta?.name || item.nama_kasir || 'Kasir'}
-                                                </span>
-                                            </td>
-                                            <td className="p-3.5 px-4 max-w-xs truncate text-slate-500" title={item.alasan_void || item.alasan}>
-                                                {item.alasan_void || item.alasan || '-'}
-                                            </td>
-                                            <td className="p-3.5 px-4 text-right font-semibold text-slate-700 whitespace-nowrap">
-                                                {formatRupiah ? formatRupiah(item.penjualan?.total_harga || item.penjualan?.total || 0) : `Rp ${(item.penjualan?.total_harga || item.penjualan?.total || 0).toLocaleString('id-ID')}`}
-                                            </td>
-                                            <td className="p-3.5 px-5 text-center whitespace-nowrap">
-                                                {getStatusBadge(item.status)}
-                                            </td>
-                                        </tr>
-                                    ))
-                                ) : (
-                                    <tr>
-                                        <td colSpan="6" className="p-8 text-center text-sm text-slate-500 italic">
-                                            Tidak ada log data void yang cocok dengan filter.
-                                        </td>
-                                    </tr>
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+
+    <div className="overflow-x-auto">
+
+        <table className="min-w-full">
+
+            <thead className="bg-slate-50 border-b border-slate-200">
+                <tr className="text-[11px] uppercase tracking-wider text-slate-600">
+
+                    <th className="px-5 py-4 text-left">
+                        Waktu Void
+                    </th>
+
+                    <th className="px-4 py-4 text-left">
+                        No. Invoice
+                    </th>
+
+                    <th className="px-4 py-4 text-left">
+                        Kasir
+                    </th>
+
+                    <th className="px-4 py-4 text-center">
+                        Aksi
+                    </th>
+
+                    <th className="px-4 py-4 text-right">
+                        Nilai Transaksi
+                    </th>
+
+                    <th className="px-5 py-4 text-center">
+                        Status
+                    </th>
+
+                </tr>
+            </thead>
+
+            <tbody className="divide-y divide-slate-100 text-sm">
+
+                {filteredData.length > 0 ? (
+
+                    filteredData.map((item) => {
+
+                        const waktu =
+                            item.voided_at
+                                ? new Date(item.voided_at).toLocaleString(
+                                      "id-ID",
+                                      {
+                                          day: "2-digit",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                      }
+                                  )
+                                : item.created_at
+                                ? new Date(item.created_at).toLocaleString(
+                                      "id-ID",
+                                      {
+                                          day: "2-digit",
+                                          month: "short",
+                                          year: "numeric",
+                                          hour: "2-digit",
+                                          minute: "2-digit",
+                                      }
+                                  )
+                                : "-";
+
+                        const nota =
+                            item.invoice_number || "-";
+
+                        const kasir =
+                            item.voidUser?.name ||
+                            item.user?.name ||
+                            "-";
+
+                        const total =
+                            Number(item.grand_total ?? 0);
+
+                        return (
+
+                            <tr
+                                key={item.id}
+                                className="hover:bg-slate-50 transition-all duration-150"
+                            >
+
+                                {/* Waktu */}
+
+                                <td className="px-5 py-4 whitespace-nowrap">
+
+                                    <div className="font-medium text-slate-700">
+                                        {waktu}
+                                    </div>
+
+                                </td>
+
+                                {/* Invoice */}
+
+                                <td className="px-4 py-4">
+
+                                    <div className="font-bold text-blue-700">
+                                        {nota}
+                                    </div>
+
+                                </td>
+
+                                {/* Kasir */}
+
+                                <td className="px-4 py-4">
+
+                                    <div className="font-semibold text-slate-700">
+                                        {kasir}
+                                    </div>
+
+                                </td>
+
+                                {/* Aksi */}
+
+                                <td className="px-4 py-4 text-center">
+
+                                    <span className="inline-flex items-center rounded-full bg-orange-100 text-orange-700 px-3 py-1 text-xs font-semibold">
+                                        Transaksi Dibatalkan
+                                    </span>
+
+                                </td>
+
+                                {/* Nilai */}
+
+                                <td className="px-4 py-4 text-right">
+
+                                    <span className="font-bold text-red-600 text-base">
+                                        {formatRupiah(total)}
+                                    </span>
+
+                                </td>
+
+                                {/* Status */}
+
+                                <td className="px-5 py-4 text-center">
+
+                                    <span className="inline-flex items-center rounded-full bg-red-100 text-red-700 px-3 py-1 text-xs font-bold tracking-wide">
+                                        VOID
+                                    </span>
+
+                                </td>
+
+                            </tr>
+
+                        );
+
+                    })
+
+                ) : (
+
+                    <tr>
+
+                        <td
+                            colSpan="6"
+                            className="py-16 text-center"
+                        >
+
+                            <div className="flex flex-col items-center gap-3">
+
+                                <div className="w-16 h-16 rounded-full bg-slate-100 flex items-center justify-center text-3xl">
+                                    📄
+                                </div>
+
+                                <div className="font-semibold text-slate-700">
+                                    Belum Ada Data Void
+                                </div>
+
+                                <div className="text-sm text-slate-400">
+                                    Tidak ditemukan transaksi yang telah di-void.
+                                </div>
+
+                            </div>
+
+                        </td>
+
+                    </tr>
+
+                )}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
 
             </div>
         </div>
