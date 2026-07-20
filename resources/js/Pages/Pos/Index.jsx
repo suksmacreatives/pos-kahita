@@ -84,6 +84,9 @@ export default function Index({
     const formTutupKasir = useForm({ physical_cash: '' });
 
     const [displayProducts, setDisplayProducts] = useState(products_from_db);
+    useEffect(() => {
+    setDisplayProducts(products_from_db);
+}, [products_from_db]);
     const [productsVersion, setProductsVersion] = useState(0); // Tambahkan baris ini
     const loadSidebarData = async () => {
         try {
@@ -653,6 +656,10 @@ const handleProsesBayarFinal = async () => {
                             : item
                     )
                 );
+
+                 if (result.products) {
+                setDisplayProducts(result.products);
+            }
 
                 await loadSidebarData();
 

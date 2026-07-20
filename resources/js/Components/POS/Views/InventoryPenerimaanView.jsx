@@ -27,9 +27,20 @@ export default function InventoryPenerimaanView({ penerimaanList = {}, outletSlu
       preserveState: true,
       preserveScroll: true,
       onSuccess: () => {
-        setIsTerimaOpen(false);
-        setActiveTerimaDo(null);
-      },
+
+    setIsTerimaOpen(false);
+    setActiveTerimaDo(null);
+
+    router.reload({
+        only: [
+            'products_from_db',
+            'inventoryProducts',
+            'penerimaanList'
+        ],
+        preserveScroll: true
+    });
+
+},
       onError: (errors) => {
         alert('Gagal konfirmasi: ' + Object.values(errors).join(', '));
       }

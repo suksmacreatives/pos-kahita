@@ -210,13 +210,9 @@ return response()->json([
     public function void($id)
     {
         DB::beginTransaction();
-
         try {
-
             $transaction = Transaction::with('items')->findOrFail($id);
-
             if ($transaction->status === 'void') {
-
                 return response()->json([
                     'success' => false,
                     'message' => 'Transaksi sudah di-void'
@@ -226,23 +222,34 @@ return response()->json([
             // KEMBALIKAN STOCK OUTLET
             $user = Auth::user();
             foreach ($transaction->items as $item) {
-    $variant = ProductVariant::where('product_id', $item->product_id)->get()->first(function ($v) use ($item) {
-        $color = is_array($v->color) ? ($v->color['nama'] ?? '') : $v->color;
-        return $color === ($item->variant_color ?? '') && $v->size === ($item->variant_size ?? '');
-    });
-    
-    dd([
-    'product_id'    => $item->product_id,
-    'warna_transaksi' => $item->variant_color,
-    'ukuran_transaksi' => $item->variant_size,
+    $variant = ProductVariant::where('product_id', $item->product_id)
+    ->get()
+    ->first(function ($v) use ($item) {
 
-    'variant' => $variant,
-]);
-    
+        $dbColor = strtolower(trim((string) $v->color));
+        $dbSize  = strtolower(trim((string) $v->size));
+
+        $trxColor = strtolower(trim((string) ($item->variant_color ?? '')));
+        $trxSize  = strtolower(trim((string) ($item->variant_size ?? '')));
+
+        $sizeMatch =
+            ($dbSize === '' && ($trxSize === '' || $trxSize === 'null'))
+            || ($dbSize === $trxSize);
+
+        return $dbColor === $trxColor && $sizeMatch;
+    });
+
+if (!$variant) {
+    throw new \Exception(
+        "Variant tidak ditemukan saat void. Product ID {$item->product_id}, Warna '{$item->variant_color}', Ukuran '{$item->variant_size}'"
+    );
+}
+
     if ($variant) {
-        $outletStock = OutletStock::where('outlet_id', $transaction->outlet_id)
-            ->where('product_variant_id', $variant->id)
-            ->first();
+        $outletStock = OutletStock::lockForUpdate()
+    ->where('outlet_id', $transaction->outlet_id)
+    ->where('product_variant_id', $variant->id)
+    ->first();
 
         if ($outletStock) {
             $outletStock->increment('stock', $item->quantity);
@@ -274,10 +281,53 @@ return response()->json([
 ]);
 
             DB::commit();
+            $products = Product::with(['variants', 'category'])
+    ->where(function ($q) use ($user) {
+        $q->where('outlet_id', $user->outlet_id)
+          ->orWhereJsonContains('outlet_ids', (string) $user->outlet_id);
+    })
+    ->get()
+    ->map(function ($p) use ($user) {
+
+        return [
+            'id' => $p->id,
+            'name' => $p->name,
+            'sku' => $p->sku,
+            'price' => $p->price,
+
+            'category' => [
+                'id' => $p->category?->id,
+                'name' => $p->category?->name,
+            ],
+
+            'image' => $p->image
+                ? asset('storage/'.$p->image)
+                : null,
+
+            'variants' => $p->variants->map(function ($v) use ($user) {
+
+                $stock = OutletStock::where('product_variant_id', $v->id)
+                    ->where('outlet_id', $user->outlet_id)
+                    ->value('stock') ?? 0;
+
+                return [
+                    'id' => $v->id,
+                    'size' => $v->size,
+                    'color' => $v->color,
+                    'sku' => $v->sku,
+                    'stock' => (int)$stock,
+                    'price' => $v->price,
+                    'cost_price' => $v->cost_price,
+                ];
+            }),
+        ];
+    });
+            
             return response()->json([
-                'success' => true,
-                'message' => 'Transaksi berhasil di-void'
-            ]);
+    'success' => true,
+    'message' => 'Transaksi berhasil di-void',
+    'products' => $products,
+]);
 
         } catch (\Exception $e) {
 
