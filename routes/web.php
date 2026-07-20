@@ -15,19 +15,13 @@ use App\Http\Controllers\AbsensiController;
 use App\Http\Controllers\Admin\InventoryGudangController;
 use App\Http\Controllers\Admin\Inventory\OutletInventoryController;
 use App\Http\Controllers\Admin\SettingsController;
-use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Auth;
 
-// 1. Halaman utama sebelum login (Welcome Screen)
+// 1. Halaman utama langsung redirect ke Login
 Route::get('/', function () {
-    return Inertia::render('Welcome', [
-        'canLogin' => Route::has('login'),
-        'canRegister' => Route::has('register'),
-        'laravelVersion' => Application::VERSION,
-        'phpVersion' => PHP_VERSION,
-    ]);
+    return redirect()->route('login');
 });
 
 // 2. PINTU GERBANG UTAMA (Diferensiasi Role & Outlet secara otomatis)
