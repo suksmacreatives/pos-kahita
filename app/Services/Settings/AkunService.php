@@ -118,13 +118,12 @@ class AkunService
         User::findOrFail($id)->delete();
     }
 
-    public function resetPassword(int $id): string
+    public function resetPassword(int $id, string $password): User
     {
-        $password = 'password';
         $user = User::findOrFail($id);
         $user->update(['password' => Hash::make($password)]);
 
-        return $password;
+        return $user;
     }
 
     public function getRoles(): array

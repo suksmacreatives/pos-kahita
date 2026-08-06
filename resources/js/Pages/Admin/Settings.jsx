@@ -6,6 +6,7 @@ import { Users, UserCheck, ShoppingBag, UserX, Plus, Tag, Zap, Clock, BarChart2,
 import AkunTable from '@/Components/Admin/Settings/KelolAkun/AkunTable';
 import AkunFormModal from '@/Components/Admin/Settings/KelolAkun/AkunFormModal';
 import AkunDetailDrawer from '@/Components/Admin/Settings/KelolAkun/AkunDetailDrawer';
+import ResetPasswordModal from '@/Components/Admin/Settings/KelolAkun/ResetPasswordModal';
 
 import PromoTable from '@/Components/Admin/Settings/Promo/PromoTable';
 import PromoDetailCard from '@/Components/Admin/Settings/Promo/PromoDetailCard';
@@ -42,6 +43,7 @@ export default function Settings() {
 
     const [modalState, setModalState] = useState({ isOpen: false, type: null, mode: 'create', data: null });
     const [drawerState, setDrawerState] = useState({ isOpen: false, data: null });
+    const [resetModal, setResetModal] = useState({ isOpen: false, data: null });
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
@@ -108,9 +110,20 @@ export default function Settings() {
     };
 
     const handleResetPassword = (akun) => {
-        router.post(route('admin.settings.akun.reset-password', akun.id), {}, {
+        setResetModal({ isOpen: true, data: akun });
+    };
+
+    const handleSubmitResetPassword = (akun, payload) => {
+        router.post(route('admin.settings.akun.reset-password', akun.id), payload, {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                setResetModal({ isOpen: false, data: null });
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+                setResetModal((prev) => ({ ...prev, isOpen: true }));
+            },
         });
     };
 
@@ -448,6 +461,17 @@ export default function Settings() {
                     setDrawerState({ isOpen: false, data: null });
                     setModalState({ isOpen: true, type: 'akunForm', mode: 'edit', data: row });
                 }}
+                onResetPassword={(row) => {
+                    setDrawerState({ isOpen: false, data: null });
+                    setResetModal({ isOpen: true, data: row });
+                }}
+            />
+
+            <ResetPasswordModal
+                isOpen={resetModal.isOpen}
+                data={resetModal.data}
+                onClose={() => setResetModal({ isOpen: false, data: null })}
+                onSubmit={handleSubmitResetPassword}
             />
 
             {toast && (

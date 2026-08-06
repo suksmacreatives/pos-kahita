@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\StoreAkunRequest;
 use App\Http\Requests\Settings\UpdateAkunRequest;
+use App\Http\Requests\Settings\ResetPasswordAkunRequest;
 use App\Http\Requests\Settings\StorePromoRequest;
 use App\Http\Requests\Settings\UpdatePromoRequest;
 use App\Models\Outlet;
@@ -200,25 +201,28 @@ class SettingsController extends Controller
         return back()->with('success', 'Akun berhasil dihapus');
     }
 
-    public function resetPasswordAkun(int $id, Request $request)
+    public function resetPasswordAkun(int $id, ResetPasswordAkunRequest $request)
     {
+        if ($request->user()->id === (int) $id) {
+            abort(403, 'Anda tidak bisa mereset password akun Anda sendiri!');
+        }
+
         $user = \App\Models\User::findOrFail($id);
         if ($request->user()->outlet_id) {
             abort_if($user->outlet_id !== $request->user()->outlet_id, 403);
         }
 
-        $password = $this->akunService->resetPassword($id);
-        $user = \App\Models\User::find($id);
+        $this->akunService->resetPassword($id, $request->validated()['password']);
 
         $this->logService->log(
             userId: $request->user()->id,
             aksi: 'UBAH_PASSWORD',
             modul: 'Akun',
             targetId: (string) $id,
-            targetLabel: $user?->name,
+            targetLabel: $user->name,
         );
 
-        return back()->with('success', "Password untuk {$user?->name} berhasil direset");
+        return back()->with('success', "Password untuk {$user->name} berhasil direset");
     }
 
     // --- PROMO ---

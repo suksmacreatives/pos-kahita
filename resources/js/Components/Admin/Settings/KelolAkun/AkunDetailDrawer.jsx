@@ -7,7 +7,7 @@ import { roles as fallbackRoles } from '@/data/settingsData';
 import { format } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
 
-export default function AkunDetailDrawer({ isOpen, data, onClose, onEdit, roles: propRoles, userLogs: propLogs }) {
+export default function AkunDetailDrawer({ isOpen, data, onClose, onEdit, onResetPassword, roles: propRoles, userLogs: propLogs }) {
     if (!isOpen || !data) return null;
 
     const roles = propRoles || fallbackRoles;
@@ -113,7 +113,7 @@ export default function AkunDetailDrawer({ isOpen, data, onClose, onEdit, roles:
                     </button>
                     <button 
                         className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 bg-white text-gray-700 font-medium rounded-lg hover:bg-gray-50 transition-colors"
-                        onClick={() => alert('Fitur reset password belum tersedia')}
+                        onClick={() => { onClose(); onResetPassword?.(data); }}
                     >
                         <KeyRound size={16} /> Reset Password
                     </button>
