@@ -83,6 +83,7 @@ class ShiftController extends Controller
         $closedAt = Carbon::now();
 
         $transactions = Transaction::with('items')
+        ->where('outlet_id', $shift->outlet_id)
         ->whereBetween(
             'created_at',
             [$shift->opened_at, $closedAt]
@@ -110,7 +111,8 @@ class ShiftController extends Controller
             ->where('payment_method', 'E-Wallet')
             ->sum('grand_total');
 
-        $totalVoid = Transaction::whereBetween(
+        $totalVoid = Transaction::where('outlet_id', $shift->outlet_id)
+            ->whereBetween(
                 'created_at',
                 [$shift->opened_at, $closedAt]
             )
