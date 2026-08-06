@@ -9,6 +9,7 @@ use App\Http\Requests\Settings\ResetPasswordAkunRequest;
 use App\Http\Requests\Settings\StorePromoRequest;
 use App\Http\Requests\Settings\UpdatePromoRequest;
 use App\Models\Outlet;
+use App\Models\ProductCategory;
 use App\Services\Settings\AkunService;
 use App\Services\Settings\PromoService;
 use App\Services\Settings\LogService;
@@ -32,6 +33,9 @@ class SettingsController extends Controller
             'outlet_list' => $request->user()->outlet_id
                 ? Outlet::aktif()->where('id', $request->user()->outlet_id)->get(['id', 'name', 'slug'])
                 : Outlet::aktif()->get(['id', 'name', 'slug']),
+            'kategori_list' => $request->user()->outlet_id
+                ? ProductCategory::where('outlet_id', $request->user()->outlet_id)->orderBy('name')->get(['id', 'name', 'slug'])
+                : ProductCategory::orderBy('name')->get(['id', 'name', 'slug']),
             'roles' => $this->akunService->getRoles(),
             'permissions' => $this->akunService->getPermissions(),
         ];

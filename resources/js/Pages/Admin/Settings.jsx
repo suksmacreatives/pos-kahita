@@ -40,6 +40,7 @@ export default function Settings() {
     const logStats = props.log_stats || { total_hari_ini: 0, login_hari_ini: 0, gagal_hari_ini: 0, user_teraktif: { nama: 'Tidak ada', count: 0 } };
     const notifStats = props.notif_stats || { total: 0, unread: 0, hari_ini: 0, danger: 0, warning: 0 };
     const outletList = props.outlet_list || [];
+    const kategoriList = props.kategori_list || [];
 
     const [modalState, setModalState] = useState({ isOpen: false, type: null, mode: 'create', data: null });
     const [drawerState, setDrawerState] = useState({ isOpen: false, data: null });
@@ -438,6 +439,8 @@ export default function Settings() {
                     isOpen={true}
                     mode={modalState.mode}
                     data={modalState.data}
+                    outletList={outletList}
+                    kategoriList={kategoriList}
                     onClose={() => setModalState({ ...modalState, isOpen: false })}
                     onSave={handleSavePromo}
                 />
