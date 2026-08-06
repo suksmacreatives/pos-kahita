@@ -46,8 +46,8 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave, ou
                 nilai_diskon: data.nilai_diskon || '',
                 max_diskon: data.max_diskon || '',
                 min_transaksi: data.min_transaksi || '0',
-                beli: '1', // default fallback, not strictly in dummy data
-                gratis: '1',
+                beli: data.beli || '1',
+                gratis: data.gratis || '1',
                 berlaku_dari: data.berlaku_dari ? format(new Date(data.berlaku_dari), 'yyyy-MM-dd') : '',
                 berlaku_sampai: data.berlaku_sampai ? format(new Date(data.berlaku_sampai), 'yyyy-MM-dd') : '',
                 kuota_tipe: data.kuota === null ? 'unlimited' : 'limit',

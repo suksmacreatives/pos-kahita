@@ -79,23 +79,16 @@ class TransactionController extends Controller
 
             // 2. Simpan Item Keranjang ke Tabel Anak 'transaction_items'
             foreach ($request->cart_items as $item) {
-
-    $transaction = Transaction::create([
-        'invoice_number' => 'INV-' . now()->format('YmdHis'),
-        'outlet_id' => $user->outlet_id,
-        'user_id' => $user->id,
-        'shift_id' => $activeShift?->id,
-        'customer_name' => $request->customer_name ?? 'Umum',
-        'payment_method' => $request->payment_method,
-        'promo_id' => $request->promo_id,
-        'subtotal' => $request->subtotal,
-        'discount' => $request->discount ?? 0,
-        'grand_total' => $request->grand_total,
-        'change_amount' => $request->change_amount ?? 0,
-        'status' => 'completed'
-    ]);
-
-
+                TransactionItem::create([
+                    'transaction_id' => $transaction->id,
+                    'product_id' => $item['product_id'],
+                    'product_name_snapshot' => $item['name'],
+                    'variant_color' => $item['variant_color'] ?? null,
+                    'variant_size' => $item['variant_size'] ?? null,
+                    'price_at_sale' => $item['price'],
+                    'quantity' => $item['quantity'],
+                    'total_price' => $item['price'] * $item['quantity'],
+                ]);
             }
 
             // 3. UPDATE KAS KASIR: Jika bayar pakai TUNAI, tabungan cash di sistem otomatis bertambah

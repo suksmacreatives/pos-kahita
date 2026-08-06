@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, usePage, router } from '@inertiajs/react';
 import { Users, UserCheck, ShoppingBag, UserX, Plus, Tag, Zap, Clock, BarChart2, List, LayoutGrid, Activity, LogIn, AlertCircle, Download, Bell, BellDot, Eye, CheckCheck } from 'lucide-react';
@@ -47,6 +47,12 @@ export default function Settings() {
         setToast({ message, type });
         setTimeout(() => setToast(null), 3000);
     };
+
+    useEffect(() => {
+        const flash = props.flash;
+        if (flash?.success) showToast(flash.success);
+        else if (flash?.error) showToast(flash.error, 'error');
+    }, [props.flash]);
 
     const handleSaveAkun = (formData) => {
         const isEdit = modalState.mode === 'edit' && modalState.data?.id;
@@ -138,9 +144,6 @@ export default function Settings() {
         router.post(route('admin.settings.promo.duplicate', promo.id), {}, {
             preserveState: true,
             preserveScroll: true,
-            onSuccess: () => {
-                showToast('Duplikat promo berhasil');
-            },
         });
     };
 
