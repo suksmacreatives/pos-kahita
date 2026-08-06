@@ -66,12 +66,27 @@ function OutletInventory() {
   const [isReturOpen, setIsReturOpen] = useState(false);
   const [isOpnameOpen, setIsOpnameOpen] = useState(false);
   const [lihatMutasi, setLihatMutasi] = useState(null);
+  const [processing, setProcessing] = useState(false);
+  const [appNotification, setAppNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+
+  useEffect(() => {
+    if (flash?.success) {
+      setAppNotification({ isOpen: true, type: 'success', title: 'Berhasil', message: flash.success });
+    } else if (flash?.error) {
+      setAppNotification({ isOpen: true, type: 'error', title: 'Gagal', message: flash.error });
+    }
+  }, [flash]);
 
   // Local state arrays initialized with server data to support dynamic additions/updates
   const [penerimaanList, setPenerimaanList] = useState(initialPenerimaan);
   const [transferList, setTransferList] = useState(initialTransfer);
   const [returList, setReturList] = useState(initialRetur);
   const [opnameList, setOpnameList] = useState(initialOpname);
+
+  useEffect(() => { setPenerimaanList(initialPenerimaan); }, [initialPenerimaan]);
+  useEffect(() => { setTransferList(initialTransfer); }, [initialTransfer]);
+  useEffect(() => { setReturList(initialRetur); }, [initialRetur]);
+  useEffect(() => { setOpnameList(initialOpname); }, [initialOpname]);
 
   // Format IDR Helper
   const formatIDR = (num) => {
@@ -170,6 +185,9 @@ function OutletInventory() {
   };
 
   const handleConfirmReceive = (confirmedData) => {
+    if (processing) return;
+    setProcessing(true);
+
     router.post(route('admin.inventory.outlet.penerimaan.konfirmasi', {
       distributionOrder: confirmedData.id
     }), {
@@ -181,7 +199,6 @@ function OutletInventory() {
       })),
       penerima: 'Admin Outlet'
     }, {
-      preserveState: true,
       preserveScroll: true,
       onSuccess: () => {
         setIsTerimaOpen(false);
@@ -189,11 +206,17 @@ function OutletInventory() {
       },
       onError: (errors) => {
         alert('Gagal konfirmasi: ' + Object.values(errors).join(', '));
+      },
+      onFinish: () => {
+        setProcessing(false);
       }
     });
   };
 
   const handleCreateTransfer = (newTransfer) => {
+    if (processing) return;
+    setProcessing(true);
+
     router.post(route('admin.inventory.outlet.transfer'), {
       outlet_asal_id: newTransfer.outlet_asal_id,
       outlet_tujuan_id: newTransfer.outlet_tujuan_id,
@@ -209,36 +232,45 @@ function OutletInventory() {
         qty: it.qty,
       })),
     }, {
-      preserveState: true,
       preserveScroll: true,
       onSuccess: () => {
         setIsTransferOpen(false);
       },
       onError: (errors) => {
         alert('Gagal membuat transfer: ' + Object.values(errors).join(', '));
+      },
+      onFinish: () => {
+        setProcessing(false);
       }
     });
   };
 
   const handleCancelTransfer = (id) => {
+    if (processing) return;
     if (confirm('Apakah Anda yakin ingin membatalkan pengajuan transfer ini?')) {
+      setProcessing(true);
       router.delete(route('admin.inventory.outlet.transfer.cancel', { id }), {
-        preserveState: true,
         preserveScroll: true,
+        onFinish: () => setProcessing(false),
       });
     }
   };
 
   const handleConfirmReceiveTransfer = (id) => {
+    if (processing) return;
     if (confirm('Konfirmasi bahwa barang transfer telah diterima dengan baik di outlet?')) {
+      setProcessing(true);
       router.patch(route('admin.inventory.outlet.transfer.terima', { id }), {}, {
-        preserveState: true,
         preserveScroll: true,
+        onFinish: () => setProcessing(false),
       });
     }
   };
 
   const handleCreateRetur = (newRetur) => {
+    if (processing) return;
+    setProcessing(true);
+
     router.post(route('admin.inventory.outlet.retur'), {
       outlet_id: newRetur.outlet_id,
       tgl_retur: newRetur.tgl_retur,
@@ -254,27 +286,34 @@ function OutletInventory() {
         catatan: it.catatan || '',
       })),
     }, {
-      preserveState: true,
       preserveScroll: true,
       onSuccess: () => {
         setIsReturOpen(false);
       },
       onError: (errors) => {
         alert('Gagal membuat retur: ' + Object.values(errors).join(', '));
+      },
+      onFinish: () => {
+        setProcessing(false);
       }
     });
   };
 
   const handleCancelRetur = (id) => {
+    if (processing) return;
     if (confirm('Apakah Anda yakin ingin membatalkan pengajuan retur ke gudang ini?')) {
+      setProcessing(true);
       router.delete(route('admin.inventory.outlet.retur.cancel', { id }), {
-        preserveState: true,
         preserveScroll: true,
+        onFinish: () => setProcessing(false),
       });
     }
   };
 
   const handleCreateOpname = (data) => {
+    if (processing) return;
+    setProcessing(true);
+
     router.post(route('admin.inventory.outlet.opname'), {
       ...data,
       outlet_id: selectedOutlet,
@@ -282,6 +321,7 @@ function OutletInventory() {
       preserveScroll: true,
       onSuccess: () => { setIsOpnameOpen(false); },
       onError: () => {},
+      onFinish: () => { setProcessing(false); }
     });
   };
 
@@ -458,6 +498,7 @@ function OutletInventory() {
         onClose={() => setIsTerimaOpen(false)}
         data={activeTerimaDo}
         onConfirm={handleConfirmReceive}
+        processing={processing}
       />
 
       <FormTransferModal
@@ -467,6 +508,7 @@ function OutletInventory() {
         onSubmit={handleCreateTransfer}
         outlets={outlets}
         outletStok={outletStok}
+        processing={processing}
       />
 
       <FormReturGudangModal
@@ -476,6 +518,7 @@ function OutletInventory() {
         onSubmit={handleCreateRetur}
         outlets={outlets}
         outletStok={outletStok}
+        processing={processing}
       />
 
       <FormOpnameOutletModal
@@ -483,6 +526,7 @@ function OutletInventory() {
         onClose={() => setIsOpnameOpen(false)}
         onSubmit={handleCreateOpname}
         products={outletStok[selectedOutlet] || []}
+        processing={processing}
       />
 
       <LihatMutasiModal
@@ -490,6 +534,20 @@ function OutletInventory() {
         onClose={() => setLihatMutasi(null)}
         mutasiLog={initialMutasiLog}
       />
+
+      {/* ── MODAL NOTIFIKASI ── */}
+      {appNotification.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-80 text-center">
+            <div className={`text-4xl mb-2 ${appNotification.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+              {appNotification.type === 'success' ? '✓' : '⚠'}
+            </div>
+            <h3 className="font-bold text-lg">{appNotification.title}</h3>
+            <p className="text-sm text-gray-600 mb-4">{appNotification.message}</p>
+            <button onClick={() => setAppNotification({ ...appNotification, isOpen: false })} className="bg-emerald-600 text-white w-full py-2 rounded">OK</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -204,7 +204,11 @@ class InventoriOutletService
             $outletId = $do->outlet_id;
 
             foreach ($items as $itemData) {
-                $item = $do->items()->findOrFail($itemData['id']);
+                // Kunci baris agar dua request paralel (double-submit) tidak membaca nilai lama yang sama
+                $item = DistributionOrderItem::where('distribution_order_id', $do->id)
+                    ->whereKey($itemData['id'])
+                    ->lockForUpdate()
+                    ->firstOrFail();
 
                 $qtyTerima = (int) ($itemData['qty_terima'] ?? 0);
                 $kondisi = $itemData['kondisi'] ?? 'baik';
@@ -216,13 +220,16 @@ class InventoriOutletService
                     );
                 }
 
+                // Idempotensi: hanya terapkan selisih dari qty yang sudah pernah diterima
+                $delta = $qtyTerima - (int) ($item->qty_terima ?? 0);
+
                 $item->update([
                     'qty_terima' => $qtyTerima,
                     'kondisi' => $kondisi,
                     'catatan' => $catatan,
                 ]);
 
-                if ($qtyTerima > 0) {
+                if ($delta !== 0) {
                     $variant = $item->productVariant;
                     if ($variant) {
                         $outletStock = OutletStock::where([
@@ -231,18 +238,18 @@ class InventoriOutletService
                         ])->first();
 
                         if ($outletStock) {
-                            $outletStock->increment('stock', $qtyTerima);
-                        } else {
+                            $outletStock->increment('stock', $delta);
+                        } elseif ($delta > 0) {
                             OutletStock::create([
                                 'outlet_id' => $outletId,
                                 'product_variant_id' => $variant->id,
-                                'stock' => $qtyTerima,
+                                'stock' => $delta,
                             ]);
                         }
                     }
 
                     $product = $item->product;
-                    if ($product) {
+                    if ($delta > 0 && $product) {
                         $ids = $product->outlet_ids ?? [];
                         if (!in_array((string) $outletId, $ids, true)) {
                             $ids[] = (string) $outletId;
@@ -256,7 +263,7 @@ class InventoriOutletService
                         'type' => 'penerimaan_outlet',
                         'reference_type' => 'distribution_order',
                         'reference_id' => $do->id,
-                        'qty' => $qtyTerima,
+                        'qty' => $delta,
                         'note' => 'Penerimaan dari gudang: ' . ($item->nama ?? ''),
                         'user_id' => Auth::id(),
                     ]);

@@ -6,6 +6,7 @@ import KonfirmasiTerimaModal from '@/Components/Admin/Inventory/Outlet/Konfirmas
 export default function InventoryPenerimaanView({ penerimaanList = {}, outletSlug, userName = 'Kasir' }) {
   const [isTerimaOpen, setIsTerimaOpen] = useState(false);
   const [activeTerimaDo, setActiveTerimaDo] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
   const handleOpenTerimaModal = (doRow) => {
     setActiveTerimaDo(doRow);
@@ -13,6 +14,9 @@ export default function InventoryPenerimaanView({ penerimaanList = {}, outletSlu
   };
 
   const handleConfirmReceive = (confirmedData) => {
+    if (processing) return;
+    setProcessing(true);
+
     router.post(route('pos.penerimaan.konfirmasi', {
       distributionOrder: confirmedData.id
     }), {
@@ -24,25 +28,15 @@ export default function InventoryPenerimaanView({ penerimaanList = {}, outletSlu
       })),
       penerima: userName
     }, {
-      preserveState: true,
-      preserveScroll: true,
       onSuccess: () => {
-
-    setIsTerimaOpen(false);
-    setActiveTerimaDo(null);
-
-    router.reload({
-        only: [
-            'products_from_db',
-            'inventoryProducts',
-            'penerimaanList'
-        ],
-        preserveScroll: true
-    });
-
-},
+        setIsTerimaOpen(false);
+        setActiveTerimaDo(null);
+      },
       onError: (errors) => {
         alert('Gagal konfirmasi: ' + Object.values(errors).join(', '));
+      },
+      onFinish: () => {
+        setProcessing(false);
       }
     });
   };
@@ -65,6 +59,7 @@ export default function InventoryPenerimaanView({ penerimaanList = {}, outletSlu
         onClose={() => { setIsTerimaOpen(false); setActiveTerimaDo(null); }}
         data={activeTerimaDo}
         onConfirm={handleConfirmReceive}
+        processing={processing}
       />
     </div>
   );

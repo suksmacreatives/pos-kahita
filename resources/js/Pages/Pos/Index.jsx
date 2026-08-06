@@ -706,6 +706,14 @@ const handleProsesBayarFinal = async () => {
             }
         }, [props.flash]);
 
+    useEffect(() => {
+        if (props.flash?.success) {
+            setAppNotification({ isOpen: true, type: 'success', title: 'Berhasil', message: props.flash.success });
+        } else if (props.flash?.error) {
+            setAppNotification({ isOpen: true, type: 'error', title: 'Gagal', message: props.flash.error });
+        }
+    }, [props.flash]);
+
     return (
         <div className="bg-[#f4f6f9] h-screen w-screen flex flex-col font-sans overflow-hidden select-none text-gray-700">
             <Head title={`Kasa POS - ${outlet_name || 'Outlet'}`} />
