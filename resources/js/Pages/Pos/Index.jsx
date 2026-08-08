@@ -17,7 +17,7 @@ import Absensi from '@/Components/POS/Views/Absensi';
 import PengaturanNotaView from '@/Components/POS/Views/PengaturanNotaView';
 import PengaturanPrinterView from '@/Components/POS/Views/PengaturanPrinterView';
 import PengaturanTokoView from '@/Components/POS/Views/PengaturanTokoView';
-import PrintShiftReport from "@/components/POS/views/PrintShiftReport";
+import PrintShiftReport from '@/Components/POS/Views/printShiftReport';
 
 export default function Index({
     auth,
