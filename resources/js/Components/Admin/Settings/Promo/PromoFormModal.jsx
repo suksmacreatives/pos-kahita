@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Percent, DollarSign, PackagePlus, Package, ChevronDown } from 'lucide-react';
+import { X, Percent, DollarSign, Package, ChevronDown } from 'lucide-react';
 import { format } from 'date-fns';
 
 export default function PromoFormModal({ isOpen, mode, data, onClose, onSave, outletList = [], kategoriList = [] }) {
@@ -15,8 +15,6 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave, ou
         nilai_diskon: '',
         max_diskon: '',
         min_transaksi: '0',
-        beli: '1',
-        gratis: '1',
         berlaku_dari: format(new Date(), 'yyyy-MM-dd'),
         berlaku_sampai: format(new Date(), 'yyyy-MM-dd'),
         kuota_tipe: 'unlimited',
@@ -36,8 +34,6 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave, ou
                 nilai_diskon: data.nilai_diskon || '',
                 max_diskon: data.max_diskon || '',
                 min_transaksi: data.min_transaksi || '0',
-                beli: data.beli || '1',
-                gratis: data.gratis || '1',
                 berlaku_dari: data.berlaku_dari ? format(new Date(data.berlaku_dari), 'yyyy-MM-dd') : '',
                 berlaku_sampai: data.berlaku_sampai ? format(new Date(data.berlaku_sampai), 'yyyy-MM-dd') : '',
                 kuota_tipe: data.kuota === null ? 'unlimited' : 'limit',
@@ -48,7 +44,7 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave, ou
             });
         } else if (isOpen && !isEdit) {
             setFormData({
-                nama_promo: '', kode_promo: '', deskripsi: '', tipe: 'persentase', nilai_diskon: '', max_diskon: '', min_transaksi: '0', beli: '1', gratis: '1', berlaku_dari: format(new Date(), 'yyyy-MM-dd'), berlaku_sampai: format(new Date(), 'yyyy-MM-dd'), kuota_tipe: 'unlimited', kuota: '', berlaku_di: 'semua', berlaku_untuk: 'semua', status: 'aktif'
+                nama_promo: '', kode_promo: '', deskripsi: '', tipe: 'persentase', nilai_diskon: '', max_diskon: '', min_transaksi: '0', berlaku_dari: format(new Date(), 'yyyy-MM-dd'), berlaku_sampai: format(new Date(), 'yyyy-MM-dd'), kuota_tipe: 'unlimited', kuota: '', berlaku_di: 'semua', berlaku_untuk: 'semua', status: 'aktif'
             });
         }
     }, [isOpen, isEdit, data]);
@@ -150,12 +146,6 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave, ou
                                         <DollarSign size={20} className="mb-1" />
                                         <span className="text-xs font-bold">Rp Potongan</span>
                                     </label>
-                                    {/* Beli X Gratis Y */}
-                                    <label className={`cursor-pointer flex flex-col items-center p-3 border rounded-xl transition-colors ${formData.tipe === 'beli_x_gratis_y' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 hover:bg-gray-50'}`}>
-                                        <input type="radio" name="tipe" value="beli_x_gratis_y" checked={formData.tipe === 'beli_x_gratis_y'} onChange={handleChange} className="sr-only" />
-                                        <PackagePlus size={20} className="mb-1" />
-                                        <span className="text-xs font-bold text-center">Beli X Gratis Y</span>
-                                    </label>
                                     {/* Bundle */}
                                     <label className={`cursor-pointer flex flex-col items-center p-3 border rounded-xl transition-colors ${formData.tipe === 'bundle' ? 'border-emerald-500 bg-emerald-50 text-emerald-700' : 'border-gray-200 hover:bg-gray-50'}`}>
                                         <input type="radio" name="tipe" value="bundle" checked={formData.tipe === 'bundle'} onChange={handleChange} className="sr-only" />
@@ -186,18 +176,6 @@ export default function PromoFormModal({ isOpen, mode, data, onClose, onSave, ou
                                     <div>
                                         <label className="block text-xs font-bold text-gray-700 mb-1">Nilai Potongan (Rp) *</label>
                                         <input type="number" name="nilai_diskon" value={formData.nilai_diskon} onChange={handleChange} required min="1" className="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm" />
-                                    </div>
-                                )}
-                                {formData.tipe === 'beli_x_gratis_y' && (
-                                    <div className="flex gap-4">
-                                        <div className="flex-1">
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">Beli (Item) *</label>
-                                            <input type="number" name="beli" value={formData.beli} onChange={handleChange} required min="1" className="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm" />
-                                        </div>
-                                        <div className="flex-1">
-                                            <label className="block text-xs font-bold text-gray-700 mb-1">Gratis (Item) *</label>
-                                            <input type="number" name="gratis" value={formData.gratis} onChange={handleChange} required min="1" className="block w-full rounded-lg border-gray-300 px-3 py-2 text-sm" />
-                                        </div>
                                     </div>
                                 )}
                                 {formData.tipe === 'bundle' && (

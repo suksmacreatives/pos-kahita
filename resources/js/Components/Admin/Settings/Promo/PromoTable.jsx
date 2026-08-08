@@ -56,8 +56,6 @@ export default function PromoTable({ data, onEdit, onDuplicate, onToggleStatus, 
                                 if (row.max_diskon) nilaiText += ` (maks ${formatRupiah(row.max_diskon)})`;
                             } else if (row.tipe === 'nominal') {
                                 nilaiText = formatRupiah(row.nilai_diskon);
-                            } else if (row.tipe === 'beli_x_gratis_y') {
-                                nilaiText = row.deskripsi || 'Beli X Gratis Y';
                             } else {
                                 nilaiText = 'Paket Spesial';
                             }

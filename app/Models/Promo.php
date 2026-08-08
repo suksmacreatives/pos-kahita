@@ -15,8 +15,6 @@ class Promo extends Model
         'nilai_diskon',
         'min_transaksi',
         'max_diskon',
-        'beli',
-        'gratis',
         'berlaku_dari',
         'berlaku_sampai',
         'berlaku_di',
@@ -81,31 +79,6 @@ class Promo extends Model
 
         if ($this->tipe === 'nominal') {
             return min(max((float) $this->nilai_diskon, 0), $subtotal);
-        }
-
-        if ($this->tipe === 'beli_x_gratis_y') {
-            $beli = (int) ($this->beli ?: 1);
-            $gratis = (int) ($this->gratis ?: 0);
-            if ($beli <= 0 || $gratis <= 0) {
-                return 0;
-            }
-
-            $totalQty = array_sum(array_map(fn ($i) => (int) ($i['quantity'] ?? 1), $items));
-            $freeQty = intdiv($totalQty, $beli + $gratis) * $gratis;
-            if ($freeQty <= 0) {
-                return 0;
-            }
-
-            $cheapest = INF;
-            foreach ($items as $i) {
-                $cheapest = min($cheapest, (float) ($i['price'] ?? 0));
-            }
-
-            if (!is_finite($cheapest)) {
-                return 0;
-            }
-
-            return min($freeQty * $cheapest, $subtotal);
         }
 
         if ($this->tipe === 'bundle') {

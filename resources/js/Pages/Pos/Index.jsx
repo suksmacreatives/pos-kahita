@@ -152,21 +152,6 @@ export default function Index({
             return Math.min(Math.max(Number(promo.nilai_diskon || 0), 0), subtotal);
         }
 
-        if (promo.tipe === 'beli_x_gratis_y') {
-            const beli = Number(promo.beli) || 1;
-            const gratis = Number(promo.gratis) || 0;
-            if (beli <= 0 || gratis <= 0) return 0;
-
-            const totalQty = cart.reduce((acc, item) => acc + (Number(item.quantity) || 1), 0);
-            const freeQty = Math.floor(totalQty / (beli + gratis)) * gratis;
-            if (freeQty <= 0) return 0;
-
-            const cheapest = cart.reduce((min, item) => Math.min(min, Number(item.price) || 0), Infinity);
-            if (!isFinite(cheapest)) return 0;
-
-            return Math.min(freeQty * cheapest, subtotal);
-        }
-
         if (promo.tipe === 'bundle') {
             return Math.min(Math.max(subtotal - Number(promo.nilai_diskon || 0), 0), subtotal);
         }

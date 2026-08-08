@@ -18,7 +18,7 @@ class UpdatePromoRequest extends FormRequest
             'nama_promo' => 'required|string|max:255',
             'kode_promo' => ['nullable', 'string', 'max:20', Rule::unique('promos', 'kode_promo')->ignore($this->route('promo'))],
             'deskripsi' => 'nullable|string',
-            'tipe' => 'required|in:persentase,nominal,beli_x_gratis_y,bundle',
+            'tipe' => 'required|in:persentase,nominal,bundle',
             'nilai_diskon' => 'nullable|numeric|min:0',
             'min_transaksi' => 'nullable|numeric|min:0',
             'max_diskon' => 'nullable|numeric|min:0',

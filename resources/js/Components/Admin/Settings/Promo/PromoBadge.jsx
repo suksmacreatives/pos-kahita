@@ -6,7 +6,6 @@ export default function PromoBadge({ tipe, status, label }) {
         const typeStyles = {
             persentase: { bg: 'bg-blue-100', text: 'text-blue-800' },
             nominal: { bg: 'bg-green-100', text: 'text-green-800' },
-            beli_x_gratis_y: { bg: 'bg-purple-100', text: 'text-purple-800' },
             bundle: { bg: 'bg-amber-100', text: 'text-amber-800' }
         };
         const style = typeStyles[tipe] || { bg: 'bg-gray-100', text: 'text-gray-800' };
@@ -14,7 +13,6 @@ export default function PromoBadge({ tipe, status, label }) {
         let defaultLabel = '';
         if (tipe === 'persentase') defaultLabel = '% Diskon';
         if (tipe === 'nominal') defaultLabel = 'Rp Potongan';
-        if (tipe === 'beli_x_gratis_y') defaultLabel = 'Beli X Gratis Y';
         if (tipe === 'bundle') defaultLabel = 'Bundle';
 
         return (
