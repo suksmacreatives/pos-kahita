@@ -191,7 +191,6 @@ export default function Dashboard({ auth, users, outlets }) {
                                         <InputError message={localErrors.password_confirmation || errors.password_confirmation} className="mt-1" />
                                     </div>
                                 )}
-                                </div>
 
                                 <PrimaryButton className="w-full justify-center bg-emerald-600 hover:bg-emerald-700 mt-2" disabled={processing}>
                                     {isEditing ? 'Simpan Perubahan' : 'Daftarkan Staf'}
@@ -202,6 +201,7 @@ export default function Dashboard({ auth, users, outlets }) {
                                         Batal Mengedit
                                     </button>
                                 )}
+                            
                             </form>
                         </div>
 
