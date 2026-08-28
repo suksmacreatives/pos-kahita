@@ -1,255 +1,557 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 export default function PrintShiftReport({
     data,
     formatRupiah,
     onFinished,
 }) {
+    const alreadyPrinted = useRef(false);
+
     useEffect(() => {
         if (!data) return;
 
-        const savedConfig = localStorage.getItem("master_nota_config");
+        // Mencegah print dua kali jika React menjalankan effect ulang
+        if (alreadyPrinted.current) return;
 
-        const notaConfig = savedConfig
-            ? JSON.parse(savedConfig)
-            : {
-                  namaToko: "KAHITA BUSANA",
-                  alamatToko: "",
-                  telpToko: "",
-                  showNamaToko: true,
-                  showAlamat: true,
-                  showTelp: true,
-                  showHeaderTerimakasih: true,
-                  showFooterNote: true,
-                  teksTerimakasih: "Terima Kasih",
-                  teksFooterNote: "",
-              };
+        alreadyPrinted.current = true;
 
-        const iframe = document.createElement("iframe");
+        const printToOripos = async () => {
+            try {
+                console.log("=================================");
+                console.log("MULAI PRINT TUTUP KASIR");
+                console.log("Data:", data);
+                console.log("=================================");
 
-        iframe.style.position = "fixed";
-        iframe.style.right = "0";
-        iframe.style.bottom = "0";
-        iframe.style.width = "0";
-        iframe.style.height = "0";
-        iframe.style.border = "0";
+                // =====================================================
+                // 1. CEK CLEANter
+                // =====================================================
 
-        document.body.appendChild(iframe);
+                const healthResponse = await fetch(
+                    "http://localhost:9100/health"
+                );
 
-        const doc = iframe.contentWindow.document;
+                if (!healthResponse.ok) {
+                    throw new Error(
+                        "Cleanter tidak dapat dihubungi."
+                    );
+                }
 
-        const row = (label, value) => {
-            if (Number(value) === 0) return "";
+                const health = await healthResponse.json();
 
-            return `
-                <div class="row">
-                    <span>${label}</span>
-                    <span>${formatRupiah(value)}</span>
-                </div>
-            `;
+                console.log("Cleanter health:", health);
+
+                if (!health?.printer?.connected) {
+                    throw new Error(
+                        "Printer ORIPOS tidak terhubung."
+                    );
+                }
+
+                // =====================================================
+                // 2. HELPER FORMAT BARIS
+                // =====================================================
+
+                const row = (label, value, options = {}) => {
+                    const numberValue = Number(value || 0);
+
+                    // Sama seperti kode lama:
+                    // nilai 0 tidak ditampilkan
+                    if (
+                        numberValue === 0 &&
+                        options.showZero !== true
+                    ) {
+                        return null;
+                    }
+
+                    return {
+                        type: "row",
+                        left: label,
+                        right: formatRupiah(numberValue),
+                        ...(options.bold
+                            ? { bold: true }
+                            : {}),
+                    };
+                };
+
+                // =====================================================
+                // 3. BUAT CONTENT STRUK
+                // =====================================================
+
+                const content = [];
+
+                // -----------------------------------------------------
+                // HEADER TOKO
+                // -----------------------------------------------------
+
+                const savedConfig =
+                    localStorage.getItem(
+                        "master_nota_config"
+                    );
+
+                const notaConfig = savedConfig
+                    ? JSON.parse(savedConfig)
+                    : {
+                          namaToko:
+                              "KAHITA BUSANA",
+
+                          alamatToko: "",
+
+                          telpToko: "",
+
+                          showNamaToko: true,
+
+                          showAlamat: true,
+
+                          showTelp: true,
+
+                          showHeaderTerimakasih: true,
+
+                          showFooterNote: true,
+
+                          teksTerimakasih:
+                              "Terima Kasih",
+
+                          teksFooterNote: "",
+                      };
+
+                // Nama toko
+                if (
+                    notaConfig.showNamaToko &&
+                    notaConfig.namaToko
+                ) {
+                    content.push({
+                        type: "text",
+                        text: notaConfig.namaToko,
+                        align: "center",
+                        bold: true,
+                    });
+                }
+
+                // Alamat
+                if (
+                    notaConfig.showAlamat &&
+                    notaConfig.alamatToko
+                ) {
+                    content.push({
+                        type: "text",
+                        text: notaConfig.alamatToko,
+                        align: "center",
+                    });
+                }
+
+                // Telepon
+                if (
+                    notaConfig.showTelp &&
+                    notaConfig.telpToko
+                ) {
+                    content.push({
+                        type: "text",
+                        text: notaConfig.telpToko,
+                        align: "center",
+                    });
+                }
+
+                content.push({
+                    type: "divider",
+                });
+
+                // -----------------------------------------------------
+                // JUDUL
+                // -----------------------------------------------------
+
+                content.push({
+                    type: "text",
+                    text: "REKAP TUTUP KASIR",
+                    align: "center",
+                    bold: true,
+                });
+
+                // -----------------------------------------------------
+                // INFORMASI SHIFT
+                // -----------------------------------------------------
+
+                content.push({
+                    type: "text",
+                    text: `Kasir : ${data.kasir || "-"}`,
+                });
+
+                content.push({
+                    type: "text",
+                    text: `Buka  : ${data.opened_at || "-"}`,
+                });
+
+                content.push({
+                    type: "text",
+                    text: `Tutup : ${data.closed_at || "-"}`,
+                });
+
+                content.push({
+                    type: "divider",
+                });
+
+                // -----------------------------------------------------
+                // PEMBAYARAN
+                // -----------------------------------------------------
+
+                const modalAwal = row(
+                    "Modal Awal",
+                    data.starting_cash
+                );
+
+                if (modalAwal) {
+                    content.push(modalAwal);
+                }
+
+                const tunai = row(
+                    "Tunai",
+                    data.tunai
+                );
+
+                if (tunai) {
+                    content.push(tunai);
+                }
+
+                const transfer = row(
+                    "Transfer",
+                    data.transfer
+                );
+
+                if (transfer) {
+                    content.push(transfer);
+                }
+
+                const qris = row(
+                    "QRIS",
+                    data.qris
+                );
+
+                if (qris) {
+                    content.push(qris);
+                }
+
+                const debit = row(
+                    "Debit",
+                    data.debit
+                );
+
+                if (debit) {
+                    content.push(debit);
+                }
+
+                const ewallet = row(
+                    "E-Wallet",
+                    data.ewallet
+                );
+
+                if (ewallet) {
+                    content.push(ewallet);
+                }
+
+                const voidRow = row(
+                    "VOID",
+                    data.void
+                );
+
+                if (voidRow) {
+                    content.push(voidRow);
+                }
+
+                content.push({
+                    type: "divider",
+                });
+
+                // -----------------------------------------------------
+                // TOTAL PENJUALAN
+                // -----------------------------------------------------
+
+                const totalPenjualan = row(
+                    "Total Penjualan",
+                    data.total_penjualan,
+                    {
+                        bold: true,
+                    }
+                );
+
+                if (totalPenjualan) {
+                    content.push(totalPenjualan);
+                }
+
+                // Total transaksi
+                if (
+                    Number(data.total_transaksi || 0) > 0
+                ) {
+                    content.push({
+                        type: "row",
+                        left: "Total Transaksi",
+                        right: String(
+                            data.total_transaksi
+                        ),
+                    });
+                }
+
+                // Total item
+                if (
+                    Number(data.total_item || 0) > 0
+                ) {
+                    content.push({
+                        type: "row",
+                        left: "Total Item",
+                        right: String(
+                            data.total_item
+                        ),
+                    });
+                }
+
+                content.push({
+                    type: "divider",
+                });
+
+                // -----------------------------------------------------
+                // CASH
+                // -----------------------------------------------------
+
+                const cashExpected = row(
+                    "Cash Seharusnya",
+                    data.cash_expected
+                );
+
+                if (cashExpected) {
+                    content.push(cashExpected);
+                }
+
+                const physicalCash = row(
+                    "Cash Fisik",
+                    data.physical_cash
+                );
+
+                if (physicalCash) {
+                    content.push(physicalCash);
+                }
+
+                // -----------------------------------------------------
+                // SELISIH
+                // -----------------------------------------------------
+
+                if (
+                    Number(data.discrepancy || 0) !== 0
+                ) {
+                    content.push({
+                        type: "divider",
+                    });
+
+                    content.push({
+                        type: "row",
+                        left: "SELISIH",
+                        right: formatRupiah(
+                            data.discrepancy
+                        ),
+                        bold: true,
+                    });
+                }
+
+                // -----------------------------------------------------
+                // PRODUK TERJUAL
+                // -----------------------------------------------------
+
+                if (
+                    Array.isArray(data.products) &&
+                    data.products.length > 0
+                ) {
+                    content.push({
+                        type: "divider",
+                    });
+
+                    content.push({
+                        type: "text",
+                        text: "PRODUK TERJUAL",
+                        align: "center",
+                        bold: true,
+                    });
+
+                    data.products.forEach(
+                        (item) => {
+                            content.push({
+                                type: "row",
+
+                                left:
+                                    item.nama ||
+                                    "Produk",
+
+                                right:
+                                    `x${item.qty || 0}`,
+                            });
+                        }
+                    );
+                }
+
+                // -----------------------------------------------------
+                // FOOTER
+                // -----------------------------------------------------
+
+                content.push({
+                    type: "divider",
+                });
+
+                if (
+                    notaConfig.showHeaderTerimakasih
+                ) {
+                    content.push({
+                        type: "text",
+                        text:
+                            notaConfig.teksTerimakasih ||
+                            "Terima Kasih",
+                        align: "center",
+                        bold: true,
+                    });
+                }
+
+                if (
+                    notaConfig.showFooterNote &&
+                    notaConfig.teksFooterNote
+                ) {
+                    content.push({
+                        type: "text",
+                        text:
+                            notaConfig.teksFooterNote,
+                        align: "center",
+                    });
+                }
+
+                // Feed sebelum potong kertas
+                content.push({
+                    type: "feed",
+                    lines: 3,
+                });
+
+                // =====================================================
+                // 4. KIRIM LANGSUNG KE CLEANter
+                // =====================================================
+
+                console.log(
+                    "Mengirim data ke ORIPOS..."
+                );
+
+                const response = await fetch(
+                    "http://localhost:9100/print",
+                    {
+                        method: "POST",
+
+                        headers: {
+                            "Content-Type":
+                                "application/json",
+                        },
+
+                        body: JSON.stringify({
+                            cut: true,
+                            content: content,
+                        }),
+                    }
+                );
+
+                const result =
+                    await response.json();
+
+                console.log(
+                    "Hasil print:",
+                    result
+                );
+
+                // =====================================================
+                // 5. JIKA GAGAL
+                // =====================================================
+
+                if (!response.ok) {
+                    throw new Error(
+                        result?.error ||
+                        result?.fix ||
+                        "Printer gagal mencetak."
+                    );
+                }
+
+                // =====================================================
+                // 6. PRINT BERHASIL
+                // =====================================================
+
+                console.log(
+                    "================================="
+                );
+
+                console.log(
+                    "STRUK BERHASIL DICETAK"
+                );
+
+                console.log(
+                    "================================="
+                );
+
+                if (onFinished) {
+                    onFinished();
+                }
+
+                // =====================================================
+                // 7. LOGOUT SETELAH PRINT
+                // =====================================================
+
+                try {
+                    await fetch(
+                        route(
+                            "pos.logout-after-print"
+                        ),
+                        {
+                            method: "POST",
+
+                            headers: {
+                                "X-CSRF-TOKEN":
+                                    document
+                                        .querySelector(
+                                            'meta[name="csrf-token"]'
+                                        )
+                                        .content,
+
+                                Accept:
+                                    "application/json",
+                            },
+                        }
+                    );
+                } finally {
+                    window.location.href =
+                        "/login";
+                }
+
+            } catch (error) {
+
+                console.error(
+                    "================================="
+                );
+
+                console.error(
+                    "PRINT ERROR:",
+                    error
+                );
+
+                console.error(
+                    "================================="
+                );
+
+                // Izinkan mencoba lagi
+                alreadyPrinted.current = false;
+
+                alert(
+                    "Gagal mencetak struk.\n\n" +
+                    error.message +
+                    "\n\n" +
+                    "Pastikan:\n" +
+                    "• ORIPOS menyala\n" +
+                    "• Bluetooth aktif\n" +
+                    "• Printer terhubung\n" +
+                    "• Cleanter aktif"
+                );
+            }
         };
 
-        doc.open();
+        printToOripos();
 
-        doc.write(`
-<!DOCTYPE html>
-<html>
+    }, [data, formatRupiah, onFinished]);
 
-<head>
-
-<style>
-
-@page{
-    size:80mm auto;
-    margin:4mm;
-}
-
-body{
-    width:72mm;
-    font-family:'Courier New', monospace;
-    font-size:11px;
-    color:#000;
-}
-
-.center{
-    text-align:center;
-}
-
-.bold{
-    font-weight:bold;
-}
-
-.title{
-    text-align:center;
-    font-weight:bold;
-    margin:6px 0;
-    text-transform:uppercase;
-}
-
-.line{
-    border-top:1px dashed #000;
-    margin:6px 0;
-}
-
-.row{
-    display:flex;
-    justify-content:space-between;
-    margin:2px 0;
-}
-
-</style>
-
-</head>
-
-<body>
-
-<div class="center">
-
-${notaConfig.showNamaToko ? `<div class="bold">${notaConfig.namaToko}</div>` : ""}
-
-${notaConfig.showAlamat && notaConfig.alamatToko ? `<div>${notaConfig.alamatToko}</div>` : ""}
-
-${notaConfig.showTelp && notaConfig.telpToko ? `<div>${notaConfig.telpToko}</div>` : ""}
-
-</div>
-
-<div class="line"></div>
-
-<div class="title">
-REKAP TUTUP KASIR
-</div>
-
-<div>Kasir : ${data.kasir}</div>
-<div>Buka : ${data.opened_at}</div>
-<div>Tutup : ${data.closed_at}</div>
-
-<div class="line"></div>
-
-${row("Modal Awal", data.starting_cash)}
-
-${row("Tunai", data.tunai)}
-
-${row("Transfer", data.transfer)}
-
-${row("QRIS", data.qris)}
-
-${row("Debit", data.debit)}
-
-${row("E-Wallet", data.ewallet)}
-
-${row("VOID", data.void)}
-
-<div class="line"></div>
-
-${row("Total Penjualan", data.total_penjualan)}
-
-${Number(data.total_transaksi) > 0 ? `
-<div class="row">
-    <span>Total Transaksi</span>
-    <span>${data.total_transaksi}</span>
-</div>
-` : ""}
-
-${Number(data.total_item) > 0 ? `
-<div class="row">
-    <span>Total Item</span>
-    <span>${data.total_item}</span>
-</div>
-` : ""}
-
-<div class="line"></div>
-
-
-${row("Cash Seharusnya", data.cash_expected)}
-
-${row("Cash Fisik", data.physical_cash)}
-
-${Number(data.discrepancy) !== 0 ? `
-
-<div class="line"></div>
-
-<div class="row bold">
-    <span>SELISIH</span>
-    <span>${formatRupiah(data.discrepancy)}</span>
-</div>
-
-` : ""}
-
-<div class="line"></div>
-${
-data.products?.length
-?
-`
-<div class="bold">
-PRODUK TERJUAL
-</div>
-
-${data.products.map(item => `
-<div class="row">
-    <span>${item.nama}</span>
-    <span>x${item.qty}</span>
-</div>
-`).join("")}
-
-<div class="line"></div>
-`
-:
-""
-}
-
-${
-notaConfig.showHeaderTerimakasih
-? `<div class="center bold">${notaConfig.teksTerimakasih}</div>`
-: ""
-}
-
-${
-notaConfig.showFooterNote && notaConfig.teksFooterNote
-? `<div class="center">${notaConfig.teksFooterNote}</div>`
-: ""
-}
-
-</body>
-
-</html>
-        `);
-
-        doc.close();
-
-        setTimeout(() => {
-            iframe.contentWindow.focus();
-            iframe.contentWindow.print();
-
-            setTimeout(async () => {
-
-    document.body.removeChild(iframe);
-
-    if (onFinished) {
-        onFinished();
-    }
-
-    try {
-
-        await fetch(route("pos.logout-after-print"), {
-            method: "POST",
-            headers: {
-                "X-CSRF-TOKEN": document
-                    .querySelector('meta[name="csrf-token"]')
-                    .content,
-                "Accept": "application/json",
-            },
-        });
-
-    } finally {
-
-        window.location.href = "/login";
-
-    }
-
-},1000);
-        }, 300);
-
-    }, [data]);
-
+    // Tidak menampilkan apa-apa
     return null;
 }
