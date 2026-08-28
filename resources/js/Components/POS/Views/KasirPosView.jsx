@@ -225,12 +225,104 @@ const handleRemoveCartItem = (cartId) => {
 <div className="flex-1 overflow-y-auto pb-4 px-6 pt-6">
 
     {leftContentView === 'grid' ? (
+        <>
+        {/* =========================
+            SEARCH PRODUK
+        ========================== */}
+        <div className="mb-5">
+            <div className="relative max-w-xl">
+
+                {/* Icon Search */}
+                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                    <svg
+                        className="w-5 h-5 text-slate-400"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                    >
+                        <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth="2"
+                            d="M21 21l-4.35-4.35m2.35-5.65a8 8 0 11-16 0 8 8 0 0116 0z"
+                        />
+                    </svg>
+                </div>
+
+                <input
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) =>
+                        setSearchQuery(e.target.value)
+                    }
+                    placeholder="Cari nama produk..."
+                    className="
+                        w-full
+                        pl-11
+                        pr-10
+                        py-3
+                        bg-white
+                        border
+                        border-slate-200
+                        rounded-xl
+                        text-sm
+                        text-slate-700
+                        outline-none
+                        focus:border-[#009664]
+                        focus:ring-2
+                        focus:ring-[#009664]/10
+                        transition
+                    "
+                />
+
+                {/* Tombol Clear */}
+                {searchQuery && (
+                    <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="
+                            absolute
+                            inset-y-0
+                            right-0
+                            pr-4
+                            flex
+                            items-center
+                            text-slate-400
+                            hover:text-slate-700
+                        "
+                    >
+                        ✕
+                    </button>
+                )}
+
+            </div>
+
+            {/* Info hasil pencarian */}
+            <div className="mt-2 text-xs text-slate-400">
+                {searchQuery ? (
+                    <>
+                        Menampilkan{" "}
+                        <span className="font-bold text-slate-600">
+                            {filteredProducts.length}
+                        </span>{" "}
+                        produk untuk "{searchQuery}"
+                    </>
+                ) : (
+                    <>
+                        <span className="font-bold text-slate-600">
+                            {filteredProducts.length}
+                        </span>{" "}
+                        produk tersedia
+                    </>
+                )}
+            </div>
+        </div>
 
         <div
     className={`grid gap-4 ${
         isSidebarOpen
-            ? 'grid-cols-4'
-            : 'grid-cols-5'
+            ? 'grid-cols-3'
+            : 'grid-cols-4'
     }`}
 >
             {filteredProducts.map((product) => {
@@ -298,7 +390,7 @@ const handleRemoveCartItem = (cartId) => {
                 );
             })}
         </div>
-
+</>
     ) : (
 
         <div className="bg-white rounded-l border border-slate-200 shadow-sm overflow-hidden">
