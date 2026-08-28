@@ -179,288 +179,293 @@ export default function Index({
         });
     };
 
-const cetakStrukLangsung = (transaksiData) => {
-    // 1. Ambil konfigurasi dari localStorage (sama seperti di PengaturanNotaView)
-    const savedConfig = localStorage.getItem('master_nota_config');
-    const notaConfig = savedConfig
-    ? JSON.parse(savedConfig)
-    : {
-        namaToko: 'KAHITA BUSANA',
-        alamatToko: 'JL. BYPASS DHARMA GIRI',
-        telpToko: '082189833575',
+const cetakStrukLangsung = async (transaksiData) => {
+    try {
 
-        showLogo: true,
-        logo: "",
+        const healthResponse = await fetch(
+            "http://localhost:9100/health"
+        );
 
-        showNamaToko: true,
-        showAlamat: true,
-        showTelp: true,
-        showNoStruk: true,
-        showWaktu: true,
-        showHeaderTerimakasih: true,
-        showFooterNote: true,
+        if (!healthResponse.ok) {
+            throw new Error("Cleanter tidak tersedia");
+        }
 
-        teksTerimakasih: 'Terima Kasih',
-        teksFooterNote: 'Mohon diperiksa kembali pembelian anda...'
-    };
+        const health = await healthResponse.json();
 
-    const iframe = document.createElement('iframe');
-    iframe.style.position = 'absolute';
-    iframe.style.width = '0';
-    iframe.style.height = '0';
-    document.body.appendChild(iframe);
+        console.log("Cleanter:", health);
 
-    const doc = iframe.contentWindow.document;
-    const waktu = new Date().toLocaleString('id-ID');
+        const savedConfig = localStorage.getItem(
+            "master_nota_config"
+        );
 
-    doc.write(`
-        <html>
-        <head>
-            <style>
-    @page{
-    margin:0;
-    size:72mm auto;
-}
+        const notaConfig = savedConfig
+            ? JSON.parse(savedConfig)
+            : {
+                  namaToko: "KAHITA BUSANA",
+                  alamatToko: "JL. BYPASS DHARMA GIRI",
+                  telpToko: "082189833575",
 
-body{
-    width:72mm;
-    margin:0;
-    padding:8px;
-    font-family:"Courier New",monospace;
-    font-size:11px;
-    line-height:1.2;
-    color:#000;
-    box-sizing:border-box;
-}
+                  showNamaToko: true,
+                  showAlamat: true,
+                  showTelp: true,
+                  showNoStruk: true,
+                  showWaktu: true,
+                  showHeaderTerimakasih: true,
+                  showFooterNote: true,
 
-.text-center{
-    text-align:center;
-}
+                  teksTerimakasih: "Terima Kasih",
+                  teksFooterNote:
+                      "Mohon diperiksa kembali pembelian anda...",
+              };
 
-.font-bold{
-    font-weight:bold;
-}
+        const waktu = new Date().toLocaleString("id-ID");
 
-.uppercase{
-    text-transform:uppercase;
-}
+        const content = [];
 
-.logo{
-    width:60px;
-    height:60px;
-    margin:0 auto 6px;
-}
+        if (notaConfig.showNamaToko) {
+            content.push({
+                type: "text",
+                text: notaConfig.namaToko || "",
+                align: "center",
+                bold: true,
+            });
+        }
 
-.logo img{
-    width:100%;
-    height:100%;
-    object-fit:cover;
-    border-radius:4px;
-}
+        if (
+            notaConfig.showAlamat &&
+            notaConfig.alamatToko
+        ) {
+            content.push({
+                type: "text",
+                text: notaConfig.alamatToko,
+                align: "center",
+            });
+        }
 
-.header{
-    margin-bottom:8px;
-}
+        if (
+            notaConfig.showTelp &&
+            notaConfig.telpToko
+        ) {
+            content.push({
+                type: "text",
+                text: `TELP: ${notaConfig.telpToko}`,
+                align: "center",
+            });
+        }
 
-.header h4{
-    margin:0;
-    font-size:12px;
-    font-weight:bold;
-}
+        if (notaConfig.showNoStruk) {
+            content.push({
+                type: "text",
+                text: `NO.STRUK : ${
+                    transaksiData.noStruk ||
+                    transaksiData.invoice_number ||
+                    "100505"
+                }`,
+                align: "center",
+                bold: true,
+            });
+        }
 
-.header p{
-    margin:2px 0;
-}
+        if (notaConfig.showWaktu) {
+            content.push({
+                type: "text",
+                text: waktu,
+                align: "center",
+            });
+        }
+        content.push({
+            type: "divider",
+        });
 
-hr{
-    border:none;
-    border-top:1px dashed #000;
-    margin:6px 0;
-}
+        (transaksiData.items || []).forEach((item) => {
+            const nama =
+                item.name ||
+                item.product_name_snapshot ||
+                item.customName ||
+                "-";
 
-.item{
-    margin-bottom:4px;
-}
+            const qty =
+                item.quantity ||
+                item.qty ||
+                0;
 
-.item-name{
-    font-weight:bold;
-    text-transform:uppercase;
-    word-break:break-word;
-}
+            const harga =
+                item.price ??
+                item.price_at_sale ??
+                0;
 
-.item-row{
-    display:flex;
-    justify-content:space-between;
-}
+            const total =
+                item.total ??
+                qty * harga;
 
-.summary{
-    margin-top:4px;
-}
+            // Nama produk
+            content.push({
+                type: "text",
+                text: nama.toUpperCase(),
+                bold: true,
+            });
 
-.summary-row{
-    display:flex;
-    justify-content:space-between;
-    margin:2px 0;
-}
+            // Qty + harga
+            content.push({
+                type: "row",
+                left: `${qty} x ${formatRupiah(harga)}`,
+                right: formatRupiah(total),
+            });
+        });
 
-.footer{
-    margin-top:8px;
-    text-align:center;
-}
+        content.push({
+            type: "divider",
+        });
 
-.footer-note{
-    margin-top:6px;
-    font-size:10px;
-    line-height:1.3;
-}
-</style>
-        </head>
-        <body>
-            <div class="text-center header">
+        content.push({
+            type: "row",
+            left: "SUBTOTAL",
+            right: formatRupiah(
+                transaksiData.subtotal ??
+                    transaksiData.grand_total ??
+                    0
+            ),
+        });
 
-    ${
-        notaConfig.showLogo && notaConfig.logo
-            ? `
-                <div class="logo">
-                    <img src="${notaConfig.logo}">
-                </div>
-            `
-            : ''
+        if (transaksiData.promoName) {
+            content.push({
+                type: "row",
+                left: "PROMO",
+                right: transaksiData.promoName,
+            });
+        }
+
+        if (
+            Number(transaksiData.discount || 0) > 0
+        ) {
+            content.push({
+                type: "row",
+                left: "DISKON",
+                right: `- ${formatRupiah(
+                    transaksiData.discount
+                )}`,
+            });
+        }
+
+        content.push({
+            type: "row",
+            left: "TOTAL RP.",
+            right: formatRupiah(
+                transaksiData.total ??
+                    transaksiData.grand_total ??
+                    0
+            ),
+            bold: true,
+        });
+        content.push({
+            type: "row",
+            left: transaksiData.metode || "TUNAI",
+            right: formatRupiah(
+                transaksiData.bayar ??
+                    transaksiData.grand_total ??
+                    0
+            ),
+        });
+
+        if (
+            transaksiData.metode === "TUNAI" ||
+            !transaksiData.metode
+        ) {
+            content.push({
+                type: "divider",
+            });
+
+            content.push({
+                type: "row",
+                left: "KEMBALI RP.",
+                right: formatRupiah(
+                    transaksiData.kembali || 0
+                ),
+                bold: true,
+            });
+        }
+
+        content.push({
+            type: "divider",
+        });
+
+        if (
+            notaConfig.showHeaderTerimakasih
+        ) {
+            content.push({
+                type: "text",
+                text:
+                    notaConfig.teksTerimakasih ||
+                    "Terima Kasih",
+                align: "center",
+                bold: true,
+            });
+        }
+
+        if (
+            notaConfig.showFooterNote &&
+            notaConfig.teksFooterNote
+        ) {
+            content.push({
+                type: "text",
+                text: notaConfig.teksFooterNote,
+                align: "center",
+            });
+        }
+
+        content.push({
+            type: "feed",
+            lines: 3,
+        });
+
+        const response = await fetch(
+            "http://localhost:9100/print",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/json",
+                },
+
+                body: JSON.stringify({
+                    cut: true,
+                    content: content,
+                }),
+            }
+        );
+
+        const result = await response.json();
+
+        console.log(
+            "Hasil print Cleanter:",
+            result
+        );
+
+        if (!response.ok) {
+            throw new Error(
+                result?.message ||
+                    "Gagal mencetak struk"
+            );
+        }
+
+        console.log(
+            "✅ Struk berhasil dikirim ke printer"
+        );
+
+    } catch (error) {
+        console.error(
+            "❌ PRINT ERROR:",
+            error
+        );
+
+        alert(
+            "Printer tidak tersedia.\n\n" +
+            "Pastikan Cleanter aktif dan printer RPP02N terhubung."
+        );
     }
-
-    ${
-        notaConfig.showNamaToko
-            ? `<h4 class="font-bold uppercase">${notaConfig.namaToko}</h4>`
-            : ''
-    }
-
-    ${
-        notaConfig.showAlamat
-            ? `<p class="uppercase">${notaConfig.alamatToko}</p>`
-            : ''
-    }
-
-    ${
-        notaConfig.showTelp
-            ? `<p>TELP: ${notaConfig.telpToko}</p>`
-            : ''
-    }
-
-    ${
-        notaConfig.showNoStruk
-            ? `<p class="font-bold">NO.STRUK : ${transaksiData.noStruk || transaksiData.invoice_number || '100505'}</p>`
-            : ''
-    }
-
-    ${
-        notaConfig.showWaktu
-            ? `<p>${waktu}</p>`
-            : ''
-    }
-
-</div>
-
-            <div class="border-b"></div>
-
-            <hr>
-
-${
-(transaksiData.items || []).map(item=>{
-
-const nama =
-item.name ||
-item.product_name_snapshot ||
-item.customName ||
-'-';
-
-const qty =
-item.quantity ||
-item.qty ||
-0;
-
-const harga =
-item.price ??
-item.price_at_sale ??
-0;
-
-const total =
-item.total ??
-(qty*harga);
-
-return`
-
-<div class="item">
-
-<div class="item-name">
-${nama}
-</div>
-
-<div class="item-row">
-<span>${qty} x ${formatRupiah(harga)}</span>
-<span>${formatRupiah(total)}</span>
-</div>
-
-</div>
-
-`;
-
-}).join('')
-}
-
-<hr>
-
-            <div class="border-b"></div>
-
-            <div class="summary">
-        <div class="summary-row">
-            <span>SUBTOTAL =</span>
-            <span>${formatRupiah(transaksiData.subtotal ?? transaksiData.grand_total ?? 0)}</span>
-        </div>
-        ${transaksiData.promoName ? `
-    <div class="summary-row">
-        <span>PROMO =</span>
-        <span>${transaksiData.promoName}</span>
-    </div>
-` : ''}
-        ${(transaksiData.discount > 0) ? `
-            <div class="summary-row">
-                <span>DISKON =</span>
-                <span>- ${formatRupiah(transaksiData.discount)}</span>
-            </div>
-        ` : ''}
-
-        <div class="summary-row">
-            <span>TOTAL RP. =</span>
-            <span>${formatRupiah(transaksiData.total ?? transaksiData.grand_total ?? 0)}</span>
-        </div>
-
-        <div class="summary-row">
-            <span>${transaksiData.metode || 'TUNAI'} =</span>
-            <span>${formatRupiah(transaksiData.bayar ?? transaksiData.grand_total ?? 0)}</span>
-        </div>
-
-    </div>
-
-            ${(transaksiData.metode === 'TUNAI' || !transaksiData.metode) ? `
-                <div class="border-b"></div>
-                <div class="summary-row font-bold">
-                    <span>KEMBALI RP. =</span><span>${formatRupiah(transaksiData.kembali || 0)}</span>
-                </div>
-            ` : ''}
-
-            <div class="border-b"></div>
-
-            ${notaConfig.showHeaderTerimakasih ? `<div class="footer"><div class="font-bold">${notaConfig.teksTerimakasih}</div>` : ''}
-            
-            ${notaConfig.showFooterNote ? `<div class="footer-note">${notaConfig.teksFooterNote}</div>` : ''}
-        </body>
-        </html>
-    `);
-    doc.close();
-    iframe.contentWindow.focus();
-    iframe.contentWindow.print();
-    setTimeout(() => document.body.removeChild(iframe), 1000);
 };
+
 const handlePrintHistory = (sale) => {
     const transaksiData = {
         noStruk: sale.invoice_number,
