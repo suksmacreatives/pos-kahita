@@ -10,7 +10,6 @@ export default function PrintShiftReport({
     useEffect(() => {
         if (!data) return;
 
-        // Mencegah print dua kali jika React menjalankan effect ulang
         if (alreadyPrinted.current) return;
 
         alreadyPrinted.current = true;
@@ -21,10 +20,6 @@ export default function PrintShiftReport({
                 console.log("MULAI PRINT TUTUP KASIR");
                 console.log("Data:", data);
                 console.log("=================================");
-
-                // =====================================================
-                // 1. CEK CLEANter
-                // =====================================================
 
                 const healthResponse = await fetch(
                     "http://localhost:9100/health"
@@ -45,16 +40,8 @@ export default function PrintShiftReport({
                         "Printer ORIPOS tidak terhubung."
                     );
                 }
-
-                // =====================================================
-                // 2. HELPER FORMAT BARIS
-                // =====================================================
-
                 const row = (label, value, options = {}) => {
                     const numberValue = Number(value || 0);
-
-                    // Sama seperti kode lama:
-                    // nilai 0 tidak ditampilkan
                     if (
                         numberValue === 0 &&
                         options.showZero !== true
@@ -72,15 +59,7 @@ export default function PrintShiftReport({
                     };
                 };
 
-                // =====================================================
-                // 3. BUAT CONTENT STRUK
-                // =====================================================
-
                 const content = [];
-
-                // -----------------------------------------------------
-                // HEADER TOKO
-                // -----------------------------------------------------
 
                 const savedConfig =
                     localStorage.getItem(
@@ -187,10 +166,6 @@ export default function PrintShiftReport({
                 content.push({
                     type: "divider",
                 });
-
-                // -----------------------------------------------------
-                // PEMBAYARAN
-                // -----------------------------------------------------
 
                 const modalAwal = row(
                     "Modal Awal",
@@ -305,10 +280,6 @@ export default function PrintShiftReport({
                     type: "divider",
                 });
 
-                // -----------------------------------------------------
-                // CASH
-                // -----------------------------------------------------
-
                 const cashExpected = row(
                     "Cash Seharusnya",
                     data.cash_expected
@@ -326,11 +297,6 @@ export default function PrintShiftReport({
                 if (physicalCash) {
                     content.push(physicalCash);
                 }
-
-                // -----------------------------------------------------
-                // SELISIH
-                // -----------------------------------------------------
-
                 if (
                     Number(data.discrepancy || 0) !== 0
                 ) {
@@ -347,11 +313,6 @@ export default function PrintShiftReport({
                         bold: true,
                     });
                 }
-
-                // -----------------------------------------------------
-                // PRODUK TERJUAL
-                // -----------------------------------------------------
-
                 if (
                     Array.isArray(data.products) &&
                     data.products.length > 0
@@ -382,11 +343,6 @@ export default function PrintShiftReport({
                         }
                     );
                 }
-
-                // -----------------------------------------------------
-                // FOOTER
-                // -----------------------------------------------------
-
                 content.push({
                     type: "divider",
                 });
