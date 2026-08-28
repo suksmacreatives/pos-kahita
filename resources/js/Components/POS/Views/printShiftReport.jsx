@@ -22,7 +22,7 @@ export default function PrintShiftReport({
                 console.log("=================================");
 
                 const healthResponse = await fetch(
-                    "http://localhost:9100/health"
+                    "https://localhost:9100/health"
                 );
 
                 if (!healthResponse.ok) {

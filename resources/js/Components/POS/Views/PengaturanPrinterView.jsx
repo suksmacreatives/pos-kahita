@@ -108,71 +108,163 @@ export default function PengaturanPrinterView() {
         setActivePrinter(null);
     };
 
-    const testPrint = () => {
+    const testPrint = async () => {
+    if (!activePrinter) {
+        alert("Pilih printer terlebih dahulu");
+        return;
+    }
 
-        if (!activePrinter) {
-            alert("Pilih printer terlebih dahulu");
-            return;
+    try {
+        console.log("=================================");
+        console.log("TEST PRINT ORIPOS");
+        console.log("Printer:", activePrinter);
+        console.log("=================================");
+
+        // ===============================
+        // CEK CLEANTER
+        // ===============================
+
+        const healthResponse = await fetch(
+            "http://localhost:9100/health"
+        );
+
+        if (!healthResponse.ok) {
+            throw new Error(
+                "Cleanter tidak dapat dihubungi."
+            );
         }
 
-        const iframe =
-            document.createElement("iframe");
+        const health = await healthResponse.json();
 
-        iframe.style.position = "absolute";
-        iframe.style.left = "-9999px";
+        console.log("Cleanter health:", health);
 
-        document.body.appendChild(iframe);
+        if (!health?.printer?.connected) {
+            throw new Error(
+                "Printer ORIPOS tidak terhubung ke Cleanter."
+            );
+        }
 
-        const doc =
-            iframe.contentWindow.document;
+        // ===============================
+        // DATA TEST PRINT
+        // ===============================
 
-        doc.write(`
-            <html>
-            <head>
-                <style>
-                    body{
-                        width:${printerConfig.jenis === "Thermal 58mm"
-                ? "58mm"
-                : "80mm"
-            };
-                        font-family:monospace;
-                        text-align:center;
-                        font-size:12px;
-                    }
+        const content = [];
 
-                    h3{
-                        margin:0;
-                    }
-                </style>
-            </head>
+        content.push({
+            type: "text",
+            text: "KAHITA BUSANA",
+            align: "center",
+            bold: true,
+        });
 
-            <body>
+        content.push({
+            type: "text",
+            text: "TEST PRINT",
+            align: "center",
+            bold: true,
+        });
 
-                <h3>KAHITA BUSANA</h3>
+        content.push({
+            type: "divider",
+        });
 
-                <p>TEST PRINT</p>
+        content.push({
+            type: "text",
+            text: `Printer : ${activePrinter.name}`,
+        });
 
-                <hr>
+        if (activePrinter.address) {
+            content.push({
+                type: "text",
+                text: `Address : ${activePrinter.address}`,
+            });
+        }
 
-                <p>${activePrinter.name}</p>
+        content.push({
+            type: "text",
+            text: `Koneksi : ${activePrinter.connection}`,
+        });
 
-                <p>${new Date().toLocaleString(
-                "id-ID"
-            )}</p>
+        content.push({
+            type: "text",
+            text: new Date().toLocaleString("id-ID"),
+        });
 
-            </body>
-            </html>
-        `);
+        content.push({
+            type: "divider",
+        });
 
-        doc.close();
+        content.push({
+            type: "text",
+            text: "Printer berhasil terhubung.",
+            align: "center",
+            bold: true,
+        });
 
-        iframe.contentWindow.focus();
-        iframe.contentWindow.print();
+        content.push({
+            type: "feed",
+            lines: 3,
+        });
 
-        setTimeout(() => {
-            document.body.removeChild(iframe);
-        }, 1000);
-    };
+        // ===============================
+        // KIRIM KE CLEANTER
+        // ===============================
+
+        const response = await fetch(
+            "http://localhost:9100/print",
+            {
+                method: "POST",
+
+                headers: {
+                    "Content-Type": "application/json",
+                },
+
+                body: JSON.stringify({
+                    cut: true,
+                    content: content,
+                }),
+            }
+        );
+
+        const result = await response.json();
+
+        console.log("Hasil print:", result);
+
+        if (!response.ok) {
+            throw new Error(
+                result?.message ||
+                result?.error ||
+                "Gagal mencetak."
+            );
+        }
+
+        // ===============================
+        // BERHASIL
+        // ===============================
+
+        alert(
+            "✅ Test print berhasil dikirim ke printer ORIPOS."
+        );
+
+    } catch (error) {
+
+        console.error(
+            "❌ TEST PRINT ERROR:",
+            error
+        );
+
+        alert(
+            "Gagal melakukan test print.\n\n" +
+            error.message +
+            "\n\n" +
+            "Pastikan:\n" +
+            "• Cleanter aktif\n" +
+            "• Bluetooth aktif\n" +
+            "• ORIPOS RPP02N terhubung\n" +
+            "• Printer terlihat Connected di Cleanter"
+        );
+    }
+};
 
     return (
         <div className="flex-1 bg-[#f7f8fa] p-6 overflow-y-auto">
