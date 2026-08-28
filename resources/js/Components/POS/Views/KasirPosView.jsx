@@ -321,8 +321,8 @@ const handleRemoveCartItem = (cartId) => {
         <div
     className={`grid gap-4 ${
         isSidebarOpen
-            ? 'grid-cols-3'
-            : 'grid-cols-4'
+            ? 'grid-cols-2'
+            : 'grid-cols-3'
     }`}
 >
             {filteredProducts.map((product) => {
@@ -351,16 +351,20 @@ const handleRemoveCartItem = (cartId) => {
                                     No Image
                                 </div>
                             )}
-
-                            <div className="absolute top-3 left-3">
-                                <span className="bg-white/90 backdrop-blur px-2 py-0.5 rounded-l text-[9px] font-bold uppercase tracking-wider text-slate-500">
-                                    {product.category?.name || 'Produk'}
-                                </span>
-                            </div>
                         </div>
 
                         <div className="p-3">
-                            <h3 className="font-bold text-slate-800 text-xs uppercase truncate">
+                            <h3
+                                className="
+                                    font-bold
+                                    text-slate-800
+                                    text-xs
+                                    uppercase
+                                    leading-5
+                                    line-clamp-2
+                                    min-h-[40px]
+                                "
+                            >
                                 {product.name}
                             </h3>
 
