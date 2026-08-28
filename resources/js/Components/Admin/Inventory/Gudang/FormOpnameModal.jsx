@@ -7,7 +7,7 @@ const stepLabels = [
   { icon: CheckCircle2, label: "Review & Simpan" },
 ];
 
-export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProducts = [] }) {
+export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProducts = [], processing = false }) {
   const [step, setStep] = useState(0);
   const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState([]);
@@ -254,7 +254,7 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
               </div>
               <div className="flex justify-between mt-6">
                 <button type="button" onClick={() => setStep(1)} className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer">Kembali</button>
-                <button type="button" onClick={handleSubmit} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer">Simpan Hasil Opname</button>
+                <button type="button" onClick={handleSubmit} disabled={processing} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-md">{processing ? 'Menyimpan...' : 'Simpan Hasil Opname'}</button>
               </div>
             </div>
           )}

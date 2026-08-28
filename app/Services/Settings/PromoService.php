@@ -40,8 +40,8 @@ class PromoService
                 'nilai_diskon' => (float) $promo->nilai_diskon,
                 'min_transaksi' => (float) $promo->min_transaksi,
                 'max_diskon' => $promo->max_diskon ? (float) $promo->max_diskon : null,
-                'berlaku_dari' => $promo->berlaku_dari,
-                'berlaku_sampai' => $promo->berlaku_sampai,
+                'berlaku_dari' => $promo->berlaku_dari?->format('Y-m-d'),
+                'berlaku_sampai' => $promo->berlaku_sampai?->format('Y-m-d'),
                 'berlaku_di' => $promo->berlaku_di,
                 'berlaku_untuk' => $promo->berlaku_untuk,
                 'kuota' => $promo->kuota,
@@ -73,8 +73,8 @@ class PromoService
             'nilai_diskon' => (float) $promo->nilai_diskon,
             'min_transaksi' => (float) $promo->min_transaksi,
             'max_diskon' => $promo->max_diskon ? (float) $promo->max_diskon : null,
-            'berlaku_dari' => $promo->berlaku_dari,
-            'berlaku_sampai' => $promo->berlaku_sampai,
+            'berlaku_dari' => $promo->berlaku_dari?->format('Y-m-d'),
+            'berlaku_sampai' => $promo->berlaku_sampai?->format('Y-m-d'),
             'berlaku_di' => $promo->berlaku_di,
             'berlaku_untuk' => $promo->berlaku_untuk,
             'kuota' => $promo->kuota,
@@ -89,15 +89,37 @@ class PromoService
     {
         $data['kode_promo'] = $data['kode_promo'] ?? $this->generateCode();
 
-        return Promo::create($data);
+        return Promo::create($this->normalizeDates($data));
     }
 
     public function update(int $id, array $data): Promo
     {
         $promo = Promo::findOrFail($id);
-        $promo->update($data);
+        $promo->update($this->normalizeDates($data));
 
         return $promo;
+    }
+
+    private function normalizeDates(array $data): array
+    {
+        if (!empty($data['berlaku_dari']) && is_string($data['berlaku_dari'])) {
+            $data['berlaku_dari'] = $this->normalizeDate($data['berlaku_dari'], true);
+        }
+
+        if (!empty($data['berlaku_sampai']) && is_string($data['berlaku_sampai'])) {
+            $data['berlaku_sampai'] = $this->normalizeDate($data['berlaku_sampai'], false);
+        }
+
+        return $data;
+    }
+
+    private function normalizeDate(string $value, bool $startOfDay): string
+    {
+        if (preg_match('/^\d{4}-\d{2}-\d{2}$/', $value)) {
+            return $value . ($startOfDay ? ' 00:00:00' : ' 23:59:59');
+        }
+
+        return $value;
     }
 
     public function toggleStatus(int $id): Promo

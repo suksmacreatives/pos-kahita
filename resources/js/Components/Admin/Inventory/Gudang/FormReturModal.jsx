@@ -11,7 +11,7 @@ const alasanRetur = [
   { value: 'Salah kirim', label: 'Salah Kirim / Wrong Item' },
 ];
 
-export default function FormReturModal({ open, onClose, onSubmit, suppliers = [], warehouseProducts = [] }) {
+export default function FormReturModal({ open, onClose, onSubmit, suppliers = [], warehouseProducts = [], processing = false }) {
   const [supplierId, setSupplierId] = useState("");
   const [alasan, setAlasan] = useState("");
   const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0]);
@@ -160,7 +160,7 @@ export default function FormReturModal({ open, onClose, onSubmit, suppliers = []
               </div>
               <div className="flex gap-2">
                 <button type="button" onClick={() => setItems([])} className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer">Reset</button>
-                <button type="submit" disabled={!supplierId || !alasan || flatItems.length === 0} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-50">Simpan Retur</button>
+                <button type="submit" disabled={!supplierId || !alasan || flatItems.length === 0 || processing} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-xl text-xs font-bold shadow-md disabled:opacity-50">{processing ? 'Menyimpan...' : 'Simpan Retur'}</button>
               </div>
             </div>
           )}

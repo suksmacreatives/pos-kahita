@@ -8,6 +8,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
     const roles = propRoles || fallbackRoles;
     const isEdit = mode === 'edit';
     const defaultOutletId = outletList[0]?.id || '';
+    const [errors, setErrors] = useState({});
     const [formData, setFormData] = useState({
         nama: '',
         email: '',
@@ -54,8 +55,27 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
         });
     };
 
+    const validate = () => {
+        const errs = {};
+        if (!formData.nama.trim()) errs.nama = 'Nama lengkap wajib diisi';
+        if (!formData.email.trim()) errs.email = 'Email wajib diisi';
+        else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Format email tidak valid';
+        if (!isEdit) {
+            if (!formData.password) errs.password = 'Password wajib diisi';
+            else if (formData.password.length < 8) errs.password = 'Password minimal 8 karakter';
+            if (!formData.password_confirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
+            else if (formData.password !== formData.password_confirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
+        }
+        if (!formData.role) errs.role = 'Role wajib dipilih';
+        if (formData.role === 'cashier' && !formData.outlet_id) errs.outlet_id = 'Outlet wajib dipilih untuk kasir';
+        setErrors(errs);
+        return Object.keys(errs).length === 0;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        setErrors({});
+        if (!validate()) return;
         onSave(formData);
     };
 
@@ -114,6 +134,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                                 type="text" name="nama" value={formData.nama} onChange={handleChange} required
                                 className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                             />
+                            {errors.nama && <p className="text-xs text-red-500 mt-1">{errors.nama}</p>}
                         </div>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
@@ -122,6 +143,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                                     type="email" name="email" value={formData.email} onChange={handleChange} required
                                     className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                                 />
+                                {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">No. Telepon</label>
@@ -140,6 +162,8 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                                         type="password" name="password" value={formData.password} onChange={handleChange} required
                                         className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                                     />
+                                    <p className="text-xs text-gray-400 mt-1">Minimal 8 karakter</p>
+                                    {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password *</label>
@@ -147,6 +171,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                                         type="password" name="password_confirmation" value={formData.password_confirmation} onChange={handleChange} required
                                         className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                                     />
+                                    {errors.password_confirmation && <p className="text-xs text-red-500 mt-1">{errors.password_confirmation}</p>}
                                 </div>
                             </div>
                         )}
@@ -163,6 +188,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                                         <span className="truncate text-gray-700 font-medium">{roles.find(r => r.id === formData.role)?.label || 'Pilih Role'}</span>
                                         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isRoleOpen ? 'rotate-180' : ''}`} />
                                     </button>
+                                    {errors.role && <p className="text-xs text-red-500 mt-1">{errors.role}</p>}
                                     {isRoleOpen && (
                                         <ul className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-40 py-1 text-sm">
                                             {roles.map(r => (
@@ -189,6 +215,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                                         <span className="truncate text-gray-700 font-medium">{formData.outlet_id ? (outletList.find(o => o.id === formData.outlet_id)?.name || formData.outlet_id) : 'Semua Outlet'}</span>
                                         <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOutletOpen ? 'rotate-180' : ''}`} />
                                     </button>
+                                    {errors.outlet_id && <p className="text-xs text-red-500 mt-1">{errors.outlet_id}</p>}
                                     {isOutletOpen && formData.role !== 'admin' && (
                                         <ul className="absolute left-0 mt-1 w-full bg-white border border-gray-200 rounded-xl shadow-lg z-40 py-1 text-sm">
                                             <li

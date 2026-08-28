@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 
 export default function KasirPosView({
     promos = [],
@@ -21,6 +21,8 @@ export default function KasirPosView({
     inputUangDiterima,
     setInputUangDiterima,
     subtotal,
+    nilaiDiskon,
+    totalSetelahDiskon,
     uangKembalian,
     handleProsesBayarFinal,
     formatRupiah,
@@ -205,53 +207,13 @@ const processRecall = (bill) => {
     setCustomerName(bill.customerName);
     setSavedBills(prev => prev.filter(b => b.id !== bill.id));
     setLeftContentView('grid');
-    setIsCheckoutView(false); // PENTING: Paksa keluar dari mode checkout agar tidak nyangkut
+    setIsCheckoutView(false); 
 };
 const handleRemoveCartItem = (cartId) => {
     setCart(prev =>
         prev.filter(item => item.cart_id !== cartId)
     );
 };
-    const totalSetelahDiskon = useMemo(() => {
-    if (!selectedPromo) return subtotal;
-
-    if (selectedPromo.tipe === 'persentase') {
-        let diskon =
-            subtotal *
-            (selectedPromo.nilai_diskon / 100);
-
-        if (
-            selectedPromo.max_diskon &&
-            diskon > selectedPromo.max_diskon
-        ) {
-            diskon = selectedPromo.max_diskon;
-        }
-
-        return subtotal - diskon;
-    }
-
-    return subtotal - selectedPromo.nilai_diskon;
-}, [subtotal, selectedPromo]);
-const nilaiDiskon = useMemo(() => {
-    if (!selectedPromo) return 0;
-
-    if (selectedPromo.tipe === 'persentase') {
-        let diskon =
-            subtotal *
-            (selectedPromo.nilai_diskon / 100);
-
-        if (
-            selectedPromo.max_diskon &&
-            diskon > selectedPromo.max_diskon
-        ) {
-            diskon = selectedPromo.max_diskon;
-        }
-
-        return diskon;
-    }
-
-    return selectedPromo.nilai_diskon;
-}, [subtotal, selectedPromo]);
 
 
     return (

@@ -1,5 +1,5 @@
 import Sidebar from '@/Components/Admin/Sidebar';
-import { Head, useForm, router } from '@inertiajs/react';
+import { Head, useForm, router, usePage } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
@@ -9,6 +9,20 @@ import { useState, useEffect } from 'react';
 export default function Dashboard({ auth, users, outlets }) {
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
+    const [localErrors, setLocalErrors] = useState({});
+    const [toast, setToast] = useState(null);
+
+    const { props } = usePage();
+    const flash = props.flash;
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 3000);
+    };
+
+    useEffect(() => {
+        if (flash?.success) showToast(flash.success);
+    }, [flash]);
     
     // State untuk mengontrol filter outlet aktif dari sidebar
     const [activeOutletFilter, setActiveOutletFilter] = useState('all');
@@ -16,6 +30,7 @@ export default function Dashboard({ auth, users, outlets }) {
     const { data, setData, post, patch, errors, processing, reset } = useForm({
         name: '',
         password: '',
+        password_confirmation: '',
         role: 'cashier',
         outlet_id: '',
     });
@@ -33,8 +48,26 @@ export default function Dashboard({ auth, users, outlets }) {
         return String(user.outlet_id) === String(activeOutletFilter);
     });
 
+    const validate = () => {
+        const errs = {};
+        if (!data.name.trim()) errs.name = 'Nama lengkap wajib diisi';
+        if (!isEditing) {
+            if (!data.password) errs.password = 'Password wajib diisi';
+            else if (data.password.length < 8) errs.password = 'Password minimal 8 karakter';
+            if (!data.password_confirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
+            else if (data.password !== data.password_confirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
+        } else {
+            if (data.password && data.password.length < 8) errs.password = 'Password minimal 8 karakter';
+        }
+        if (data.role === 'cashier' && !data.outlet_id) errs.outlet_id = 'Outlet wajib dipilih untuk kasir';
+        setLocalErrors(errs);
+        return Object.keys(errs).length === 0;
+    };
+
     const submit = (e) => {
         e.preventDefault();
+        setLocalErrors({});
+        if (!validate()) return;
         if (isEditing) {
             patch(route('admin.user.update', editId), { 
                 onSuccess: () => cancelEdit() 
@@ -49,17 +82,20 @@ export default function Dashboard({ auth, users, outlets }) {
     const startEdit = (user) => {
         setIsEditing(true);
         setEditId(user.id);
+        setLocalErrors({});
         setData({ 
             name: user.name, 
             role: user.role, 
             outlet_id: user.outlet_id || '', 
-            password: '' 
+            password: '',
+            password_confirmation: '',
         });
     };
 
     const cancelEdit = () => {
         setIsEditing(false);
         setEditId(null);
+        setLocalErrors({});
         reset();
     };
 
@@ -94,7 +130,7 @@ export default function Dashboard({ auth, users, outlets }) {
                                         className="w-full mt-1" 
                                         required 
                                     />
-                                    <InputError message={errors.name} className="mt-1" />
+                                    <InputError message={localErrors.name || errors.name} className="mt-1" />
                                 </div>
 
                                 <div>
@@ -107,7 +143,7 @@ export default function Dashboard({ auth, users, outlets }) {
                                         <option value="cashier">Kasir (Akses POS Cabang)</option>
                                         <option value="admin">Admin (Akses Dashboard Pusat)</option>
                                     </select>
-                                    <InputError message={errors.role} className="mt-1" />
+                                    <InputError message={localErrors.role || errors.role} className="mt-1" />
                                 </div>
 
                                 {/* INPUT LOKASI TUGAS */}
@@ -125,7 +161,7 @@ export default function Dashboard({ auth, users, outlets }) {
                                                 <option key={o.id} value={o.id}>{o.name}</option>
                                             ))}
                                         </select>
-                                        <InputError message={errors.outlet_id} className="mt-1" />
+                                        <InputError message={localErrors.outlet_id || errors.outlet_id} className="mt-1" />
                                     </div>
                                 )}
 
@@ -138,8 +174,23 @@ export default function Dashboard({ auth, users, outlets }) {
                                         className="w-full mt-1" 
                                         required={!isEditing} 
                                     />
-                                    <InputError message={errors.password} className="mt-1" />
+                                    <p className="text-xs text-gray-400 mt-1">Minimal 8 karakter</p>
+                                    <InputError message={localErrors.password || errors.password} className="mt-1" />
                                 </div>
+
+                                {!isEditing && (
+                                    <div>
+                                        <InputLabel value="Konfirmasi Password" />
+                                        <TextInput
+                                            type="password"
+                                            value={data.password_confirmation}
+                                            onChange={e => setData('password_confirmation', e.target.value)}
+                                            className="w-full mt-1"
+                                            required
+                                        />
+                                        <InputError message={localErrors.password_confirmation || errors.password_confirmation} className="mt-1" />
+                                    </div>
+                                )}
 
                                 <PrimaryButton className="w-full justify-center bg-emerald-600 hover:bg-emerald-700 mt-2" disabled={processing}>
                                     {isEditing ? 'Simpan Perubahan' : 'Daftarkan Staf'}
@@ -150,6 +201,7 @@ export default function Dashboard({ auth, users, outlets }) {
                                         Batal Mengedit
                                     </button>
                                 )}
+                            
                             </form>
                         </div>
 
@@ -214,6 +266,16 @@ export default function Dashboard({ auth, users, outlets }) {
 
                     </div>
                 </div>
+
+                {toast && (
+                    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-right-4 fade-in duration-300">
+                        <div className={`px-4 py-3 rounded-xl shadow-lg text-sm font-bold flex items-center gap-2 ${
+                            toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
+                        }`}>
+                            {toast.type === 'success' ? '✓' : '⚠'} {toast.message}
+                        </div>
+                    </div>
+                )}
             </main>
         </div>
     );

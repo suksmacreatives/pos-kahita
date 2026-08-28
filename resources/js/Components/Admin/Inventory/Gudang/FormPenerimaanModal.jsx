@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Search } from "lucide-react";
 import VariantTableGrid from "./VariantTableGrid";
 
-export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouseProducts = [] }) {
+export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouseProducts = [], processing = false }) {
   const [supplierNama, setSupplierNama] = useState("");
   const [tanggalPO, setTanggalPO] = useState(new Date().toISOString().split("T")[0]);
   const [tanggalEstimasi, setTanggalEstimasi] = useState("");
@@ -155,7 +155,7 @@ export default function FormPenerimaanModal({ open, onClose, onSubmit, warehouse
               <div className="flex gap-2">
                 <button type="button" onClick={() => setItems([])} className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer">Reset</button>
                 <button type="button" onClick={(e) => handleSubmit(e, 'draft')} className="px-4 py-2 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold hover:bg-emerald-50 cursor-pointer">Simpan Draft</button>
-                <button type="submit" disabled={!supplierNama.trim() || flatItems.length === 0} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-50">Kirim PO</button>
+                <button type="submit" disabled={!supplierNama.trim() || flatItems.length === 0 || processing} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md disabled:opacity-50">{processing ? 'Menyimpan...' : 'Kirim PO'}</button>
               </div>
             </div>
           )}

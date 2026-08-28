@@ -90,7 +90,7 @@ class PosController extends Controller
                     }),
                 ];
             });
-        $promos = Promo::aktif()->get();
+        $promos = Promo::aktif()->berlakuUntukOutlet($outletId, $outlet?->slug)->get();
 
         $penerimaanList = $this->inventoriOutlet->getPenerimaanList($outletId);
 

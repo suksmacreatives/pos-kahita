@@ -7,6 +7,7 @@ export default function KonfirmasiTerimaModal({
     onClose,
     data,
     onConfirm,
+    processing = false,
 }) {
     // Initialize received quantities from items (stable seed via stringify)
     const seed =
@@ -328,10 +329,11 @@ export default function KonfirmasiTerimaModal({
                     <button
                         type="button"
                         onClick={handleSubmit}
-                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/10 flex items-center gap-1.5 transition-all cursor-pointer"
+                        disabled={processing}
+                        className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/10 flex items-center gap-1.5 transition-all"
                     >
                         <CheckCircle className="w-4 h-4" />
-                        Konfirmasi Penerimaan
+                        {processing ? "Memproses..." : "Konfirmasi Penerimaan"}
                     </button>
                 </div>
             </div>

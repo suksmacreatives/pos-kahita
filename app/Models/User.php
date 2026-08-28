@@ -22,6 +22,7 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'telp',
         'role', // changing from 'user' to 'role' assuming standard
         'outlet_id',
         'shift_default',

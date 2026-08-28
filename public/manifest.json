@@ -1,0 +1,21 @@
+{
+    "name": "POS KAHITA BUSANA",
+    "short_name": "POS KAHITA",
+    "start_url": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#00a651",
+    "orientation": "landscape",
+    "icons": [
+        {
+            "src": "/icons/logokahita.png",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/icons/logokahita.png",
+            "sizes": "512x512",
+            "type": "image/png"
+        }
+    ]
+}

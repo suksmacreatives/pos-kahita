@@ -17,7 +17,7 @@ import Absensi from '@/Components/POS/Views/Absensi';
 import PengaturanNotaView from '@/Components/POS/Views/PengaturanNotaView';
 import PengaturanPrinterView from '@/Components/POS/Views/PengaturanPrinterView';
 import PengaturanTokoView from '@/Components/POS/Views/PengaturanTokoView';
-import PrintShiftReport from "@/components/POS/views/PrintShiftReport";
+import PrintShiftReport from '@/Components/POS/Views/printShiftReport';
 
 export default function Index({
     auth,
@@ -136,16 +136,28 @@ export default function Index({
     
     const subtotal = useMemo(() => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0), [cart]);
 
-    const nilaiDiskon = selectedPromo
-    ? (
-        selectedPromo.tipe === 'persentase'
-            ? Math.min(
-                subtotal * (selectedPromo.nilai_diskon / 100),
-                selectedPromo.max_diskon || Infinity
-            )
-            : selectedPromo.nilai_diskon
-    )
-    : 0;
+    const nilaiDiskon = useMemo(() => {
+        if (!selectedPromo) return 0;
+        const promo = selectedPromo;
+
+        if (subtotal < Number(promo.min_transaksi || 0)) return 0;
+
+        if (promo.tipe === 'persentase') {
+            const diskon = subtotal * (Number(promo.nilai_diskon || 0) / 100);
+            const capped = promo.max_diskon ? Math.min(diskon, Number(promo.max_diskon)) : diskon;
+            return Math.min(Math.max(capped, 0), subtotal);
+        }
+
+        if (promo.tipe === 'nominal') {
+            return Math.min(Math.max(Number(promo.nilai_diskon || 0), 0), subtotal);
+        }
+
+        if (promo.tipe === 'bundle') {
+            return Math.min(Math.max(subtotal - Number(promo.nilai_diskon || 0), 0), subtotal);
+        }
+
+        return 0;
+    }, [selectedPromo, subtotal, cart]);
     const totalSetelahDiskon = subtotal - nilaiDiskon;
 
 
@@ -679,6 +691,14 @@ const handleProsesBayarFinal = async () => {
             }
         }, [props.flash]);
 
+    useEffect(() => {
+        if (props.flash?.success) {
+            setAppNotification({ isOpen: true, type: 'success', title: 'Berhasil', message: props.flash.success });
+        } else if (props.flash?.error) {
+            setAppNotification({ isOpen: true, type: 'error', title: 'Gagal', message: props.flash.error });
+        }
+    }, [props.flash]);
+
     return (
         <div className="bg-[#f4f6f9] h-screen w-screen flex flex-col font-sans overflow-hidden select-none text-gray-700">
             <Head title={`Kasa POS - ${outlet_name || 'Outlet'}`} />
@@ -854,7 +874,7 @@ const handleProsesBayarFinal = async () => {
                         <div className="text-xs font-bold tracking-wider opacity-90">{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     </header>
                     <div className="flex-1 flex overflow-hidden w-full h-full">
-                        {activeMenu === 'kasir' && (<KasirPosView  promos={promos} selectedPromo={selectedPromo} setSelectedPromo={setSelectedPromo} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} isSidebarOpen={isSidebarOpen} />)}
+                        {activeMenu === 'kasir' && (<KasirPosView  promos={promos} selectedPromo={selectedPromo} setSelectedPromo={setSelectedPromo} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} nilaiDiskon={nilaiDiskon} totalSetelahDiskon={totalSetelahDiskon} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} isSidebarOpen={isSidebarOpen} />)}
                         {/* ... (Menu lainnya tetap sama) */}
                         {activeMenu === 'penjualan' && (<DataPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} onPrint={handlePrintHistory} onVoid={handleVoid} />)}
                         {activeMenu === 'laporan-ringkasan' && (<RingkasanPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} />)}

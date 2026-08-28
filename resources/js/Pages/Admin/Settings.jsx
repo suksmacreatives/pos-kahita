@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, usePage, router } from '@inertiajs/react';
 import { Users, UserCheck, ShoppingBag, UserX, Plus, Tag, Zap, Clock, BarChart2, List, LayoutGrid, Activity, LogIn, AlertCircle, Download, Bell, BellDot, Eye, CheckCheck } from 'lucide-react';
@@ -6,6 +6,7 @@ import { Users, UserCheck, ShoppingBag, UserX, Plus, Tag, Zap, Clock, BarChart2,
 import AkunTable from '@/Components/Admin/Settings/KelolAkun/AkunTable';
 import AkunFormModal from '@/Components/Admin/Settings/KelolAkun/AkunFormModal';
 import AkunDetailDrawer from '@/Components/Admin/Settings/KelolAkun/AkunDetailDrawer';
+import ResetPasswordModal from '@/Components/Admin/Settings/KelolAkun/ResetPasswordModal';
 
 import PromoTable from '@/Components/Admin/Settings/Promo/PromoTable';
 import PromoDetailCard from '@/Components/Admin/Settings/Promo/PromoDetailCard';
@@ -39,14 +40,22 @@ export default function Settings() {
     const logStats = props.log_stats || { total_hari_ini: 0, login_hari_ini: 0, gagal_hari_ini: 0, user_teraktif: { nama: 'Tidak ada', count: 0 } };
     const notifStats = props.notif_stats || { total: 0, unread: 0, hari_ini: 0, danger: 0, warning: 0 };
     const outletList = props.outlet_list || [];
+    const kategoriList = props.kategori_list || [];
 
     const [modalState, setModalState] = useState({ isOpen: false, type: null, mode: 'create', data: null });
     const [drawerState, setDrawerState] = useState({ isOpen: false, data: null });
+    const [resetModal, setResetModal] = useState({ isOpen: false, data: null });
 
     const showToast = (message, type = 'success') => {
         setToast({ message, type });
         setTimeout(() => setToast(null), 3000);
     };
+
+    useEffect(() => {
+        const flash = props.flash;
+        if (flash?.success) showToast(flash.success);
+        else if (flash?.error) showToast(flash.error, 'error');
+    }, [props.flash]);
 
     const handleSaveAkun = (formData) => {
         const isEdit = modalState.mode === 'edit' && modalState.data?.id;
@@ -102,9 +111,20 @@ export default function Settings() {
     };
 
     const handleResetPassword = (akun) => {
-        router.post(route('admin.settings.akun.reset-password', akun.id), {}, {
+        setResetModal({ isOpen: true, data: akun });
+    };
+
+    const handleSubmitResetPassword = (akun, payload) => {
+        router.post(route('admin.settings.akun.reset-password', akun.id), payload, {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                setResetModal({ isOpen: false, data: null });
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+                setResetModal((prev) => ({ ...prev, isOpen: true }));
+            },
         });
     };
 
@@ -138,9 +158,6 @@ export default function Settings() {
         router.post(route('admin.settings.promo.duplicate', promo.id), {}, {
             preserveState: true,
             preserveScroll: true,
-            onSuccess: () => {
-                showToast('Duplikat promo berhasil');
-            },
         });
     };
 
@@ -422,6 +439,8 @@ export default function Settings() {
                     isOpen={true}
                     mode={modalState.mode}
                     data={modalState.data}
+                    outletList={outletList}
+                    kategoriList={kategoriList}
                     onClose={() => setModalState({ ...modalState, isOpen: false })}
                     onSave={handleSavePromo}
                 />
@@ -445,6 +464,17 @@ export default function Settings() {
                     setDrawerState({ isOpen: false, data: null });
                     setModalState({ isOpen: true, type: 'akunForm', mode: 'edit', data: row });
                 }}
+                onResetPassword={(row) => {
+                    setDrawerState({ isOpen: false, data: null });
+                    setResetModal({ isOpen: true, data: row });
+                }}
+            />
+
+            <ResetPasswordModal
+                isOpen={resetModal.isOpen}
+                data={resetModal.data}
+                onClose={() => setResetModal({ isOpen: false, data: null })}
+                onSubmit={handleSubmitResetPassword}
             />
 
             {toast && (

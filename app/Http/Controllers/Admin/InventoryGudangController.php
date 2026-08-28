@@ -313,6 +313,10 @@ class InventoryGudangController extends Controller
 
     public function tandaiTerimaPenerimaan(PurchaseOrder $purchaseOrder)
     {
+        if ($purchaseOrder->status === 'lengkap') {
+            return redirect()->back()->with('error', 'PO ini sudah diterima sebelumnya');
+        }
+
         DB::beginTransaction();
         try {
             $purchaseOrder->update([
@@ -427,6 +431,10 @@ class InventoryGudangController extends Controller
 
     public function prosesDistribusi(DistributionOrder $distributionOrder)
     {
+        if ($distributionOrder->status !== 'draft') {
+            return redirect()->back()->with('error', 'Hanya DO dengan status draft yang bisa diproses');
+        }
+
         DB::beginTransaction();
         try {
             $distributionOrder->update([
@@ -465,6 +473,10 @@ class InventoryGudangController extends Controller
 
     public function konfirmasiDistribusi(DistributionOrder $distributionOrder)
     {
+        if ($distributionOrder->status !== 'dikirim') {
+            return redirect()->back()->with('error', 'Hanya DO dengan status dikirim yang bisa dikonfirmasi diterima');
+        }
+
         $distributionOrder->update([
             'tanggal_terima' => now()->format('Y-m-d'),
             'status' => 'diterima',

@@ -19,8 +19,6 @@ export default function PromoDetailCard({ data, onEdit, onToggleStatus }) {
         if (data.max_diskon) nilaiText += ` (maks ${formatRupiah(data.max_diskon)})`;
     } else if (data.tipe === 'nominal') {
         nilaiText = formatRupiah(data.nilai_diskon);
-    } else if (data.tipe === 'beli_x_gratis_y') {
-        nilaiText = data.deskripsi || 'Promo Beli X Gratis Y';
     } else {
         nilaiText = `Harga Bundle: ${formatRupiah(data.nilai_diskon)}`;
     }

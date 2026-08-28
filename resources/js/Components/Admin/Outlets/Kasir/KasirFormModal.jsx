@@ -8,6 +8,7 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
 
     const isEditMode = !!kasir;
     const [isSaving, setIsSaving] = useState(false);
+    const [errors, setErrors] = useState({});
     const [isOutletOpen, setIsOutletOpen] = useState(false);
     const [isShiftOpen, setIsShiftOpen] = useState(false);
     const [isStatusOpen, setIsStatusOpen] = useState(false);
@@ -70,8 +71,26 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
         setFormData(prev => ({ ...prev, [name]: value }));
     };
 
+    const validate = () => {
+        const errs = {};
+        if (!formData.nama.trim()) errs.nama = 'Nama lengkap wajib diisi';
+        if (!formData.email.trim()) errs.email = 'Email wajib diisi';
+        else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Format email tidak valid';
+        if (!isEditMode) {
+            if (!formData.password) errs.password = 'Password wajib diisi';
+            else if (formData.password.length < 8) errs.password = 'Password minimal 8 karakter';
+            if (!formData.password_confirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
+            else if (formData.password !== formData.password_confirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
+        }
+        if (!formData.outlet_id) errs.outlet_id = 'Outlet wajib dipilih';
+        setErrors(errs);
+        return Object.keys(errs).length === 0;
+    };
+
     const handleSubmit = (e) => {
         e.preventDefault();
+        setErrors({});
+        if (!validate()) return;
         setIsSaving(true);
         if (isEditMode) {
             router.put(route('admin.outlets.kasir.update', kasir.id), formData, {
@@ -124,6 +143,7 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                             placeholder="Misal: Dewi Ayu"
                             className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                         />
+                        {errors.nama && <p className="text-xs text-red-500 mt-1">{errors.nama}</p>}
                     </div>
                     
                     <div className="grid grid-cols-2 gap-4">
@@ -138,6 +158,7 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                                 placeholder="email@kahita.com"
                                 className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                             />
+                            {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
                         </div>
                         <div>
                             <label className="block text-[11px] font-bold text-gray-700 mb-1">No. Telp</label>
@@ -164,6 +185,8 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                                     onChange={handleChange}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                                 />
+                                <p className="text-[10px] text-gray-400 mt-1">Minimal 8 karakter</p>
+                                {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
                             </div>
                             <div>
                                 <label className="block text-[11px] font-bold text-gray-700 mb-1">Konfirmasi Password *</label>
@@ -175,6 +198,7 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                                     onChange={handleChange}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                                 />
+                                {errors.password_confirmation && <p className="text-xs text-red-500 mt-1">{errors.password_confirmation}</p>}
                             </div>
                         </div>
                     )}
@@ -190,6 +214,7 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                                 <span className="truncate">{outlets.find(o => o.id == formData.outlet_id)?.nama || outlets.find(o => o.id == formData.outlet_id)?.name || 'Pilih Outlet'}</span>
                                 <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform ${isOutletOpen ? 'rotate-180' : ''}`} />
                             </button>
+                            {errors.outlet_id && <p className="text-xs text-red-500 mt-1">{errors.outlet_id}</p>}
                             {isOutletOpen && (
                                 <ul className="absolute left-0 mt-1.5 w-full bg-white border border-gray-100 rounded-xl shadow-lg z-40 py-1 text-xs max-h-48 overflow-y-auto">
                                     {outlets.map(out => (

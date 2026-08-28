@@ -12,6 +12,7 @@ use App\Models\ProductVariant;
 use App\Models\OutletStock;
 use App\Models\StockMovement;
 use App\Models\CashRegisterShift;
+use App\Models\Promo;
 
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Auth;
@@ -51,13 +52,52 @@ if ($existingTransaction) {
             'payment_method' => 'required|string',
             'subtotal' => 'required|numeric',
             'grand_total' => 'required|numeric',
-            'items' => 'required|array'
+            'items' => 'required|array',
+            'promo_id' => 'nullable|exists:promos,id',
         ]);
 
         $user = Auth::user();
         if (!$user) throw new \Exception('User tidak terautentikasi');
 
         $activeShift = CashRegisterShift::where('user_id', $user->id)->where('status', 'open')->first();
+
+        $subtotal = (float) $request->subtotal;
+        $outlet = $user->outlet;
+
+        // VALIDASI & HITUNG ULANG PROMO DI SERVER (jangan percaya nilai dari frontend)
+        $promo = null;
+        $discount = 0;
+        if (!empty($request->promo_id)) {
+            $promo = Promo::aktif()
+                ->berlakuUntukOutlet($user->outlet_id, $outlet?->slug)
+                ->find($request->promo_id);
+
+            if (!$promo) {
+                throw new \Exception('Promo tidak valid, tidak aktif, atau tidak berlaku untuk outlet ini.');
+            }
+
+            if ($subtotal < (float) $promo->min_transaksi) {
+                throw new \Exception("Promo {$promo->nama_promo} membutuhkan minimal transaksi Rp " . number_format((float) $promo->min_transaksi, 0, ',', '.') . '.');
+            }
+
+            if ($promo->berlaku_untuk !== 'semua') {
+                $allowedCategories = array_filter(array_map('trim', explode(',', (string) $promo->berlaku_untuk)));
+                $productIds = collect($request->items)->pluck('product_id')->all();
+                $match = !empty($allowedCategories)
+                    && Product::whereIn('id', $productIds)
+                        ->whereIn('category_id', $allowedCategories)
+                        ->exists();
+
+                if (!$match) {
+                    throw new \Exception("Promo {$promo->nama_promo} tidak berlaku untuk produk di keranjang ini.");
+                }
+            }
+
+            $discount = $promo->hitungDiskon($subtotal, $request->items);
+        }
+
+        $discount = min(max($discount, 0), $subtotal);
+        $grandTotal = max(0, $subtotal - $discount);
 
 
     $transaction = Transaction::create([
@@ -67,10 +107,10 @@ if ($existingTransaction) {
         'shift_id' => $activeShift?->id,
         'customer_name' => $request->customer_name ?? 'Umum',
         'payment_method' => $request->payment_method,
-        'promo_id' => $request->promo_id,
-        'subtotal' => $request->subtotal,
-        'discount' => $request->discount ?? 0,
-        'grand_total' => $request->grand_total,
+        'promo_id' => $promo?->id,
+        'subtotal' => $subtotal,
+        'discount' => $discount,
+        'grand_total' => $grandTotal,
         'change_amount' => $request->change_amount ?? 0,
         'status' => 'completed'
     ]);
@@ -139,6 +179,10 @@ if (!$variant) {
         }
 
         DB::commit();
+
+        if ($promo) {
+            $promo->increment('terpakai');
+        }
 
         $products = Product::with(['variants', 'category'])
     ->where(function ($q) use ($user) {

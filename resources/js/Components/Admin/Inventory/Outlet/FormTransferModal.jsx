@@ -88,7 +88,7 @@ const ALASAN_OPTIONS = [
   { value: 'darurat', label: 'Darurat / Stok Habis' },
 ];
 
-export default function FormTransferModal({ isOpen, onClose, selectedOutlet, onSubmit, outlets = [], outletStok = {} }) {
+export default function FormTransferModal({ isOpen, onClose, selectedOutlet, onSubmit, outlets = [], outletStok = {}, processing = false }) {
   if (!isOpen) return null;
 
   const originOutlet = outlets.find(o => o.id === selectedOutlet);
@@ -554,11 +554,11 @@ export default function FormTransferModal({ isOpen, onClose, selectedOutlet, onS
               </button>
               <button
                 onClick={handleSubmit}
-                disabled={isFormInvalid}
-                className="px-4 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-sky-600/10 transition-all cursor-pointer inline-flex items-center gap-2"
+                disabled={isFormInvalid || processing}
+                className="px-4 py-2 bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-sky-600/10 transition-all inline-flex items-center gap-2"
               >
                 <ArrowRight className="w-3.5 h-3.5" />
-                Kirim Transfer
+                {processing ? 'Menyimpan...' : 'Kirim Transfer'}
               </button>
             </div>
 

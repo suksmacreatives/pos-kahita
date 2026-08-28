@@ -1,6 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
-import { X, CheckCircle2, AlertCircle } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import GudangStatCard from '@/Components/Admin/Inventory/Gudang/GudangStatCard';
 // import MutasiChart from '@/Components/Admin/Inventory/Gudang/MutasiChart';
@@ -45,16 +44,15 @@ function Gudang() {
     errors: validationErrors,
   } = props;
 
-  const [toast, setToast] = useState(null);
-
-  const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  const [processing, setProcessing] = useState(false);
+  const [appNotification, setAppNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
 
   useEffect(() => {
-    if (flash?.success) showToast(flash.success, 'success');
-    if (flash?.error) showToast(flash.error, 'error');
+    if (flash?.success) {
+      setAppNotification({ isOpen: true, type: 'success', title: 'Berhasil', message: flash.success });
+    } else if (flash?.error) {
+      setAppNotification({ isOpen: true, type: 'error', title: 'Gagal', message: flash.error });
+    }
   }, [flash]);
 
   const [activeTab, setActiveTab] = useState('stock');
@@ -104,120 +102,161 @@ function Gudang() {
   };
 
   const handlePenerimaanSubmit = (data) => {
+    if (processing) return;
+    setProcessing(true);
     router.post(route('admin.inventory.gudang.penerimaan'), data, {
       preserveScroll: true,
       onSuccess: () => { handleCloseModal(); reloadData(); },
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
   const handleTandaiTerima = (item) => {
+    if (processing) return;
+    setProcessing(true);
     router.patch(route('admin.inventory.gudang.penerimaan.terima', item.id), {}, {
       preserveScroll: true,
       onSuccess: () => reloadData(),
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
   const handleProsesPenerimaan = (item) => {
+    if (processing) return;
+    setProcessing(true);
     router.patch(route('admin.inventory.gudang.penerimaan.proses', item.id), {}, {
       preserveScroll: true,
       onSuccess: () => reloadData(),
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
   const handleDistribusiSubmit = (data) => {
+    if (processing) return;
+    setProcessing(true);
     router.post(route('admin.inventory.gudang.distribusi'), data, {
       preserveScroll: true,
       onSuccess: () => { handleCloseModal(); reloadData(); },
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
   const handleProses = (item) => {
+    if (processing) return;
+    setProcessing(true);
     router.patch(route('admin.inventory.gudang.distribusi.proses', item.id), {}, {
       preserveScroll: true,
       onSuccess: () => reloadData(),
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
   const handleKonfirmasiTerima = (item) => {
+    if (processing) return;
+    setProcessing(true);
     router.patch(route('admin.inventory.gudang.distribusi.konfirmasi', item.id), {}, {
       preserveScroll: true,
       onSuccess: () => reloadData(),
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
   const handleReturSubmit = (data) => {
+    if (processing) return;
+    setProcessing(true);
     router.post(route('admin.inventory.gudang.retur'), data, {
       preserveScroll: true,
       onSuccess: () => { handleCloseModal(); reloadData(); },
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
   const handleTerimaReturOutlet = (item) => {
+    if (processing) return;
     if (confirm('Terima retur ini? Stok gudang akan bertambah sesuai qty barang yang diretur.')) {
+      setProcessing(true);
       router.patch(route('admin.inventory.gudang.retur-outlet.terima', item.id), {}, {
         preserveScroll: true,
         onSuccess: () => reloadData(),
         onError: () => {},
+        onFinish: () => setProcessing(false),
       });
     }
   };
 
   const handleBatalReturOutlet = (item) => {
+    if (processing) return;
     if (confirm('Batalkan retur dari outlet ini? Stok outlet akan dikembalikan.')) {
+      setProcessing(true);
       router.patch(route('admin.inventory.gudang.retur-outlet.batal', item.id), {}, {
         preserveScroll: true,
         onSuccess: () => reloadData(),
         onError: () => {},
+        onFinish: () => setProcessing(false),
       });
     }
   };
 
   const handleBatalPO = (item) => {
+    if (processing) return;
     if (confirm('Batalkan Purchase Order ini?')) {
+      setProcessing(true);
       router.patch(route('admin.inventory.gudang.penerimaan.batal', item.id), {}, {
         preserveScroll: true,
         onSuccess: () => reloadData(),
         onError: () => {},
+        onFinish: () => setProcessing(false),
       });
     }
   };
 
   const handleBatalDO = (item) => {
+    if (processing) return;
     if (confirm('Batalkan Distribution Order ini?')) {
+      setProcessing(true);
       router.patch(route('admin.inventory.gudang.distribusi.batal', item.id), {}, {
         preserveScroll: true,
         onSuccess: () => reloadData(),
         onError: () => {},
+        onFinish: () => setProcessing(false),
       });
     }
   };
 
   const handleBatalReturSupplier = (item) => {
+    if (processing) return;
     if (confirm('Batalkan Retur Supplier? Stok gudang akan dikembalikan.')) {
+      setProcessing(true);
       router.patch(route('admin.inventory.gudang.retur.batal', item.id), {}, {
         preserveScroll: true,
         onSuccess: () => reloadData(),
         onError: () => {},
+        onFinish: () => setProcessing(false),
       });
     }
   };
 
   const handleOpnameSubmit = (data) => {
+    if (processing) return;
+    setProcessing(true);
     router.post(route('admin.inventory.gudang.opname'), data, {
       preserveScroll: true,
       onSuccess: () => { handleCloseModal(); reloadData(); },
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
   const handleTambahStokSubmit = ({ produk_id, nama, ukuran, warna, qty, catatan }) => {
+    if (processing) return;
+    setProcessing(true);
     router.post(route('admin.inventory.gudang.tambah-stok'), {
       produk_id,
       nama,
@@ -229,6 +268,7 @@ function Gudang() {
       preserveScroll: true,
       onSuccess: () => { setTambahStok(null); reloadData(); },
       onError: () => {},
+      onFinish: () => setProcessing(false),
     });
   };
 
@@ -321,6 +361,7 @@ function Gudang() {
         onClose={handleCloseModal}
         onSubmit={handlePenerimaanSubmit}
         warehouseProducts={produkStok}
+        processing={processing}
       />
       <FormDistribusiModal
         open={modalType === 'distribusi'}
@@ -328,6 +369,7 @@ function Gudang() {
         onSubmit={handleDistribusiSubmit}
         outlets={outlets}
         warehouseProducts={produkStok}
+        processing={processing}
       />
       <FormReturModal
         open={modalType === 'retur'}
@@ -335,24 +377,32 @@ function Gudang() {
         onSubmit={handleReturSubmit}
         suppliers={suppliers}
         warehouseProducts={produkStok}
+        processing={processing}
       />
       <FormOpnameModal
         open={modalType === 'opname'}
         onClose={handleCloseModal}
         onSubmit={handleOpnameSubmit}
         warehouseProducts={produkStok}
+        processing={processing}
       />
 
       <DetailProdukModal data={detailProduk} onClose={() => setDetailProduk(null)} />
-      <TambahStokModal data={tambahStok} onClose={() => setTambahStok(null)} onSubmit={handleTambahStokSubmit} />
+      <TambahStokModal data={tambahStok} onClose={() => setTambahStok(null)} onSubmit={handleTambahStokSubmit} processing={processing} />
       <LihatMutasiModal data={lihatMutasi} onClose={() => setLihatMutasi(null)} mutasiLog={mutasiLog} />
       <DetailDistribusiModal data={detailDistribusi} onClose={() => setDetailDistribusi(null)} />
 
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 px-4.5 py-3 rounded-2xl shadow-xl border bg-white animate-in slide-in-from-bottom-6 duration-200">
-          {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />}
-          <span className="text-xs font-semibold text-gray-800">{toast.message}</span>
-          <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600 ml-1.5 p-0.5 rounded"><X className="w-3.5 h-3.5" /></button>
+      {/* MODAL NOTIFIKASI */}
+      {appNotification.isOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
+          <div className="bg-white p-6 rounded-lg shadow-xl w-80 text-center">
+            <div className={`text-4xl mb-2 ${appNotification.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
+              {appNotification.type === 'success' ? '✓' : '⚠'}
+            </div>
+            <h3 className="font-bold text-lg">{appNotification.title}</h3>
+            <p className="text-sm text-gray-600 mb-4">{appNotification.message}</p>
+            <button onClick={() => setAppNotification({ ...appNotification, isOpen: false })} className="bg-emerald-600 text-white w-full py-2 rounded">OK</button>
+          </div>
         </div>
       )}
     </div>

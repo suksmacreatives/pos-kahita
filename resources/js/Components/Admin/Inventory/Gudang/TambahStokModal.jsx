@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Plus, Package } from "lucide-react";
 import VariantSelect from "./VariantSelect";
 
-export default function TambahStokModal({ data, onClose, onSubmit }) {
+export default function TambahStokModal({ data, onClose, onSubmit, processing = false }) {
   const [variant, setVariant] = useState(null);
   const [qty, setQty] = useState(1);
   const [catatan, setCatatan] = useState("");
@@ -65,7 +65,7 @@ export default function TambahStokModal({ data, onClose, onSubmit }) {
           </div>
           <div className="flex justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer">Batal</button>
-            <button type="submit" disabled={!variant} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md cursor-pointer disabled:opacity-50"><Plus className="w-3.5 h-3.5 inline mr-1" />Tambah Stok</button>
+            <button type="submit" disabled={!variant || processing} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl text-xs font-bold shadow-md disabled:opacity-50"><Plus className="w-3.5 h-3.5 inline mr-1" />{processing ? 'Menyimpan...' : 'Tambah Stok'}</button>
           </div>
         </form>
       </div>

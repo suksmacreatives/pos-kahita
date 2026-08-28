@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import { X, Plus, Trash2, AlertCircle, Info } from 'lucide-react';
 import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
-export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, onSubmit, outlets = [], outletStok = {} }) {
+export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, onSubmit, outlets = [], outletStok = {}, processing = false }) {
   if (!isOpen) return null;
 
   const originOutlet = outlets.find(o => o.id === selectedOutlet);
@@ -334,10 +334,10 @@ export default function FormReturGudangModal({ isOpen, onClose, selectedOutlet, 
           </button>
           <button
             onClick={handleSubmit}
-            disabled={isFormInvalid}
-            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/10 transition-all cursor-pointer"
+            disabled={isFormInvalid || processing}
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold shadow-md shadow-rose-600/10 transition-all"
           >
-            Ajukan Retur
+            {processing ? 'Menyimpan...' : 'Ajukan Retur'}
           </button>
         </div>
       </div>
