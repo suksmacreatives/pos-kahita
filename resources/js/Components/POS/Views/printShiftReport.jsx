@@ -22,7 +22,7 @@ export default function PrintShiftReport({
                 console.log("=================================");
 
                 const healthResponse = await fetch(
-                    "https://localhost:9100/health"
+                    "http://localhost:9100/health"
                 );
 
                 if (!healthResponse.ok) {
@@ -34,15 +34,8 @@ export default function PrintShiftReport({
                 const health = await healthResponse.json();
 
                 console.log("Cleanter health:", health);
-
-                if (!health?.printer?.connected) {
-                    throw new Error(
-                        "Printer ORIPOS tidak terhubung."
-                    );
-                }
                 const row = (label, value, options = {}) => {
-
-    const numberValue = Number(value || 0);
+            const numberValue = Number(value || 0);
 
     if (
         numberValue === 0 &&
@@ -504,8 +497,7 @@ const space = (lines = 1) => ({
                         }
                     );
                 } finally {
-                    window.location.href =
-                        "/login";
+                    window.location.href = "/login";
                 }
 
             } catch (error) {
