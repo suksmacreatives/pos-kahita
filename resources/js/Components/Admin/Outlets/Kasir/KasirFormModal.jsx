@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Save, ChevronDown } from 'lucide-react';
+import { X, Save, ChevronDown, CheckCircle2 } from 'lucide-react';
 import { router } from '@inertiajs/react';
 
 export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] }) {
@@ -64,25 +64,61 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
     }, []);
 
     const handleChange = (e) => {
-        setFormData({ ...formData, [e.target.name]: e.target.value });
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+
+        setErrors(prev => {
+            const next = { ...prev };
+            if (name === 'password' || name === 'password_confirmation') {
+                if (name === 'password') {
+                    if (value && value.length < 6) next.password = 'Password minimal 6 karakter';
+                    else if (value) delete next.password;
+                    const cf = formData.password_confirmation;
+                    if (cf) {
+                        if (value !== cf) next.password_confirmation = 'Konfirmasi password tidak cocok';
+                        else delete next.password_confirmation;
+                    }
+                } else {
+                    if (value) {
+                        if (value !== formData.password) next.password_confirmation = 'Konfirmasi password tidak cocok';
+                        else delete next.password_confirmation;
+                    } else if (next.password_confirmation === 'Konfirmasi password tidak cocok') {
+                        delete next.password_confirmation;
+                    }
+                }
+            } else {
+                delete next[name];
+            }
+            return next;
+        });
     };
 
     const handleSelect = (name, value) => {
         setFormData(prev => ({ ...prev, [name]: value }));
+        setErrors(prev => {
+            const next = { ...prev };
+            delete next[name];
+            return next;
+        });
+    };
+
+    const computeErrors = (fd) => {
+        const errs = {};
+        if (!fd.nama.trim()) errs.nama = 'Nama lengkap wajib diisi';
+        if (!fd.email.trim()) errs.email = 'Email wajib diisi';
+        else if (!/\S+@\S+\.\S+/.test(fd.email)) errs.email = 'Format email tidak valid';
+        if (!isEditMode) {
+            if (!fd.password) errs.password = 'Password wajib diisi';
+            else if (fd.password.length < 6) errs.password = 'Password minimal 6 karakter';
+            if (!fd.password_confirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
+            else if (fd.password !== fd.password_confirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
+        }
+        if (!fd.outlet_id) errs.outlet_id = 'Outlet wajib dipilih';
+        return errs;
     };
 
     const validate = () => {
-        const errs = {};
-        if (!formData.nama.trim()) errs.nama = 'Nama lengkap wajib diisi';
-        if (!formData.email.trim()) errs.email = 'Email wajib diisi';
-        else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Format email tidak valid';
-        if (!isEditMode) {
-            if (!formData.password) errs.password = 'Password wajib diisi';
-            else if (formData.password.length < 8) errs.password = 'Password minimal 8 karakter';
-            if (!formData.password_confirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
-            else if (formData.password !== formData.password_confirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
-        }
-        if (!formData.outlet_id) errs.outlet_id = 'Outlet wajib dipilih';
+        const errs = computeErrors(formData);
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
@@ -131,13 +167,12 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 space-y-4">
+                <form onSubmit={handleSubmit} noValidate className="p-6 space-y-4">
                     <div>
                         <label className="block text-[11px] font-bold text-gray-700 mb-1">Nama Lengkap *</label>
                         <input
                             type="text"
                             name="nama"
-                            required
                             value={formData.nama}
                             onChange={handleChange}
                             placeholder="Misal: Dewi Ayu"
@@ -152,7 +187,6 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                             <input
                                 type="email"
                                 name="email"
-                                required
                                 value={formData.email}
                                 onChange={handleChange}
                                 placeholder="email@kahita.com"
@@ -180,12 +214,11 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                                 <input
                                     type="password"
                                     name="password"
-                                    required
                                     value={formData.password}
                                     onChange={handleChange}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                                 />
-                                <p className="text-[10px] text-gray-400 mt-1">Minimal 8 karakter</p>
+                                <p className="text-[10px] text-gray-400 mt-1">Minimal 6 karakter</p>
                                 {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
                             </div>
                             <div>
@@ -193,12 +226,17 @@ export default function KasirFormModal({ isOpen, onClose, kasir, outlets = [] })
                                 <input
                                     type="password"
                                     name="password_confirmation"
-                                    required
                                     value={formData.password_confirmation}
                                     onChange={handleChange}
                                     className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:ring-emerald-500/20 focus:border-emerald-500 outline-none"
                                 />
-                                {errors.password_confirmation && <p className="text-xs text-red-500 mt-1">{errors.password_confirmation}</p>}
+                                {formData.password && formData.password_confirmation && formData.password === formData.password_confirmation ? (
+                                    <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                                        <CheckCircle2 size={14} /> Password cocok
+                                    </p>
+                                ) : (
+                                    errors.password_confirmation && <p className="text-xs text-red-500 mt-1">{errors.password_confirmation}</p>
+                                )}
                             </div>
                         </div>
                     )}

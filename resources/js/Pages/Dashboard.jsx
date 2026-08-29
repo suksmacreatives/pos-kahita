@@ -1,31 +1,28 @@
 import Sidebar from '@/Components/Admin/Sidebar';
-import { Head, useForm, router, usePage } from '@inertiajs/react';
+import { Head, useForm, router } from '@inertiajs/react';
 import InputError from '@/Components/InputError';
 import InputLabel from '@/Components/InputLabel';
 import PrimaryButton from '@/Components/PrimaryButton';
 import TextInput from '@/Components/TextInput';
 import { useState, useEffect } from 'react';
+import { CheckCircle2 } from 'lucide-react';
+import toast from 'react-hot-toast';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 
 export default function Dashboard({ auth, users, outlets }) {
     const [isEditing, setIsEditing] = useState(false);
     const [editId, setEditId] = useState(null);
     const [localErrors, setLocalErrors] = useState({});
-    const [toast, setToast] = useState(null);
+    const [deleteTarget, setDeleteTarget] = useState(null);
 
-    const { props } = usePage();
-    const flash = props.flash;
-
-    const showToast = (message, type = 'success') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 3000);
+    const handleConfirmDelete = () => {
+        if (!deleteTarget) return;
+        router.delete(route('admin.user.destroy', deleteTarget.id), {
+            onSuccess: () => toast.success(`Akun ${deleteTarget.name} berhasil dihapus`),
+            onError: (errs) => toast.error('Gagal menghapus akun: ' + Object.values(errs).join(', ')),
+            onFinish: () => setDeleteTarget(null),
+        });
     };
-
-    useEffect(() => {
-        if (flash?.success) showToast(flash.success);
-    }, [flash]);
-    
-    // State untuk mengontrol filter outlet aktif dari sidebar
-    const [activeOutletFilter, setActiveOutletFilter] = useState('all');
 
     const { data, setData, post, patch, errors, processing, reset } = useForm({
         name: '',
@@ -34,6 +31,9 @@ export default function Dashboard({ auth, users, outlets }) {
         role: 'cashier',
         outlet_id: '',
     });
+
+    // State untuk mengontrol filter outlet aktif dari sidebar
+    const [activeOutletFilter, setActiveOutletFilter] = useState('all');
 
     // Otomatis bersihkan/sesuaikan outlet_id jika admin mengubah pilihan role staf
     useEffect(() => {
@@ -53,15 +53,44 @@ export default function Dashboard({ auth, users, outlets }) {
         if (!data.name.trim()) errs.name = 'Nama lengkap wajib diisi';
         if (!isEditing) {
             if (!data.password) errs.password = 'Password wajib diisi';
-            else if (data.password.length < 8) errs.password = 'Password minimal 8 karakter';
+            else if (data.password.length < 6) errs.password = 'Password minimal 6 karakter';
             if (!data.password_confirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
             else if (data.password !== data.password_confirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
         } else {
-            if (data.password && data.password.length < 8) errs.password = 'Password minimal 8 karakter';
+            if (data.password && data.password.length < 6) errs.password = 'Password minimal 6 karakter';
         }
         if (data.role === 'cashier' && !data.outlet_id) errs.outlet_id = 'Outlet wajib dipilih untuk kasir';
         setLocalErrors(errs);
         return Object.keys(errs).length === 0;
+    };
+
+    const handleFieldChange = (name, value) => {
+        setData(name, value);
+        setLocalErrors(prev => {
+            const next = { ...prev };
+            if (name === 'password' || name === 'password_confirmation') {
+                if (name === 'password') {
+                    if (value && value.length < 6) next.password = 'Password minimal 6 karakter';
+                    else if (value) delete next.password;
+                    const cf = data.password_confirmation;
+                    if (cf) {
+                        if (value !== cf) next.password_confirmation = 'Konfirmasi password tidak cocok';
+                        else delete next.password_confirmation;
+                    }
+                } else {
+                    if (value) {
+                        if (value !== data.password) next.password_confirmation = 'Konfirmasi password tidak cocok';
+                        else delete next.password_confirmation;
+                    } else if (next.password_confirmation === 'Konfirmasi password tidak cocok') {
+                        delete next.password_confirmation;
+                    }
+                }
+            } else {
+                delete next[name];
+                if (name === 'role' && value === 'admin') delete next.outlet_id;
+            }
+            return next;
+        });
     };
 
     const submit = (e) => {
@@ -69,12 +98,26 @@ export default function Dashboard({ auth, users, outlets }) {
         setLocalErrors({});
         if (!validate()) return;
         if (isEditing) {
-            patch(route('admin.user.update', editId), { 
-                onSuccess: () => cancelEdit() 
+            patch(route('admin.user.update', editId), {
+                onSuccess: () => {
+                    cancelEdit();
+                    toast.success('Akun staf berhasil diperbarui');
+                },
+                onError: (errs) => {
+                    setLocalErrors(errs);
+                    toast.error('Gagal memperbarui akun: ' + Object.values(errs).join(', '));
+                },
             });
         } else {
-            post(route('admin.cashier.store'), { 
-                onSuccess: () => reset() 
+            post(route('admin.cashier.store'), {
+                onSuccess: () => {
+                    reset();
+                    toast.success('Akun staf berhasil ditambahkan');
+                },
+                onError: (errs) => {
+                    setLocalErrors(errs);
+                    toast.error('Gagal menambahkan akun: ' + Object.values(errs).join(', '));
+                },
             });
         }
     };
@@ -121,14 +164,13 @@ export default function Dashboard({ auth, users, outlets }) {
                             <h3 className="font-bold text-lg mb-4 border-b pb-2">
                                 {isEditing ? '⚡ Edit Akun Staf' : '✨ Pendaftaran Staf'}
                             </h3>
-                            <form onSubmit={submit} className="space-y-4">
+                            <form onSubmit={submit} noValidate className="space-y-4">
                                 <div>
                                     <InputLabel value="Nama Lengkap" />
                                     <TextInput 
                                         value={data.name} 
-                                        onChange={e => setData('name', e.target.value)} 
+                                        onChange={e => handleFieldChange('name', e.target.value)} 
                                         className="w-full mt-1" 
-                                        required 
                                     />
                                     <InputError message={localErrors.name || errors.name} className="mt-1" />
                                 </div>
@@ -137,7 +179,7 @@ export default function Dashboard({ auth, users, outlets }) {
                                     <InputLabel value="Role Kontrol Akses" />
                                     <select 
                                         value={data.role} 
-                                        onChange={e => setData('role', e.target.value)} 
+                                        onChange={e => handleFieldChange('role', e.target.value)} 
                                         className="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-emerald-500"
                                     >
                                         <option value="cashier">Kasir (Akses POS Cabang)</option>
@@ -152,9 +194,8 @@ export default function Dashboard({ auth, users, outlets }) {
                                         <InputLabel value="Tugaskan di Outlet" />
                                         <select 
                                             value={data.outlet_id} 
-                                            onChange={e => setData('outlet_id', e.target.value)}
+                                            onChange={e => handleFieldChange('outlet_id', e.target.value)}
                                             className="w-full mt-1 border-gray-300 rounded-md shadow-sm focus:ring-emerald-500"
-                                            required
                                         >
                                             <option value="">-- Pilih Cabang --</option>
                                             {outlets.map(o => (
@@ -170,11 +211,10 @@ export default function Dashboard({ auth, users, outlets }) {
                                     <TextInput 
                                         type="password" 
                                         value={data.password} 
-                                        onChange={e => setData('password', e.target.value)} 
+                                        onChange={e => handleFieldChange('password', e.target.value)} 
                                         className="w-full mt-1" 
-                                        required={!isEditing} 
                                     />
-                                    <p className="text-xs text-gray-400 mt-1">Minimal 8 karakter</p>
+                                    <p className="text-xs text-gray-400 mt-1">Minimal 6 karakter</p>
                                     <InputError message={localErrors.password || errors.password} className="mt-1" />
                                 </div>
 
@@ -184,11 +224,16 @@ export default function Dashboard({ auth, users, outlets }) {
                                         <TextInput
                                             type="password"
                                             value={data.password_confirmation}
-                                            onChange={e => setData('password_confirmation', e.target.value)}
+                                            onChange={e => handleFieldChange('password_confirmation', e.target.value)}
                                             className="w-full mt-1"
-                                            required
                                         />
-                                        <InputError message={localErrors.password_confirmation || errors.password_confirmation} className="mt-1" />
+                                        {data.password && data.password_confirmation && data.password === data.password_confirmation ? (
+                                            <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                                                <CheckCircle2 size={14} /> Password cocok
+                                            </p>
+                                        ) : (
+                                            <InputError message={localErrors.password_confirmation || errors.password_confirmation} className="mt-1" />
+                                        )}
                                     </div>
                                 )}
 
@@ -243,13 +288,9 @@ export default function Dashboard({ auth, users, outlets }) {
                                                     </td>
                                                     <td className="px-4 py-3 text-center space-x-3">
                                                         <button onClick={() => startEdit(user)} className="text-emerald-600 font-bold hover:underline">Edit</button>
-                                                        {auth.user.id !== user.id && (
+                                                            {auth.user.id !== user.id && (
                                                             <button 
-                                                                onClick={() => {
-                                                                    if(confirm(`Hapus permanen akun ${user.name}?`)) {
-                                                                        router.delete(route('admin.user.destroy', user.id));
-                                                                    }
-                                                                }} 
+                                                                onClick={() => setDeleteTarget(user)} 
                                                                 className="text-red-500 font-bold hover:underline"
                                                             >
                                                                 Hapus
@@ -267,16 +308,21 @@ export default function Dashboard({ auth, users, outlets }) {
                     </div>
                 </div>
 
-                {toast && (
-                    <div className="fixed bottom-4 right-4 z-50 animate-in slide-in-from-right-4 fade-in duration-300">
-                        <div className={`px-4 py-3 rounded-xl shadow-lg text-sm font-bold flex items-center gap-2 ${
-                            toast.type === 'success' ? 'bg-emerald-600 text-white' : 'bg-red-600 text-white'
-                        }`}>
-                            {toast.type === 'success' ? '✓' : '⚠'} {toast.message}
-                        </div>
-                    </div>
-                )}
             </main>
+
+            <ConfirmDialog
+                isOpen={!!deleteTarget}
+                title="Hapus Akun"
+                message={
+                    deleteTarget
+                        ? `Hapus permanen akun "${deleteTarget.name}"? Tindakan ini tidak dapat dibatalkan.`
+                        : ''
+                }
+                confirmLabel="Ya, Hapus"
+                variant="danger"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setDeleteTarget(null)}
+            />
         </div>
     );
 }

@@ -1,7 +1,7 @@
 import React, { useRef } from 'react';
 import { useForm } from '@inertiajs/react';
 
-export default function UpdatePasswordForm({ onError }) {
+export default function UpdatePasswordForm({ onSuccess, onError }) {
     const currentPasswordInput = useRef();
     const passwordInput = useRef();
 
@@ -20,6 +20,7 @@ export default function UpdatePasswordForm({ onError }) {
             onSuccess: () => {
                 reset();
                 clearErrors();
+                onSuccess?.();
             },
             onError: (errs) => {
                 onError?.(errs);
@@ -79,7 +80,7 @@ export default function UpdatePasswordForm({ onError }) {
                     autoComplete="new-password"
                 />
                 <p className="text-xs text-gray-400 mt-1.5">
-                    Minimal 8 karakter
+                    Minimal 6 karakter
                 </p>
                 {errors.password && (
                     <p className="text-xs text-red-600 mt-1.5">

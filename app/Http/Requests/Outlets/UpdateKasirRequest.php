@@ -19,7 +19,7 @@ class UpdateKasirRequest extends FormRequest
         return [
             'nama' => 'required|string|max:255',
             'email' => 'required|email|max:255|unique:users,email,' . $kasirId,
-            'password' => 'nullable|string|min:8|confirmed',
+            'password' => 'nullable|string|min:6|confirmed',
             'outlet_id' => 'required|exists:outlets,id',
             'shift_default' => 'required|in:pagi,siang,malam,libur',
         ];

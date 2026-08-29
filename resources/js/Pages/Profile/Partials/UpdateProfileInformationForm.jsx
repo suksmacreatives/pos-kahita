@@ -1,7 +1,7 @@
 import React from 'react';
 import { useForm, usePage } from '@inertiajs/react';
 
-export default function UpdateProfileInformationForm({ onError }) {
+export default function UpdateProfileInformationForm({ onSuccess, onError }) {
     const user = usePage().props.auth.user;
 
     const { data, setData, patch, errors, processing, clearErrors } = useForm({
@@ -14,7 +14,10 @@ export default function UpdateProfileInformationForm({ onError }) {
         e.preventDefault();
 
         patch(route('profile.update'), {
-            onSuccess: () => clearErrors(),
+            onSuccess: () => {
+                clearErrors();
+                onSuccess?.();
+            },
             onError: (errs) => onError?.(errs),
         });
     };

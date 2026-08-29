@@ -1,42 +1,90 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, KeyRound, AlertTriangle } from 'lucide-react';
+import { useForm } from '@inertiajs/react';
+import { X, KeyRound, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import toast from 'react-hot-toast';
 import AvatarInitials from './AvatarInitials';
 
-export default function ResetPasswordModal({ isOpen, data, onClose, onSubmit }) {
-    const [password, setPassword] = useState('');
-    const [passwordConfirmation, setPasswordConfirmation] = useState('');
-    const [errors, setErrors] = useState({});
-    const [processing, setProcessing] = useState(false);
+export default function ResetPasswordModal({ isOpen, data, onClose }) {
+    const {
+        data: form,
+        setData,
+        post,
+        errors,
+        processing,
+        setError,
+        clearErrors,
+        reset,
+    } = useForm({
+        password: '',
+        password_confirmation: '',
+    });
 
     useEffect(() => {
         if (isOpen) {
-            setPassword('');
-            setPasswordConfirmation('');
-            setErrors({});
-            setProcessing(false);
+            reset();
+            clearErrors();
         }
     }, [isOpen]);
 
     if (!isOpen || !data) return null;
 
-    const validate = () => {
-        const errs = {};
-        if (!password) errs.password = 'Password baru wajib diisi';
-        else if (password.length < 8) errs.password = 'Password minimal 8 karakter';
-        if (!passwordConfirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
-        else if (password !== passwordConfirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
-        setErrors(errs);
-        return Object.keys(errs).length === 0;
+    const handleChange = (name, value) => {
+        setData(name, value);
+        clearErrors(name);
+
+        if (name === 'password' && form.password_confirmation) {
+            if (value !== form.password_confirmation) {
+                setError('password_confirmation', 'Konfirmasi password tidak cocok');
+            } else {
+                clearErrors('password_confirmation');
+            }
+        } else if (name === 'password_confirmation') {
+            if (value && value !== form.password) {
+                setError('password_confirmation', 'Konfirmasi password tidak cocok');
+            } else {
+                clearErrors('password_confirmation');
+            }
+        }
     };
 
-    const handleSubmit = (e) => {
+    const submit = (e) => {
         e.preventDefault();
-        setErrors({});
-        if (!validate()) return;
-        setProcessing(true);
-        onSubmit(data, { password, password_confirmation: passwordConfirmation });
+
+        let hasError = false;
+        if (!form.password) {
+            setError('password', 'Password baru wajib diisi');
+            hasError = true;
+        } else if (form.password.length < 6) {
+            setError('password', 'Password minimal 6 karakter');
+            hasError = true;
+        }
+        if (!form.password_confirmation) {
+            setError('password_confirmation', 'Konfirmasi password wajib diisi');
+            hasError = true;
+        } else if (form.password !== form.password_confirmation) {
+            setError('password_confirmation', 'Konfirmasi password tidak cocok');
+            hasError = true;
+        }
+        if (hasError) return;
+
+        post(route('admin.settings.akun.reset-password', data.id), {
+            preserveState: true,
+            preserveScroll: true,
+            onSuccess: () => {
+                toast.success('Password berhasil di-reset');
+                onClose();
+            },
+            onError: (errs) => {
+                toast.error(Object.values(errs).join(', '));
+            },
+        });
     };
+
+    const passwordsMatch =
+        form.password &&
+        form.password_confirmation &&
+        form.password === form.password_confirmation;
 
     return createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
@@ -53,7 +101,7 @@ export default function ResetPasswordModal({ isOpen, data, onClose, onSubmit }) 
                     </button>
                 </div>
 
-                <form onSubmit={handleSubmit} className="p-6 flex-1 space-y-5">
+                <form onSubmit={submit} noValidate className="p-6 flex-1 space-y-5">
                     <div className="flex items-center gap-3 bg-gray-50 rounded-xl p-4 border border-gray-100">
                         <AvatarInitials name={data.nama} color={data.foto_color} size={44} />
                         <div className="min-w-0">
@@ -73,12 +121,12 @@ export default function ResetPasswordModal({ isOpen, data, onClose, onSubmit }) 
                         <label className="block text-sm font-medium text-gray-700 mb-1">Password Baru *</label>
                         <input
                             type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
+                            value={form.password}
+                            onChange={(e) => handleChange('password', e.target.value)}
                             autoFocus
                             className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                         />
-                        <p className="text-xs text-gray-400 mt-1">Minimal 8 karakter</p>
+                        <p className="text-xs text-gray-400 mt-1">Minimal 6 karakter</p>
                         {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
                     </div>
 
@@ -86,11 +134,17 @@ export default function ResetPasswordModal({ isOpen, data, onClose, onSubmit }) 
                         <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password *</label>
                         <input
                             type="password"
-                            value={passwordConfirmation}
-                            onChange={(e) => setPasswordConfirmation(e.target.value)}
+                            value={form.password_confirmation}
+                            onChange={(e) => handleChange('password_confirmation', e.target.value)}
                             className="block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                         />
-                        {errors.password_confirmation && <p className="text-xs text-red-500 mt-1">{errors.password_confirmation}</p>}
+                        {passwordsMatch ? (
+                            <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                                <CheckCircle2 size={14} /> Password cocok
+                            </p>
+                        ) : (
+                            errors.password_confirmation && <p className="text-xs text-red-500 mt-1">{errors.password_confirmation}</p>
+                        )}
                     </div>
 
                     <div className="pt-4 border-t border-gray-100 flex justify-end gap-3">

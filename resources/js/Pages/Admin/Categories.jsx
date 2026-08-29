@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import AdminLayout from '@/Layouts/AdminLayout';
 import DataTable from '@/Components/Admin/DataTable';
 import {
@@ -10,33 +11,19 @@ import {
     Edit,
     Trash,
     AlertCircle,
-    CheckCircle2,
     X,
 } from 'lucide-react';
 
 export default function Categories({ categories, outlets }) {
-    const { props } = usePage();
-    const flash = props.flash;
-
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingCategory, setEditingCategory] = useState(null);
     const [deleteTarget, setDeleteTarget] = useState(null);
-    const [toast, setToast] = useState(null);
-
-    const [form, setForm] = useState({
-        name: '',
-        description: '',
-        outlet_id: '',
-    });
+    const [form, setForm] = useState({ name: '', description: '', outlet_id: '' });
 
     const showToast = (message, type = 'success') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 3000);
+        if (type === 'success') toast.success(message);
+        else toast.error(message);
     };
-
-    React.useEffect(() => {
-        if (flash?.success) showToast(flash.success);
-    }, [flash]);
 
     const openAddModal = () => {
         setEditingCategory(null);
@@ -67,11 +54,16 @@ export default function Categories({ categories, outlets }) {
             onSuccess: () => {
                 setIsModalOpen(false);
                 setEditingCategory(null);
+                showToast(
+                    isEdit
+                        ? 'Kategori berhasil diperbarui'
+                        : 'Kategori berhasil ditambahkan',
+                );
             },
             onError: (errors) =>
                 showToast(
                     'Gagal menyimpan: ' + Object.values(errors).join(', '),
-                    'warning',
+                    'error',
                 ),
         });
     };
@@ -82,7 +74,13 @@ export default function Categories({ categories, outlets }) {
             preserveScroll: true,
             onSuccess: () => {
                 setDeleteTarget(null);
+                showToast('Kategori berhasil dihapus');
             },
+            onError: (errors) =>
+                showToast(
+                    'Gagal menghapus: ' + Object.values(errors).join(', '),
+                    'error',
+                ),
         });
     };
 
@@ -308,26 +306,6 @@ export default function Categories({ categories, outlets }) {
                     </div>
                 </div>,
                 document.body
-            )}
-
-            {/* Toast */}
-            {toast && (
-                <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 px-4.5 py-3 rounded-2xl shadow-xl border bg-white animate-in slide-in-from-bottom-6 duration-200">
-                    {toast.type === 'success' ? (
-                        <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
-                    ) : (
-                        <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />
-                    )}
-                    <span className="text-xs font-semibold text-gray-800">
-                        {toast.message}
-                    </span>
-                    <button
-                        onClick={() => setToast(null)}
-                        className="text-gray-400 hover:text-gray-600 ml-1.5 p-0.5 rounded"
-                    >
-                        <X className="w-3.5 h-3.5" />
-                    </button>
-                </div>
             )}
         </div>
     );

@@ -17,7 +17,7 @@ class UpdateAkunRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => ['required', 'email', Rule::unique('users', 'email')->ignore($this->route('akun'))],
-            'password' => 'nullable|string|min:8',
+            'password' => 'nullable|string|min:6',
             'telp' => 'nullable|string|max:20',
             'role' => 'required|in:admin,cashier',
             'outlet_id' => 'nullable|exists:outlets,id',

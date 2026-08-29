@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, CheckCircle, Clock, AlertTriangle, Eye, ArrowRight } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, penerimaanList = {} }) {
   const [search, setSearch] = useState('');
@@ -90,23 +91,25 @@ export default function PenerimaanGudangTable({ selectedOutlet, onConfirmClick, 
             <input
               type="text"
               placeholder="Cari DO / No Terima..."
-              className="pl-9 pr-4 py-1.5 w-44 md:w-56 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500 transition-colors"
+              className="pl-9 pr-4 py-2 w-44 md:w-56 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500 transition-colors"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
 
           {/* Status filter */}
-          <select
-            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
+          <SelectDropdown
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-          >
-            <option value="all">Semua Status</option>
-            <option value="menunggu">Menunggu Konfirmasi</option>
-            <option value="sebagian">Diterima Sebagian</option>
-            <option value="diterima">Diterima Lengkap</option>
-          </select>
+            onChange={setStatusFilter}
+            options={[
+              { value: 'all', label: 'Semua Status' },
+              { value: 'menunggu', label: 'Menunggu Konfirmasi' },
+              { value: 'sebagian', label: 'Diterima Sebagian' },
+              { value: 'diterima', label: 'Diterima Lengkap' },
+            ]}
+            placeholder="Semua Status"
+            className="w-48"
+          />
         </div>
       </div>
 

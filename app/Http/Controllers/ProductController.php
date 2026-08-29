@@ -12,6 +12,7 @@ use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Barryvdh\DomPDF\Facade\Pdf;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
 use App\Exports\ProductExport;
@@ -201,7 +202,7 @@ class ProductController extends Controller
             'category_id' => 'nullable|integer|exists:product_categories,id',
             'sub_kategori' => 'nullable|string',
             'status' => 'nullable|string|in:aktif,nonaktif',
-            'variants' => 'nullable|array',
+            'variants' => 'required|array|min:1',
             'variants.*.color_name' => 'nullable|string',
             'variants.*.size_label' => 'nullable|string',
             'variants.*.stok' => 'nullable|integer|min:0',
@@ -214,7 +215,13 @@ class ProductController extends Controller
             'outlet_tersedia' => 'nullable',
             'distribusi_ke_gudang' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ], [
+            'variants.required' => 'Produk harus memiliki minimal 1 varian',
+            'variants.min' => 'Produk harus memiliki minimal 1 varian',
+            'variants.array' => 'Data varian tidak valid',
         ]);
+
+        $this->assertHasDimensionVariant($validated);
 
         $imagePath = null;
         if ($request->hasFile('image')) {
@@ -301,7 +308,7 @@ class ProductController extends Controller
             'category_id' => 'nullable|integer|exists:product_categories,id',
             'sub_kategori' => 'nullable|string',
             'status' => 'nullable|string|in:aktif,nonaktif',
-            'variants' => 'nullable|array',
+            'variants' => 'required|array|min:1',
             'variants.*.color_name' => 'nullable|string',
             'variants.*.size_label' => 'nullable|string',
             'variants.*.stok' => 'nullable|integer|min:0',
@@ -315,7 +322,13 @@ class ProductController extends Controller
             'outlet_tersedia' => 'nullable',
             'distribusi_ke_gudang' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ], [
+            'variants.required' => 'Produk harus memiliki minimal 1 varian',
+            'variants.min' => 'Produk harus memiliki minimal 1 varian',
+            'variants.array' => 'Data varian tidak valid',
         ]);
+
+        $this->assertHasDimensionVariant($validated);
 
         $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
         $distribusiKeGudang = filter_var($validated['distribusi_ke_gudang'] ?? true, FILTER_VALIDATE_BOOLEAN);
@@ -404,6 +417,21 @@ class ProductController extends Controller
         }
         $product->delete();
         return redirect()->back()->with('success', 'Produk berhasil dihapus!');
+    }
+
+    private function assertHasDimensionVariant(array $validated): void
+    {
+        $hasDimension = collect($validated['variants'] ?? [])
+            ->contains(fn ($v) =>
+                !empty(trim((string) ($v['color_name'] ?? ''))) ||
+                !empty(trim((string) ($v['size_label'] ?? '')))
+            );
+
+        if (!$hasDimension) {
+            throw ValidationException::withMessages([
+                'variants' => 'Produk harus memiliki minimal 1 varian (warna atau ukuran)',
+            ]);
+        }
     }
 
     private function parseOutletTersedia(mixed $value): array

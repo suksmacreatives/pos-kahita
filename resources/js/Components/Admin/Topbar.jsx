@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { usePage, router, Link } from '@inertiajs/react';
 import { Menu, Bell, BellDot, Search, ChevronDown, User, LogOut, Settings as SettingsIcon, Package, Clock, AlertTriangle, Info } from 'lucide-react';
 import OutletDropdownFilter from './OutletDropdownFilter';
@@ -14,6 +14,32 @@ export default function Topbar({ onToggleSidebar }) {
 
   const [isProfileOpen, setIsProfileOpen] = useState(false);
   const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
+
+  const bellRef = useRef(null);
+  const profileRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (isNotificationsOpen && bellRef.current && !bellRef.current.contains(e.target)) {
+        setIsNotificationsOpen(false);
+      }
+      if (isProfileOpen && profileRef.current && !profileRef.current.contains(e.target)) {
+        setIsProfileOpen(false);
+      }
+    };
+    const handleEscape = (e) => {
+      if (e.key === 'Escape') {
+        setIsNotificationsOpen(false);
+        setIsProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [isNotificationsOpen, isProfileOpen]);
 
   const notifications = notifProp?.data || [];
   const unreadCount = notifProp?.unread_count || 0;
@@ -79,7 +105,7 @@ export default function Topbar({ onToggleSidebar }) {
 
         <div className="w-px h-6 bg-gray-100 hidden sm:block" />
 
-        <div className="relative">
+        <div className="relative" ref={bellRef}>
           <button
             onClick={() => {
               setIsNotificationsOpen(!isNotificationsOpen);
@@ -98,7 +124,6 @@ export default function Topbar({ onToggleSidebar }) {
 
           {isNotificationsOpen && (
             <>
-              <div className="fixed inset-0 z-[55]" onClick={() => setIsNotificationsOpen(false)} />
               <div className="absolute right-0 mt-2.5 w-80 bg-white border border-gray-100 rounded-2xl shadow-xl z-[60] transform origin-top-right transition-all duration-200">
                 <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-50">
                   <span className="font-semibold text-xs text-gray-900">
@@ -174,7 +199,7 @@ export default function Topbar({ onToggleSidebar }) {
           )}
         </div>
 
-        <div className="relative">
+        <div className="relative" ref={profileRef}>
           <button
             onClick={() => {
               setIsProfileOpen(!isProfileOpen);
@@ -191,7 +216,6 @@ export default function Topbar({ onToggleSidebar }) {
 
           {isProfileOpen && (
             <>
-              <div className="fixed inset-0 z-[55]" onClick={() => setIsProfileOpen(false)} />
               <div className="absolute right-0 mt-2.5 w-56 bg-white border border-gray-100 rounded-2xl shadow-xl z-40 p-2 transform origin-top-right transition-all duration-200">
                 <div className="px-3 py-2 border-b border-gray-50 mb-1.5">
                   <p className="text-xs font-bold text-gray-900 truncate">{userName}</p>

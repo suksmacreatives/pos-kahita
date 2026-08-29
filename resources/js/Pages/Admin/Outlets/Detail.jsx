@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Head, router } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import { Info, Users, Activity, Package, Settings } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import DetailHeader from '@/Components/Admin/Outlets/Detail/DetailHeader';
@@ -52,7 +53,10 @@ export default function OutletDetail({ outlet, stats, kasirs, shifts, target, st
     };
 
     const handleDelete = () => {
-        router.delete(route('admin.outlets.destroy', outlet.slug || outlet.id));
+        router.delete(route('admin.outlets.destroy', outlet.slug || outlet.id), {
+            onSuccess: () => toast.success('Outlet berhasil dihapus'),
+            onError: (errors) => toast.error('Gagal menghapus outlet: ' + Object.values(errors).join(', ')),
+        });
     };
 
     const handleSave = (data) => {
@@ -76,6 +80,10 @@ export default function OutletDetail({ outlet, stats, kasirs, shifts, target, st
         }, {
             onSuccess: () => {
                 setActiveTab('profil');
+                toast.success('Perubahan outlet disimpan');
+            },
+            onError: (errors) => {
+                toast.error('Gagal menyimpan outlet: ' + Object.values(errors).join(', '));
             },
         });
     };

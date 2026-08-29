@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, ChevronDown } from 'lucide-react';
+import { X, ChevronDown, CheckCircle2 } from 'lucide-react';
 import RolePermissionMatrix from './RolePermissionMatrix';
 import { roles as fallbackRoles } from '@/data/settingsData';
 
@@ -53,21 +53,52 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
             }
             return next;
         });
+
+        setErrors(prev => {
+            const next = { ...prev };
+            if (name === 'password' || name === 'password_confirmation') {
+                if (name === 'password') {
+                    if (value && value.length < 6) next.password = 'Password minimal 6 karakter';
+                    else if (value) delete next.password;
+                    const cf = formData.password_confirmation;
+                    if (cf) {
+                        if (value !== cf) next.password_confirmation = 'Konfirmasi password tidak cocok';
+                        else delete next.password_confirmation;
+                    }
+                } else {
+                    if (value) {
+                        if (value !== formData.password) next.password_confirmation = 'Konfirmasi password tidak cocok';
+                        else delete next.password_confirmation;
+                    } else if (next.password_confirmation === 'Konfirmasi password tidak cocok') {
+                        delete next.password_confirmation;
+                    }
+                }
+            } else {
+                delete next[name];
+                if (name === 'role' && value === 'admin') delete next.outlet_id;
+            }
+            return next;
+        });
+    };
+
+    const computeErrors = (fd) => {
+        const errs = {};
+        if (!fd.nama.trim()) errs.nama = 'Nama lengkap wajib diisi';
+        if (!fd.email.trim()) errs.email = 'Email wajib diisi';
+        else if (!/\S+@\S+\.\S+/.test(fd.email)) errs.email = 'Format email tidak valid';
+        if (!isEdit) {
+            if (!fd.password) errs.password = 'Password wajib diisi';
+            else if (fd.password.length < 6) errs.password = 'Password minimal 6 karakter';
+            if (!fd.password_confirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
+            else if (fd.password !== fd.password_confirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
+        }
+        if (!fd.role) errs.role = 'Role wajib dipilih';
+        if (fd.role === 'cashier' && !fd.outlet_id) errs.outlet_id = 'Outlet wajib dipilih untuk kasir';
+        return errs;
     };
 
     const validate = () => {
-        const errs = {};
-        if (!formData.nama.trim()) errs.nama = 'Nama lengkap wajib diisi';
-        if (!formData.email.trim()) errs.email = 'Email wajib diisi';
-        else if (!/\S+@\S+\.\S+/.test(formData.email)) errs.email = 'Format email tidak valid';
-        if (!isEdit) {
-            if (!formData.password) errs.password = 'Password wajib diisi';
-            else if (formData.password.length < 8) errs.password = 'Password minimal 8 karakter';
-            if (!formData.password_confirmation) errs.password_confirmation = 'Konfirmasi password wajib diisi';
-            else if (formData.password !== formData.password_confirmation) errs.password_confirmation = 'Konfirmasi password tidak cocok';
-        }
-        if (!formData.role) errs.role = 'Role wajib dipilih';
-        if (formData.role === 'cashier' && !formData.outlet_id) errs.outlet_id = 'Outlet wajib dipilih untuk kasir';
+        const errs = computeErrors(formData);
         setErrors(errs);
         return Object.keys(errs).length === 0;
     };
@@ -126,12 +157,12 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                     </button>
                 </div>
                 
-                <form onSubmit={handleSubmit} className="p-6 flex-1 space-y-5">
+                <form onSubmit={handleSubmit} noValidate className="p-6 flex-1 space-y-5">
                     <div className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">Nama Lengkap *</label>
                             <input 
-                                type="text" name="nama" value={formData.nama} onChange={handleChange} required
+                                type="text" name="nama" value={formData.nama} onChange={handleChange}
                                 className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                             />
                             {errors.nama && <p className="text-xs text-red-500 mt-1">{errors.nama}</p>}
@@ -140,7 +171,7 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Email *</label>
                                 <input 
-                                    type="email" name="email" value={formData.email} onChange={handleChange} required
+                                    type="email" name="email" value={formData.email} onChange={handleChange}
                                     className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                                 />
                                 {errors.email && <p className="text-xs text-red-500 mt-1">{errors.email}</p>}
@@ -159,19 +190,25 @@ export default function AkunFormModal({ isOpen, mode, data, onClose, onSave, rol
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Password *</label>
                                     <input 
-                                        type="password" name="password" value={formData.password} onChange={handleChange} required
+                                        type="password" name="password" value={formData.password} onChange={handleChange}
                                         className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                                     />
-                                    <p className="text-xs text-gray-400 mt-1">Minimal 8 karakter</p>
+                                    <p className="text-xs text-gray-400 mt-1">Minimal 6 karakter</p>
                                     {errors.password && <p className="text-xs text-red-500 mt-1">{errors.password}</p>}
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Konfirmasi Password *</label>
                                     <input 
-                                        type="password" name="password_confirmation" value={formData.password_confirmation} onChange={handleChange} required
+                                        type="password" name="password_confirmation" value={formData.password_confirmation} onChange={handleChange}
                                         className="block w-full rounded-lg border-gray-300 border px-3 py-2 text-sm focus:ring-emerald-500 focus:border-emerald-500"
                                     />
-                                    {errors.password_confirmation && <p className="text-xs text-red-500 mt-1">{errors.password_confirmation}</p>}
+                                    {formData.password && formData.password_confirmation && formData.password === formData.password_confirmation ? (
+                                        <p className="text-xs text-emerald-600 mt-1 flex items-center gap-1">
+                                            <CheckCircle2 size={14} /> Password cocok
+                                        </p>
+                                    ) : (
+                                        errors.password_confirmation && <p className="text-xs text-red-500 mt-1">{errors.password_confirmation}</p>
+                                    )}
                                 </div>
                             </div>
                         )}
