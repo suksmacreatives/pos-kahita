@@ -368,8 +368,8 @@ const cetakStrukLangsung = async (transaksiData) => {
         });
 
         if (
-            transaksiData.metode === "TUNAI" ||
-            !transaksiData.metode
+            transaksiData.metode === "Tunai" ||
+            transaksiData.metode === "TUNAI"
         ) {
             content.push({
                 type: "divider",
