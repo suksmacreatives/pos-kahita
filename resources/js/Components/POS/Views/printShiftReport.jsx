@@ -447,7 +447,6 @@ try {
     console.error("PRINT / LOGOUT ERROR:", error);
     alreadyPrinted.current = false;
     
-    // Abaikan alert error cetak/logout, langsung arahkan ke login secara paksa agar kasir tetap aman
     if (onFinished) {
         onFinished();
     }

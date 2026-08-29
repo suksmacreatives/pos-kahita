@@ -603,7 +603,6 @@ const handleProsesBayarFinal = async () => {
             }
         } catch (printErr) {
             console.error("Gagal print struk:", printErr);
-            alert("Kasir berhasil ditutup, tetapi gagal mencetak struk laporan.");
         }
 
     } catch (err) {
