@@ -57,33 +57,33 @@ Route::middleware(['auth', 'verified'])->group(function () {
         // SISIPAN AMAN: Rute untuk menampilkan data shift kasir hari ini di tabel bawah
         Route::get('/pos/riwayat-shift', [ShiftController::class, 'riwayatShiftHariIni'])->name('pos.riwayat-shift');
         
-        Route::post('/print-shift-proxy', function (\Illuminate\Http\Request $request) {
-            try {
-                $response = \Illuminate\Support\Facades\Http::timeout(5)->post('http://localhost:9100/print', [
-                    'cut' => $request->input('cut', true),
-                    'content' => $request->input('content', []),
-                ]);
+        // Route::post('/print-shift-proxy', function (\Illuminate\Http\Request $request) {
+        //     try {
+        //         $response = \Illuminate\Support\Facades\Http::timeout(5)->post('http://localhost:9100/print', [
+        //             'cut' => $request->input('cut', true),
+        //             'content' => $request->input('content', []),
+        //         ]);
 
-                if ($response->successful()) {
-                    return response()->json([
-                        'success' => true,
-                        'data' => $response->json()
-                    ]);
-                }
+        //         if ($response->successful()) {
+        //             return response()->json([
+        //                 'success' => true,
+        //                 'data' => $response->json()
+        //             ]);
+        //         }
 
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Cleanter menolak perintah cetak: ' . $response->body()
-                ], 500);
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'Cleanter menolak perintah cetak: ' . $response->body()
+        //         ], 500);
 
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Tidak dapat terhubung ke Cleanter (Pastikan service lokal aktif di port 9100): ' . $e->getMessage()
-                ], 500);
-            }
-        })->name('pos.print-proxy');
-        
+        //     } catch (\Exception $e) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'Tidak dapat terhubung ke Cleanter (Pastikan service lokal aktif di port 9100): ' . $e->getMessage()
+        //         ], 500);
+        //     }
+        // })->name('pos.print-proxy');
+
         // Logika Simpan Pembayaran Belanja POS
         Route::post('/pos/transaksi', [TransactionController::class, 'store'])->name('pos.transaksi');
         Route::post('/pos/penerimaan/{distributionOrder}/konfirmasi', [PosController::class, 'konfirmasiPenerimaan'])->name('pos.penerimaan.konfirmasi');

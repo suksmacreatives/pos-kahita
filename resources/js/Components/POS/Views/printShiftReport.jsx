@@ -408,99 +408,43 @@ export default function PrintShiftReport({
                     "Mengirim data ke backend proxy..."
                 );
 
-                const response = await fetch(
-                    "/print-shift-proxy",
-                    {
-                        method: "POST",
+                // KIRIM LANGSUNG KE PRINTER LOKAL (CLEANTER)
+const response = await fetch("http://localhost:9100/print", {
+    method: "POST",
+    headers: {
+        "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+        cut: true,
+        content: content,
+    }),
+});
 
-                        headers: {
-                            "Content-Type":
-                                "application/json",
-                            "X-CSRF-TOKEN":
-                                document
-                                    .querySelector(
-                                        'meta[name="csrf-token"]'
-                                    )
-                                    .content,
-                            Accept:
-                                "application/json",
-                        },
+const result = await response.json();
+console.log("Hasil print:", result);
 
-                        body: JSON.stringify({
-                            cut: true,
-                            content: content,
-                        }),
-                    }
-                );
+if (!response.ok) {
+    throw new Error(result?.message || "Gagal mencetak rekap tutup kasir");
+}
 
-                const result =
-                    await response.json();
+console.log("✅ STRUK TUTUP KASIR BERHASIL DICETAK");
 
-                console.log(
-                    "Hasil print:",
-                    result
-                );
+if (onFinished) {
+    onFinished();
+}
 
-                // =====================================================
-                // 5. JIKA GAGAL
-                // =====================================================
-
-                if (!response.ok || !result.success) {
-                    throw new Error(
-                        result?.message ||
-                        result?.error ||
-                        "Printer gagal mencetak."
-                    );
-                }
-
-                // =====================================================
-                // 6. PRINT BERHASIL
-                // =====================================================
-
-                console.log(
-                    "================================="
-                );
-
-                console.log(
-                    "STRUK BERHASIL DICETAK"
-                );
-
-                console.log(
-                    "================================="
-                );
-
-                if (onFinished) {
-                    onFinished();
-                }
-
-                // =====================================================
-                // 7. LOGOUT SETELAH PRINT
-                // =====================================================
-
-                try {
-                    await fetch(
-                        route(
-                            "pos.logout-after-print"
-                        ),
-                        {
-                            method: "POST",
-
-                            headers: {
-                                "X-CSRF-TOKEN":
-                                    document
-                                        .querySelector(
-                                            'meta[name="csrf-token"]'
-                                        )
-                                        .content,
-
-                                Accept:
-                                    "application/json",
-                            },
-                        }
-                    );
-                } finally {
-                    window.location.href = "/login";
-                }
+// LOGOUT SETELAH PRINT BERHASIL
+try {
+    await fetch(route("pos.logout-after-print"), {
+        method: "POST",
+        headers: {
+            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
+            Accept: "application/json",
+        },
+    });
+} finally {
+    window.location.href = "/login";
+}
 
             } catch (error) {
                 console.error("=================================");
