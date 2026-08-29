@@ -181,4 +181,46 @@ class PosController extends Controller
             return redirect()->back()->with('error', 'Gagal mengkonfirmasi penerimaan: ' . $e->getMessage());
         }
     }
+
+    public function tutupKasir(Request $request)
+    {
+        $user = $request->user();
+
+        // 1. Cari shift aktif milik user yang sedang login
+        $activeShift = CashRegisterShift::where('user_id', $user->id)
+            ->where('status', 'open')
+            ->latest()
+            ->first();
+
+        if (!$activeShift) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak ada shift yang aktif.'
+            ], 400);
+        }
+
+        // 2. Lakukan proses tutup kasir (ubah status jadi closed, simpan uang fisik, hitung selisih, dll)
+        $activeShift->update([
+            'status' => 'closed',
+            'physical_cash' => $request->input('physical_cash'),
+            'closed_at' => now(),
+        ]);
+
+        // 3. Siapkan data laporan shift untuk dikembalikan ke frontend agar bisa dicetak via Cleanter
+        $shiftReport = [
+            'kasir' => $user->name,
+            'outlet' => Outlet::find($user->outlet_id)?->name ?? '-',
+            'waktu_tutup' => now()->format('d-m-Y H:i:s'),
+            'modal_awal' => $activeShift->initial_cash,
+            'uang_fisik' => $request->input('physical_cash'),
+            // Tambahkan data ringkasan transaksi lainnya sesuai kebutuhan struktur Cleanter Anda
+        ];
+
+        // 4. Kembalikan response JSON (TANPA cURL server-side sama sekali)
+        return response()->json([
+            'success' => true,
+            'shift_report' => $shiftReport
+        ]);
+    }
+    
 }

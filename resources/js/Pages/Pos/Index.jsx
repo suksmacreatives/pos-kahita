@@ -181,71 +181,66 @@ export default function Index({
 
 const cetakStrukLangsung = async (transaksiData) => {
     try {
-
-        const healthResponse = await fetch(
-            "http://localhost:9100/health"
-        );
+        const healthResponse = await fetch("http://localhost:9100/health");
 
         if (!healthResponse.ok) {
             throw new Error("Cleanter tidak tersedia");
         }
 
         const health = await healthResponse.json();
-
         console.log("Cleanter:", health);
 
-        const savedConfig = localStorage.getItem(
-            "master_nota_config"
-        );
-
+        // AMBIL CONFIG TERBARU DARI LOCALSTORAGE (Hasil Pengaturan Nota)
+        const savedConfig = localStorage.getItem("master_nota_config");
         const notaConfig = savedConfig
             ? JSON.parse(savedConfig)
             : {
-                  namaToko: "KAHITA BUSANA",
-                  alamatToko: "JL. BYPASS DHARMA GIRI",
-                  telpToko: "082189833575",
-
-                  showNamaToko: true,
-                  showAlamat: true,
-                  showTelp: true,
-                  showNoStruk: true,
-                  showWaktu: true,
-                  showHeaderTerimakasih: true,
-                  showFooterNote: true,
-
-                  teksTerimakasih: "Terima Kasih",
-                  teksFooterNote:
-                      "Mohon diperiksa kembali pembelian anda...",
-              };
+                namaToko: "KAHITA BUSANA",
+                alamatToko: "JL. BYPASS DHARMA GIRI",
+                telpToko: "082189833575",
+                showLogo: true,
+                showNamaToko: true,
+                showAlamat: true,
+                showTelp: true,
+                showNoStruk: true,
+                showWaktu: true,
+                showHeaderTerimakasih: true,
+                showFooterNote: true,
+                teksTerimakasih: "Terima Kasih",
+                teksFooterNote: "Mohon diperiksa kembali pembelian anda.",
+            };
 
         const waktu = new Date().toLocaleString("id-ID");
-
         const content = [];
 
-        if (notaConfig.showNamaToko) {
+        // 1. LOGO (Opsional jika printer support cetak gambar / base64, jika tidak abaikan/lewatkan)
+        if (notaConfig.showLogo && notaConfig.logo) {
+            content.push({
+                type: "image", // Tergantung driver Cleanter, jika pakai teks biasa lewati bagian ini
+                path: notaConfig.logo,
+                align: "center",
+            });
+        }
+
+        // 2. KOP NOTA
+        if (notaConfig.showNamaToko && notaConfig.namaToko) {
             content.push({
                 type: "text",
-                text: notaConfig.namaToko || "",
+                text: notaConfig.namaToko.toUpperCase(),
                 align: "center",
                 bold: true,
             });
         }
 
-        if (
-            notaConfig.showAlamat &&
-            notaConfig.alamatToko
-        ) {
+        if (notaConfig.showAlamat && notaConfig.alamatToko) {
             content.push({
                 type: "text",
-                text: notaConfig.alamatToko,
+                text: notaConfig.alamatToko.toUpperCase(),
                 align: "center",
             });
         }
 
-        if (
-            notaConfig.showTelp &&
-            notaConfig.telpToko
-        ) {
+        if (notaConfig.showTelp && notaConfig.telpToko) {
             content.push({
                 type: "text",
                 text: `TELP: ${notaConfig.telpToko}`,
@@ -273,10 +268,12 @@ const cetakStrukLangsung = async (transaksiData) => {
                 align: "center",
             });
         }
+
         content.push({
             type: "divider",
         });
 
+        // 3. ITEMS BELANJAAN
         (transaksiData.items || []).forEach((item) => {
             const nama =
                 item.name ||
@@ -284,28 +281,16 @@ const cetakStrukLangsung = async (transaksiData) => {
                 item.customName ||
                 "-";
 
-            const qty =
-                item.quantity ||
-                item.qty ||
-                0;
+            const qty = item.quantity || item.qty || 0;
+            const harga = item.price ?? item.price_at_sale ?? 0;
+            const total = item.total ?? qty * harga;
 
-            const harga =
-                item.price ??
-                item.price_at_sale ??
-                0;
-
-            const total =
-                item.total ??
-                qty * harga;
-
-            // Nama produk
             content.push({
                 type: "text",
                 text: nama.toUpperCase(),
                 bold: true,
             });
 
-            // Qty + harga
             content.push({
                 type: "row",
                 left: `${qty} x ${formatRupiah(harga)}`,
@@ -317,13 +302,12 @@ const cetakStrukLangsung = async (transaksiData) => {
             type: "divider",
         });
 
+        // 4. SUBTOTAL & TOTAL
         content.push({
             type: "row",
             left: "SUBTOTAL",
             right: formatRupiah(
-                transaksiData.subtotal ??
-                    transaksiData.grand_total ??
-                    0
+                transaksiData.subtotal ?? transaksiData.grand_total ?? 0
             ),
         });
 
@@ -335,52 +319,41 @@ const cetakStrukLangsung = async (transaksiData) => {
             });
         }
 
-        if (
-            Number(transaksiData.discount || 0) > 0
-        ) {
+        if (Number(transaksiData.discount || 0) > 0) {
             content.push({
                 type: "row",
                 left: "DISKON",
-                right: `- ${formatRupiah(
-                    transaksiData.discount
-                )}`,
+                right: `- ${formatRupiah(transaksiData.discount)}`,
             });
         }
 
         content.push({
             type: "row",
-            left: "TOTAL RP.",
+            left: "TOTAL",
             right: formatRupiah(
-                transaksiData.total ??
-                    transaksiData.grand_total ??
-                    0
+                transaksiData.total ?? transaksiData.grand_total ?? 0
             ),
             bold: true,
         });
+
+        const metodeBayar = (transaksiData.metode || "TUNAI").toUpperCase();
         content.push({
             type: "row",
-            left: transaksiData.metode || "TUNAI",
+            left: metodeBayar,
             right: formatRupiah(
-                transaksiData.bayar ??
-                    transaksiData.grand_total ??
-                    0
+                transaksiData.bayar ?? transaksiData.grand_total ?? 0
             ),
         });
 
-        if (
-            transaksiData.metode === "Tunai" ||
-            transaksiData.metode === "TUNAI"
-        ) {
+        // 5. KONDISIONAL KEMBALIAN (Hanya jika Tunai)
+        if (metodeBayar === "TUNAI") {
             content.push({
                 type: "divider",
             });
-
             content.push({
                 type: "row",
-                left: "KEMBALI RP.",
-                right: formatRupiah(
-                    transaksiData.kembali || 0
-                ),
+                left: "KEMBALI",
+                right: formatRupiah(transaksiData.kembali || 0),
                 bold: true,
             });
         }
@@ -389,23 +362,17 @@ const cetakStrukLangsung = async (transaksiData) => {
             type: "divider",
         });
 
-        if (
-            notaConfig.showHeaderTerimakasih
-        ) {
+        // 6. FOOTER / SALAM PENUTUP DINAMIS
+        if (notaConfig.showHeaderTerimakasih && notaConfig.teksTerimakasih) {
             content.push({
                 type: "text",
-                text:
-                    notaConfig.teksTerimakasih ||
-                    "Terima Kasih",
+                text: notaConfig.teksTerimakasih,
                 align: "center",
                 bold: true,
             });
         }
 
-        if (
-            notaConfig.showFooterNote &&
-            notaConfig.teksFooterNote
-        ) {
+        if (notaConfig.showFooterNote && notaConfig.teksFooterNote) {
             content.push({
                 type: "text",
                 text: notaConfig.teksFooterNote,
@@ -418,50 +385,32 @@ const cetakStrukLangsung = async (transaksiData) => {
             lines: 3,
         });
 
-        const response = await fetch(
-            "http://localhost:9100/print",
-            {
-                method: "POST",
-
-                headers: {
-                    "Content-Type":
-                        "application/json",
-                },
-
-                body: JSON.stringify({
-                    cut: true,
-                    content: content,
-                }),
-            }
-        );
+        // KIRIM KE CLEANTER
+        const response = await fetch("http://localhost:9100/print", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                cut: true,
+                content: content,
+            }),
+        });
 
         const result = await response.json();
-
-        console.log(
-            "Hasil print Cleanter:",
-            result
-        );
+        console.log("Hasil print Cleanter:", result);
 
         if (!response.ok) {
-            throw new Error(
-                result?.message ||
-                    "Gagal mencetak struk"
-            );
+            throw new Error(result?.message || "Gagal mencetak struk");
         }
 
-        console.log(
-            "✅ Struk berhasil dikirim ke printer"
-        );
+        console.log("✅ Struk berhasil dikirim ke printer");
 
     } catch (error) {
-        console.error(
-            "❌ PRINT ERROR:",
-            error
-        );
-
+        console.error("❌ PRINT ERROR:", error);
         alert(
             "Printer tidak tersedia.\n\n" +
-            "Pastikan Cleanter aktif dan printer RPP02N terhubung."
+            "Pastikan Cleanter aktif dan printer terhubung."
         );
     }
 };
@@ -637,6 +586,25 @@ const handleProsesBayarFinal = async () => {
 
         // simpan data untuk dicetak
         setShiftReport(result.shift_report);
+        try {
+            const printResponse = await fetch('http://localhost:9100/print', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    // Sesuaikan format data yang diterima oleh aplikasi Cleanter untuk cetak laporan shift/tutup kasir
+                    raw_data: result.shift_report 
+                }),
+            });
+
+            if (!printResponse.ok) {
+                throw new Error('Gagal terhubung ke Cleanter');
+            }
+        } catch (printErr) {
+            console.error("Gagal print struk:", printErr);
+            alert("Kasir berhasil ditutup, tetapi gagal mencetak struk laporan.");
+        }
 
     } catch (err) {
 
@@ -755,33 +723,37 @@ const handleProsesBayarFinal = async () => {
             </div>
 
             <form
-    onSubmit={(e) => {
-        e.preventDefault();
+                onSubmit={(e) => {
+                    e.preventDefault();
 
-        formBukaKasir.post(route('pos.buka-kasir'), {
-            onSuccess: async () => {
-                await loadSidebarData();
-            }
-        });
-    }}
->
+                    formBukaKasir.post(route('pos.buka-kasir'), {
+                        onSuccess: async () => {
+                            await loadSidebarData();
+                        }
+                    });
+                }}
+            >
                 <div className="mb-4">
                     <label className="block text-sm font-medium text-slate-700 mb-2">
                         Modal Awal Kasir
                     </label>
 
                     <input
-                        type="number"
-                        min="0"
-                        value={formBukaKasir.data.starting_cash}
-                        onChange={(e) =>
-                            formBukaKasir.setData(
-                                'starting_cash',
-                                e.target.value
-                            )
+                        type="text"
+                        value={
+                            formBukaKasir.data.starting_cash 
+                                ? String(formBukaKasir.data.starting_cash).replace(/\B(?=(\d{3})+(?!\d))/g, ".") 
+                                : ""
                         }
+                        onChange={(e) => {
+                            // 1. Ambil hanya angka saja (buang titik atau karakter lain)
+                            let rawValue = e.target.value.replace(/\D/g, "");
+                            
+                            // 2. Simpan angka murni ke state Inertia
+                            formBukaKasir.setData('starting_cash', rawValue);
+                        }}
                         className="w-full border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-emerald-500 focus:outline-none"
-                        placeholder="Contoh: 500000"
+                        placeholder="Contoh: 500.000"
                         required
                     />
                 </div>
@@ -807,7 +779,7 @@ const handleProsesBayarFinal = async () => {
     </div>
 )}
 
-            {showModalTutup && (
+           {showModalTutup && (
     <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
         <div className="bg-white rounded-l shadow-l w-[420px] p-6">
             
@@ -825,17 +797,21 @@ const handleProsesBayarFinal = async () => {
                 </label>
 
                 <input
-                    type="number"
-                    min="0"
-                    value={formTutupKasir.data.physical_cash}
-                    onChange={(e) =>
-                        formTutupKasir.setData(
-                            'physical_cash',
-                            e.target.value
-                        )
+                    type="text"
+                    value={
+                        formTutupKasir.data.physical_cash 
+                            ? String(formTutupKasir.data.physical_cash).replace(/\B(?=(\d{3})+(?!\d))/g, ".") 
+                            : ""
                     }
+                    onChange={(e) => {
+                        // 1. Ambil hanya angka saja (buang titik atau karakter lain)
+                        let rawValue = e.target.value.replace(/\D/g, "");
+                        
+                        // 2. Simpan angka murni ke state Inertia
+                        formTutupKasir.setData('physical_cash', rawValue);
+                    }}
                     className="w-full border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                    placeholder="Masukkan uang fisik"
+                    placeholder="Contoh: 1.500.000"
                 />
 
                 {formTutupKasir.errors.physical_cash && (

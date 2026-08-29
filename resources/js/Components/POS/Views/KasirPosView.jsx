@@ -751,7 +751,20 @@ const handleRemoveCartItem = (cartId) => {
                             {selectedPayment === 'Tunai' && (
                                 <div className="space-y-1.5">
                                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Uang yang Diterima</label>
-                                    <input type="number" placeholder="Jumlah uang..." value={inputUangDiterima} onChange={(e) => setInputUangDiterima(e.target.value)} className="w-full bg-gray-50 border border-gray-200 px-3 py-2.5 rounded-lg text-xs font-black focus:outline-none focus:bg-white focus:border-[#009664]"/>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Jumlah uang..." 
+                                        value={
+                                            inputUangDiterima 
+                                                ? String(inputUangDiterima).replace(/\B(?=(\d{3})+(?!\d))/g, ".") 
+                                                : ""
+                                        } 
+                                        onChange={(e) => {
+                                            let rawValue = e.target.value.replace(/\D/g, "");
+                                            setInputUangDiterima(rawValue);
+                                        }} 
+                                        className="w-full bg-gray-50 border border-gray-200 px-3 py-2.5 rounded-lg text-xs font-black focus:outline-none focus:bg-white focus:border-[#009664]"
+                                    />
                                 </div>
                             )}
                             <div className="bg-gray-50 p-3 rounded-xl space-y-2 border border-gray-100 text-[11px] font-bold">
