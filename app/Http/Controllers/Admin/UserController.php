@@ -33,7 +33,7 @@ class UserController extends Controller
     {
         $request->validate([
             'name'      => 'required|string|max:255|unique:users,name',
-            'password'  => 'required|string|min:8',
+            'password'  => 'required|string|min:6',
             'role'      => 'required|in:admin,cashier',
             // Jika role kasir, outlet_id WAJIB diisi. Jika admin, BOLEH dikosongkan (HQ)
             'outlet_id' => $request->role === 'cashier' ? 'required|exists:outlets,id' : 'nullable|exists:outlets,id',
@@ -58,7 +58,7 @@ class UserController extends Controller
         $request->validate([
             'name'      => 'required|string|max:255|unique:users,name,' . $user->id,
             'role'      => 'required|in:admin,cashier',
-            'password'  => 'nullable|string|min:8',
+            'password'  => 'nullable|string|min:6',
             'outlet_id' => $request->role === 'cashier' ? 'required|exists:outlets,id' : 'nullable|exists:outlets,id',
         ]);
 

@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, usePage } from '@inertiajs/react';
-import { CheckCircle2, AlertCircle, Store, ShieldCheck } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { Store, ShieldCheck } from 'lucide-react';
 import AvatarInitials from '@/Components/Admin/Settings/KelolAkun/AvatarInitials';
 import UpdateProfileInformationForm from './Partials/UpdateProfileInformationForm';
 import UpdatePasswordForm from './Partials/UpdatePasswordForm';
@@ -10,18 +11,10 @@ export default function Edit({ outlet_nama }) {
     const props = usePage().props;
     const user = props.auth?.user || {};
 
-    const [toast, setToast] = useState(null);
-
     const showToast = (message, type = 'success') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 3000);
+        if (type === 'success') toast.success(message);
+        else toast.error(message);
     };
-
-    useEffect(() => {
-        const flash = props.flash;
-        if (flash?.success) showToast(flash.success);
-        else if (flash?.error) showToast(flash.error, 'error');
-    }, [props.flash]);
 
     const isCashier = user.role === 'cashier';
     const roleLabel = isCashier ? 'Kasir' : 'Admin';
@@ -77,6 +70,7 @@ export default function Edit({ outlet_nama }) {
                     </div>
                     <div className="p-5">
                         <UpdateProfileInformationForm
+                            onSuccess={() => showToast('Profil berhasil diperbarui')}
                             onError={(errors) =>
                                 showToast(Object.values(errors).join(', '), 'error')
                             }
@@ -89,11 +83,12 @@ export default function Edit({ outlet_nama }) {
                     <div className="p-5 border-b border-gray-100">
                         <h3 className="text-base font-bold text-gray-900">Ubah Password</h3>
                         <p className="text-xs text-gray-500 mt-0.5">
-                            Gunakan password minimal 8 karakter yang sulit ditebak
+                            Gunakan password minimal 6 karakter yang sulit ditebak
                         </p>
                     </div>
                     <div className="p-5">
                         <UpdatePasswordForm
+                            onSuccess={() => showToast('Password berhasil diubah')}
                             onError={(errors) =>
                                 showToast(Object.values(errors).join(', '), 'error')
                             }
@@ -101,33 +96,6 @@ export default function Edit({ outlet_nama }) {
                     </div>
                 </div>
             </div>
-
-            {toast && (
-                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
-                    <div
-                        className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium ${
-                            toast.type === 'success'
-                                ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                                : 'bg-red-50 border-red-200 text-red-800'
-                        }`}
-                    >
-                        <div
-                            className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                                toast.type === 'success'
-                                    ? 'bg-emerald-100 text-emerald-600'
-                                    : 'bg-red-100 text-red-600'
-                            }`}
-                        >
-                            {toast.type === 'success' ? (
-                                <CheckCircle2 size={18} />
-                            ) : (
-                                <AlertCircle size={18} />
-                            )}
-                        </div>
-                        {toast.message}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }

@@ -16,7 +16,7 @@ class StoreAkunRequest extends FormRequest
         return [
             'name' => 'required|string|max:255',
             'email' => 'required|email|unique:users,email',
-            'password' => 'required|string|min:8',
+            'password' => 'required|string|min:6',
             'telp' => 'nullable|string|max:20',
             'role' => 'required|in:admin,cashier',
             'outlet_id' => 'nullable|exists:outlets,id',

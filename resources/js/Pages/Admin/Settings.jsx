@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { Head, usePage, router } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import { Users, UserCheck, ShoppingBag, UserX, Plus, Tag, Zap, Clock, BarChart2, List, LayoutGrid, Activity, LogIn, AlertCircle, Download, Bell, BellDot, Eye, CheckCheck } from 'lucide-react';
 
 import AkunTable from '@/Components/Admin/Settings/KelolAkun/AkunTable';
@@ -20,8 +21,6 @@ import NotifikasiTable from '@/Components/Admin/Settings/Notifikasi/NotifikasiTa
 export default function Settings() {
     const { url } = usePage();
     const props = usePage().props;
-
-    const [toast, setToast] = useState(null);
 
     let activeMenu = 'kelola_akun';
     if (url.includes('tab=promo')) activeMenu = 'promo';
@@ -47,15 +46,9 @@ export default function Settings() {
     const [resetModal, setResetModal] = useState({ isOpen: false, data: null });
 
     const showToast = (message, type = 'success') => {
-        setToast({ message, type });
-        setTimeout(() => setToast(null), 3000);
+        if (type === 'error') toast.error(message);
+        else toast.success(message);
     };
-
-    useEffect(() => {
-        const flash = props.flash;
-        if (flash?.success) showToast(flash.success);
-        else if (flash?.error) showToast(flash.error, 'error');
-    }, [props.flash]);
 
     const handleSaveAkun = (formData) => {
         const isEdit = modalState.mode === 'edit' && modalState.data?.id;
@@ -82,6 +75,7 @@ export default function Settings() {
             preserveScroll: true,
             onSuccess: () => {
                 setModalState({ ...modalState, isOpen: false });
+                showToast(isEdit ? 'Perubahan akun disimpan' : 'Akun berhasil ditambahkan');
             },
             onError: (errors) => {
                 showToast(Object.values(errors).join(', '), 'error');
@@ -93,6 +87,12 @@ export default function Settings() {
         router.patch(route('admin.settings.akun.toggle-status', akun.id), {}, {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                showToast(`Status akun ${akun.name} diubah`);
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+            },
         });
     };
 
@@ -100,6 +100,12 @@ export default function Settings() {
         router.patch(route('admin.settings.akun.suspend', id), {}, {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                showToast('Akun berhasil disuspend');
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+            },
         });
     };
 
@@ -107,25 +113,17 @@ export default function Settings() {
         router.delete(route('admin.settings.akun.destroy', id), {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                showToast('Akun berhasil dihapus');
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+            },
         });
     };
 
     const handleResetPassword = (akun) => {
         setResetModal({ isOpen: true, data: akun });
-    };
-
-    const handleSubmitResetPassword = (akun, payload) => {
-        router.post(route('admin.settings.akun.reset-password', akun.id), payload, {
-            preserveState: true,
-            preserveScroll: true,
-            onSuccess: () => {
-                setResetModal({ isOpen: false, data: null });
-            },
-            onError: (errors) => {
-                showToast(Object.values(errors).join(', '), 'error');
-                setResetModal((prev) => ({ ...prev, isOpen: true }));
-            },
-        });
     };
 
     const handleSavePromo = (data) => {
@@ -140,6 +138,7 @@ export default function Settings() {
             preserveScroll: true,
             onSuccess: () => {
                 setModalState({ ...modalState, isOpen: false });
+                showToast(isEdit ? 'Perubahan promo disimpan' : 'Promo berhasil dibuat');
             },
             onError: (errors) => {
                 showToast(Object.values(errors).join(', '), 'error');
@@ -151,6 +150,12 @@ export default function Settings() {
         router.patch(route('admin.settings.promo.toggle-status', promo.id), {}, {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                showToast(`Status promo ${promo.kode_promo || ''} diubah`);
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+            },
         });
     };
 
@@ -158,6 +163,12 @@ export default function Settings() {
         router.post(route('admin.settings.promo.duplicate', promo.id), {}, {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                showToast('Duplikat promo berhasil');
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+            },
         });
     };
 
@@ -165,6 +176,12 @@ export default function Settings() {
         router.delete(route('admin.settings.promo.destroy', id), {
             preserveState: true,
             preserveScroll: true,
+            onSuccess: () => {
+                showToast('Promo berhasil dihapus');
+            },
+            onError: (errors) => {
+                showToast(Object.values(errors).join(', '), 'error');
+            },
         });
     };
 
@@ -474,31 +491,10 @@ export default function Settings() {
                 isOpen={resetModal.isOpen}
                 data={resetModal.data}
                 onClose={() => setResetModal({ isOpen: false, data: null })}
-                onSubmit={handleSubmitResetPassword}
             />
-
-            {toast && (
-                <div className="fixed bottom-6 right-6 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
-                    <div className={`flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border text-sm font-medium ${
-                        toast.type === 'success'
-                        ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                        : 'bg-red-50 border-red-200 text-red-800'
-                    }`}>
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
-                            toast.type === 'success' ? 'bg-emerald-100 text-emerald-600' : 'bg-red-100 text-red-600'
-                        }`}>
-                            {toast.type === 'success' ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />}
-                        </div>
-                        {toast.message}
-                    </div>
-                </div>
-            )}
         </div>
     );
 }
 
 Settings.layout = (page) => <AdminLayout>{page}</AdminLayout>;
 
-const CheckCircle2 = ({ size, className }) => (
-    <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
-);

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
 import { useForm } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useFilter } from '@/Context/FilterContext';
 
@@ -25,6 +26,7 @@ import FormReturGudangModal from '@/Components/Admin/Inventory/Outlet/FormReturG
 import StockOpnameOutletTable from '@/Components/Admin/Inventory/Outlet/StockOpnameOutletTable';
 import FormOpnameOutletModal from '@/Components/Admin/Inventory/Outlet/FormOpnameOutletModal';
 import LihatMutasiModal from '@/Components/Admin/Inventory/Gudang/LihatMutasiModal';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 
 function OutletInventory() {
   const { outlet: selectedOutlet, setOutlet } = useFilter();
@@ -40,7 +42,6 @@ function OutletInventory() {
     mutasiLog: initialMutasiLog = [],
     perbandinganStok = [],
     outlets = [],
-    flash
   } = props;
 
   const user = auth.user;
@@ -67,16 +68,12 @@ function OutletInventory() {
   const [isOpnameOpen, setIsOpnameOpen] = useState(false);
   const [lihatMutasi, setLihatMutasi] = useState(null);
   const [processing, setProcessing] = useState(false);
-  const [appNotification, setAppNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+  const [confirmAction, setConfirmAction] = useState(null);
 
-  useEffect(() => {
-    if (flash?.success) {
-      setAppNotification({ isOpen: true, type: 'success', title: 'Berhasil', message: flash.success });
-    } else if (flash?.error) {
-      setAppNotification({ isOpen: true, type: 'error', title: 'Gagal', message: flash.error });
-    }
-  }, [flash]);
-
+  const showToast = (message, type = 'success') => {
+    if (type === 'error') toast.error(message);
+    else toast.success(message);
+  };
   // Local state arrays initialized with server data to support dynamic additions/updates
   const [penerimaanList, setPenerimaanList] = useState(initialPenerimaan);
   const [transferList, setTransferList] = useState(initialTransfer);
@@ -203,9 +200,10 @@ function OutletInventory() {
       onSuccess: () => {
         setIsTerimaOpen(false);
         setActiveTerimaDo(null);
+        showToast('Penerimaan berhasil dikonfirmasi');
       },
       onError: (errors) => {
-        alert('Gagal konfirmasi: ' + Object.values(errors).join(', '));
+        showToast('Gagal konfirmasi: ' + Object.values(errors).join(', '), 'error');
       },
       onFinish: () => {
         setProcessing(false);
@@ -235,9 +233,10 @@ function OutletInventory() {
       preserveScroll: true,
       onSuccess: () => {
         setIsTransferOpen(false);
+        showToast('Transfer berhasil diajukan');
       },
       onError: (errors) => {
-        alert('Gagal membuat transfer: ' + Object.values(errors).join(', '));
+        showToast('Gagal membuat transfer: ' + Object.values(errors).join(', '), 'error');
       },
       onFinish: () => {
         setProcessing(false);
@@ -247,22 +246,69 @@ function OutletInventory() {
 
   const handleCancelTransfer = (id) => {
     if (processing) return;
-    if (confirm('Apakah Anda yakin ingin membatalkan pengajuan transfer ini?')) {
-      setProcessing(true);
-      router.delete(route('admin.inventory.outlet.transfer.cancel', { id }), {
-        preserveScroll: true,
-        onFinish: () => setProcessing(false),
-      });
-    }
+    setConfirmAction({ type: 'batal-transfer', id });
   };
 
   const handleConfirmReceiveTransfer = (id) => {
     if (processing) return;
-    if (confirm('Konfirmasi bahwa barang transfer telah diterima dengan baik di outlet?')) {
-      setProcessing(true);
+    setConfirmAction({ type: 'terima-transfer', id });
+  };
+
+  const handleCancelRetur = (id) => {
+    if (processing) return;
+    setConfirmAction({ type: 'batal-retur', id });
+  };
+
+  const confirmMeta = {
+    'batal-transfer': {
+      variant: 'danger',
+      title: 'Batalkan Transfer',
+      message: 'Apakah Anda yakin ingin membatalkan pengajuan transfer ini?',
+      confirmLabel: 'Ya, Batalkan',
+    },
+    'terima-transfer': {
+      variant: 'primary',
+      title: 'Terima Transfer',
+      message: 'Konfirmasi bahwa barang transfer telah diterima dengan baik di outlet?',
+      confirmLabel: 'Ya, Terima',
+    },
+    'batal-retur': {
+      variant: 'danger',
+      title: 'Batalkan Retur',
+      message: 'Apakah Anda yakin ingin membatalkan pengajuan retur ke gudang ini?',
+      confirmLabel: 'Ya, Batalkan',
+    },
+  };
+
+  const runConfirmAction = () => {
+    if (!confirmAction) return;
+    const { type, id } = confirmAction;
+    setProcessing(true);
+    setConfirmAction(null);
+
+    const fail = () => (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error');
+    const finish = () => setProcessing(false);
+
+    if (type === 'batal-transfer') {
+      router.delete(route('admin.inventory.outlet.transfer.cancel', { id }), {
+        preserveScroll: true,
+        onSuccess: () => showToast('Pengajuan transfer dibatalkan'),
+        onError: fail(),
+        onFinish: finish,
+      });
+    } else if (type === 'terima-transfer') {
       router.patch(route('admin.inventory.outlet.transfer.terima', { id }), {}, {
         preserveScroll: true,
-        onFinish: () => setProcessing(false),
+        onSuccess: () => showToast('Barang transfer diterima'),
+        onError: fail(),
+        onFinish: finish,
+      });
+    } else if (type === 'batal-retur') {
+      router.delete(route('admin.inventory.outlet.retur.cancel', { id }), {
+        preserveScroll: true,
+        onSuccess: () => showToast('Pengajuan retur dibatalkan'),
+        onError: fail(),
+        onFinish: finish,
       });
     }
   };
@@ -289,25 +335,15 @@ function OutletInventory() {
       preserveScroll: true,
       onSuccess: () => {
         setIsReturOpen(false);
+        showToast('Retur berhasil diajukan');
       },
       onError: (errors) => {
-        alert('Gagal membuat retur: ' + Object.values(errors).join(', '));
+        showToast('Gagal membuat retur: ' + Object.values(errors).join(', '), 'error');
       },
       onFinish: () => {
         setProcessing(false);
       }
     });
-  };
-
-  const handleCancelRetur = (id) => {
-    if (processing) return;
-    if (confirm('Apakah Anda yakin ingin membatalkan pengajuan retur ke gudang ini?')) {
-      setProcessing(true);
-      router.delete(route('admin.inventory.outlet.retur.cancel', { id }), {
-        preserveScroll: true,
-        onFinish: () => setProcessing(false),
-      });
-    }
   };
 
   const handleCreateOpname = (data) => {
@@ -319,8 +355,8 @@ function OutletInventory() {
       outlet_id: selectedOutlet,
     }, {
       preserveScroll: true,
-      onSuccess: () => { setIsOpnameOpen(false); },
-      onError: () => {},
+      onSuccess: () => { setIsOpnameOpen(false); showToast('Stock opname berhasil disimpan'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => { setProcessing(false); }
     });
   };
@@ -535,19 +571,16 @@ function OutletInventory() {
         mutasiLog={initialMutasiLog}
       />
 
-      {/* ── MODAL NOTIFIKASI ── */}
-      {appNotification.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-80 text-center">
-            <div className={`text-4xl mb-2 ${appNotification.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
-              {appNotification.type === 'success' ? '✓' : '⚠'}
-            </div>
-            <h3 className="font-bold text-lg">{appNotification.title}</h3>
-            <p className="text-sm text-gray-600 mb-4">{appNotification.message}</p>
-            <button onClick={() => setAppNotification({ ...appNotification, isOpen: false })} className="bg-emerald-600 text-white w-full py-2 rounded">OK</button>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        variant={confirmAction ? (confirmMeta[confirmAction.type]?.variant || 'danger') : 'danger'}
+        title={confirmAction ? (confirmMeta[confirmAction.type]?.title || 'Konfirmasi') : 'Konfirmasi'}
+        message={confirmAction ? (confirmMeta[confirmAction.type]?.message || '') : ''}
+        confirmLabel={confirmAction ? (confirmMeta[confirmAction.type]?.confirmLabel || 'Ya') : 'Ya'}
+        processing={processing}
+        onConfirm={runConfirmAction}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }

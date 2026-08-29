@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Save, AlertTriangle, ChevronDown } from 'lucide-react';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 
 export default function TabPengaturan({ outlet, onSave, onDelete }) {
     if (!outlet) return null;
@@ -7,6 +8,7 @@ export default function TabPengaturan({ outlet, onSave, onDelete }) {
     const [isSaving, setIsSaving] = useState(false);
     const [isTipeOpen, setIsTipeOpen] = useState(false);
     const [isStatusOpen, setIsStatusOpen] = useState(false);
+    const [isDeleteOpen, setIsDeleteOpen] = useState(false);
     const tipeRef = useRef(null);
     const statusRef = useRef(null);
 
@@ -69,7 +71,8 @@ export default function TabPengaturan({ outlet, onSave, onDelete }) {
     };
 
     return (
-        <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <>
+            <form onSubmit={handleSubmit} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
             
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
                 <div className="px-6 py-4 border-b border-gray-50 flex justify-between items-center bg-slate-50/50">
@@ -290,11 +293,7 @@ export default function TabPengaturan({ outlet, onSave, onDelete }) {
                     </div>
                     <button
                         type="button"
-                        onClick={() => {
-                            if (window.confirm(`Yakin ingin menghapus outlet "${outlet.nama}"? Tindakan ini tidak dapat dibatalkan.`)) {
-                                onDelete?.();
-                            }
-                        }}
+                        onClick={() => setIsDeleteOpen(true)}
                         className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white font-semibold rounded-xl text-xs transition-colors shadow-sm"
                     >
                         Hapus Outlet
@@ -327,5 +326,19 @@ export default function TabPengaturan({ outlet, onSave, onDelete }) {
                 </button>
             </div>
         </form>
+
+        <ConfirmDialog
+                isOpen={isDeleteOpen}
+                title="Hapus Outlet"
+                message={`Hapus permanen outlet "${outlet.nama}"? Tindakan ini tidak dapat dibatalkan.`}
+                confirmLabel="Ya, Hapus"
+                variant="danger"
+                onConfirm={() => {
+                    onDelete?.();
+                    setIsDeleteOpen(false);
+                }}
+                onCancel={() => setIsDeleteOpen(false)}
+            />
+        </>
     );
 }

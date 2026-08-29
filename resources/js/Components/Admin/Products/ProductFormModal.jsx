@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useForm, usePage } from "@inertiajs/react";
+import toast from "react-hot-toast";
 import { X, Upload, ChevronDown, Search } from "lucide-react";
 import VariantManager from "./VariantManager";
 
@@ -113,23 +114,6 @@ export default function ProductFormModal({
   }, [product, isOpen]);
 
   useEffect(() => {
-    if (variantData.variants.length > 0) return;
-    if (!variantData.hasColor && !variantData.hasSize && data.kode_produk) {
-      const v = [{
-        id: "v_simple",
-        color_id: null, color_nama: null,
-        size_id: null, size_label: null, size_standar: null,
-        stok: 0,
-        harga_jual: 0,
-        harga_beli: 0,
-        sku: data.kode_produk || "",
-        aktif: true,
-      }];
-      setVariantData(prev => ({ ...prev, variants: v }));
-    }
-  }, [data.kode_produk]);
-
-  useEffect(() => {
     const handleClick = (e) => {
       if (categoryRef.current && !categoryRef.current.contains(e.target)) {
         setIsCategoryOpen(false);
@@ -144,19 +128,26 @@ export default function ProductFormModal({
   );
 
   const hasLocation = data.distribusi_ke_gudang || data.outlet_tersedia.length > 0;
+  const hasRealVariant = variantData.variants.some(v => v.color_nama || v.size_label);
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!data.nama_produk) {
       setActiveTab("info");
-      alert("Mohon lengkapi Nama Produk");
+      toast.error("Mohon lengkapi Nama Produk");
+      return;
+    }
+
+    if (!hasRealVariant) {
+      setActiveTab("info");
+      toast.error("Tambahkan minimal 1 varian produk (warna atau ukuran)");
       return;
     }
 
     if (!hasLocation) {
       setActiveTab("distribusi");
-      alert("Pilih minimal 1 lokasi distribusi");
+      toast.error("Pilih minimal 1 lokasi distribusi");
       return;
     }
 
@@ -381,6 +372,9 @@ export default function ProductFormModal({
                   readonlyStok={isEditMode}
                 />
                 {fieldError("variants")}
+                {!hasRealVariant && (
+                  <p className="text-[10px] text-red-500 font-semibold mt-2">Tambahkan minimal 1 varian produk (warna atau ukuran)</p>
+                )}
               </div>
             </div>
           )}
@@ -483,7 +477,11 @@ export default function ProductFormModal({
             {activeTab === "info" ? (
               <button type="button" onClick={() => {
                 if (!data.nama_produk) {
-                  alert("Mohon lengkapi Nama Produk");
+                  toast.error("Mohon lengkapi Nama Produk");
+                  return;
+                }
+                if (!hasRealVariant) {
+                  toast.error("Tambahkan minimal 1 varian produk (warna atau ukuran)");
                   return;
                 }
                 setActiveTab("distribusi");

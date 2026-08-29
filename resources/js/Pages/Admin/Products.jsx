@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Head, router, usePage } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import AdminLayout from '@/Layouts/AdminLayout';
 import { useFilter } from '@/Context/FilterContext';
 import StatCard from '@/Components/Admin/StatCard';
@@ -19,8 +20,6 @@ import ProductFormModal from '@/Components/Admin/Products/ProductFormModal';
 
 export default function Products({ products: initialProducts, outlets, categories }) {
   const { outlet } = useFilter();
-  const { props } = usePage();
-  const flash = props.flash;
 
   const [products, setProducts] = useState(initialProducts || []);
   const [searchQuery, setSearchQuery] = useState('');
@@ -34,17 +33,10 @@ export default function Products({ products: initialProducts, outlets, categorie
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [deleteConfirmTarget, setDeleteConfirmTarget] = useState(null);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     setProducts(initialProducts || []);
   }, [initialProducts]);
-
-  useEffect(() => {
-    if (flash?.success) {
-      showToast(flash.success);
-    }
-  }, [flash]);
 
   useEffect(() => {
     const handler = setTimeout(() => {
@@ -59,8 +51,9 @@ export default function Products({ products: initialProducts, outlets, categorie
   }, [selectedKategori, selectedStatus, outlet]);
 
   const showToast = (message, type = 'success') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
+    if (type === 'success') toast.success(message);
+    else if (type === 'warning') toast(message, { icon: '⚠️' });
+    else toast.error(message);
   };
 
   const filteredProducts = useMemo(() => {
@@ -308,14 +301,6 @@ export default function Products({ products: initialProducts, outlets, categorie
               <button onClick={handleDeleteProduct} className="px-3.5 py-2 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[11px] font-bold shadow-md transition-colors cursor-pointer">Ya, Hapus</button>
             </div>
           </div>
-        </div>
-      )}
-
-      {toast && (
-        <div className="fixed bottom-4 right-4 z-50 flex items-center gap-2.5 px-4.5 py-3 rounded-2xl shadow-xl border bg-white animate-in slide-in-from-bottom-6 duration-200">
-          {toast.type === 'success' ? <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" /> : <AlertCircle className="w-5 h-5 text-amber-500 shrink-0" />}
-          <span className="text-xs font-semibold text-gray-800">{toast.message}</span>
-          <button onClick={() => setToast(null)} className="text-gray-400 hover:text-gray-600 ml-1.5 p-0.5 rounded"><X className="w-3.5 h-3.5" /></button>
         </div>
       )}
     </div>

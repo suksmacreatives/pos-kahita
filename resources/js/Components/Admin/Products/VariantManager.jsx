@@ -299,10 +299,16 @@ export default function VariantManager({
 
       {!hasColor && !hasSize && (
         <div className="space-y-2">
-          <p className="text-[10px] text-gray-400 font-semibold italic">Produk tanpa variasi: satu harga dan satu stok saja</p>
-          {(() => {
-            const v = variants[0] || { stok: 0, harga_jual: parseInt(hargaDefault) || 0, harga_beli: parseInt(hargaBeliDefault) || 0, sku: productCode || "" };
-            return (
+          {variants.length === 0 ? (
+            <p className="text-[10px] text-amber-700 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2.5 font-semibold italic">
+              Belum ada varian. Nyalakan toggle Warna atau Ukuran di atas untuk menambahkan varian produk.
+            </p>
+          ) : (
+            <>
+              <p className="text-[10px] text-gray-400 font-semibold italic">Produk tanpa variasi: satu harga dan satu stok saja</p>
+              {(() => {
+                const v = variants[0] || { stok: 0, harga_jual: parseInt(hargaDefault) || 0, harga_beli: parseInt(hargaBeliDefault) || 0, sku: productCode || "" };
+                return (
               <div className="grid grid-cols-3 gap-3 p-4 bg-slate-50 border border-gray-100 rounded-xl">
                 <div>
                   <label className="block text-[10px] font-semibold text-gray-500 mb-0.5">Stok</label>
@@ -324,8 +330,10 @@ export default function VariantManager({
                     className="w-full px-3 py-2 border border-gray-200 rounded-lg text-xs text-center font-semibold focus:outline-none focus:ring-1 focus:ring-emerald-500" />
                 </div>
               </div>
-            );
-          })()}
+                );
+              })()}
+              </>
+          )}
         </div>
       )}
 

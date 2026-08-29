@@ -60,6 +60,10 @@ class HandleInertiaRequests extends Middleware
                 'data'          => $notifications,
                 'unread_count'  => $unreadCount,
             ],
+            'flash' => [
+                'success' => $request->session()->get('success'),
+                'error'   => $request->session()->get('error'),
+            ],
         ];
     }
 }

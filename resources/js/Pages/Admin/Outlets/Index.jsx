@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import { Store, Plus, ChevronRight } from 'lucide-react';
 import AdminLayout from '@/Layouts/AdminLayout';
 import OutletStatBar from '@/Components/Admin/Outlets/Index/OutletStatBar';
@@ -43,6 +44,10 @@ export default function OutletIndex({ outlets, stats }) {
         }, {
             onSuccess: () => {
                 setFormOpen(false);
+                toast.success('Outlet berhasil ditambahkan');
+            },
+            onError: (errors) => {
+                toast.error('Gagal menambah outlet: ' + Object.values(errors).join(', '));
             },
         });
     };

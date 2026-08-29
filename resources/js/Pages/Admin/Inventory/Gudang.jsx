@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { usePage, router } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 import AdminLayout from '@/Layouts/AdminLayout';
 import GudangStatCard from '@/Components/Admin/Inventory/Gudang/GudangStatCard';
 // import MutasiChart from '@/Components/Admin/Inventory/Gudang/MutasiChart';
@@ -17,6 +18,7 @@ import DetailProdukModal from '@/Components/Admin/Inventory/Gudang/DetailProdukM
 import TambahStokModal from '@/Components/Admin/Inventory/Gudang/TambahStokModal';
 import LihatMutasiModal from '@/Components/Admin/Inventory/Gudang/LihatMutasiModal';
 import DetailDistribusiModal from '@/Components/Admin/Inventory/Gudang/DetailDistribusiModal';
+import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 
 const tabs = [
   { id: 'stock', label: 'Stok Gudang', Component: StokGudangTable },
@@ -40,20 +42,16 @@ function Gudang() {
     gudangStats: initialStats,
     outlets,
     suppliers,
-    flash,
     errors: validationErrors,
   } = props;
 
   const [processing, setProcessing] = useState(false);
-  const [appNotification, setAppNotification] = useState({ isOpen: false, type: 'success', title: '', message: '' });
+  const [confirmAction, setConfirmAction] = useState(null);
 
-  useEffect(() => {
-    if (flash?.success) {
-      setAppNotification({ isOpen: true, type: 'success', title: 'Berhasil', message: flash.success });
-    } else if (flash?.error) {
-      setAppNotification({ isOpen: true, type: 'error', title: 'Gagal', message: flash.error });
-    }
-  }, [flash]);
+  const showToast = (message, type = 'success') => {
+    if (type === 'error') toast.error(message);
+    else toast.success(message);
+  };
 
   const [activeTab, setActiveTab] = useState('stock');
   const [modalType, setModalType] = useState(null);
@@ -106,8 +104,8 @@ function Gudang() {
     setProcessing(true);
     router.post(route('admin.inventory.gudang.penerimaan'), data, {
       preserveScroll: true,
-      onSuccess: () => { handleCloseModal(); reloadData(); },
-      onError: () => {},
+      onSuccess: () => { handleCloseModal(); reloadData(); showToast('Penerimaan barang berhasil diajukan'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
@@ -117,8 +115,8 @@ function Gudang() {
     setProcessing(true);
     router.patch(route('admin.inventory.gudang.penerimaan.terima', item.id), {}, {
       preserveScroll: true,
-      onSuccess: () => reloadData(),
-      onError: () => {},
+      onSuccess: () => { reloadData(); showToast('Barang berhasil ditandai diterima'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
@@ -128,8 +126,8 @@ function Gudang() {
     setProcessing(true);
     router.patch(route('admin.inventory.gudang.penerimaan.proses', item.id), {}, {
       preserveScroll: true,
-      onSuccess: () => reloadData(),
-      onError: () => {},
+      onSuccess: () => { reloadData(); showToast('Penerimaan berhasil diproses'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
@@ -139,8 +137,8 @@ function Gudang() {
     setProcessing(true);
     router.post(route('admin.inventory.gudang.distribusi'), data, {
       preserveScroll: true,
-      onSuccess: () => { handleCloseModal(); reloadData(); },
-      onError: () => {},
+      onSuccess: () => { handleCloseModal(); reloadData(); showToast('Distribusi berhasil diajukan'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
@@ -150,8 +148,8 @@ function Gudang() {
     setProcessing(true);
     router.patch(route('admin.inventory.gudang.distribusi.proses', item.id), {}, {
       preserveScroll: true,
-      onSuccess: () => reloadData(),
-      onError: () => {},
+      onSuccess: () => { reloadData(); showToast('Distribusi berhasil diproses'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
@@ -161,8 +159,8 @@ function Gudang() {
     setProcessing(true);
     router.patch(route('admin.inventory.gudang.distribusi.konfirmasi', item.id), {}, {
       preserveScroll: true,
-      onSuccess: () => reloadData(),
-      onError: () => {},
+      onSuccess: () => { reloadData(); showToast('Distribusi berhasil dikonfirmasi diterima'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
@@ -172,74 +170,90 @@ function Gudang() {
     setProcessing(true);
     router.post(route('admin.inventory.gudang.retur'), data, {
       preserveScroll: true,
-      onSuccess: () => { handleCloseModal(); reloadData(); },
-      onError: () => {},
+      onSuccess: () => { handleCloseModal(); reloadData(); showToast('Retur berhasil diajukan'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
 
   const handleTerimaReturOutlet = (item) => {
     if (processing) return;
-    if (confirm('Terima retur ini? Stok gudang akan bertambah sesuai qty barang yang diretur.')) {
-      setProcessing(true);
-      router.patch(route('admin.inventory.gudang.retur-outlet.terima', item.id), {}, {
-        preserveScroll: true,
-        onSuccess: () => reloadData(),
-        onError: () => {},
-        onFinish: () => setProcessing(false),
-      });
-    }
+    setConfirmAction({ type: 'terima-retur-outlet', item });
   };
 
   const handleBatalReturOutlet = (item) => {
     if (processing) return;
-    if (confirm('Batalkan retur dari outlet ini? Stok outlet akan dikembalikan.')) {
-      setProcessing(true);
-      router.patch(route('admin.inventory.gudang.retur-outlet.batal', item.id), {}, {
-        preserveScroll: true,
-        onSuccess: () => reloadData(),
-        onError: () => {},
-        onFinish: () => setProcessing(false),
-      });
-    }
+    setConfirmAction({ type: 'batal-retur-outlet', item });
   };
 
   const handleBatalPO = (item) => {
     if (processing) return;
-    if (confirm('Batalkan Purchase Order ini?')) {
-      setProcessing(true);
-      router.patch(route('admin.inventory.gudang.penerimaan.batal', item.id), {}, {
-        preserveScroll: true,
-        onSuccess: () => reloadData(),
-        onError: () => {},
-        onFinish: () => setProcessing(false),
-      });
-    }
+    setConfirmAction({ type: 'batal-po', item });
   };
 
   const handleBatalDO = (item) => {
     if (processing) return;
-    if (confirm('Batalkan Distribution Order ini?')) {
-      setProcessing(true);
-      router.patch(route('admin.inventory.gudang.distribusi.batal', item.id), {}, {
-        preserveScroll: true,
-        onSuccess: () => reloadData(),
-        onError: () => {},
-        onFinish: () => setProcessing(false),
-      });
-    }
+    setConfirmAction({ type: 'batal-do', item });
   };
 
   const handleBatalReturSupplier = (item) => {
     if (processing) return;
-    if (confirm('Batalkan Retur Supplier? Stok gudang akan dikembalikan.')) {
-      setProcessing(true);
-      router.patch(route('admin.inventory.gudang.retur.batal', item.id), {}, {
-        preserveScroll: true,
-        onSuccess: () => reloadData(),
-        onError: () => {},
-        onFinish: () => setProcessing(false),
-      });
+    setConfirmAction({ type: 'batal-retur-supplier', item });
+  };
+
+  const confirmMeta = {
+    'terima-retur-outlet': {
+      variant: 'primary',
+      title: 'Terima Retur Outlet',
+      message: 'Terima retur ini? Stok gudang akan bertambah sesuai qty barang yang diretur.',
+      confirmLabel: 'Ya, Terima',
+    },
+    'batal-retur-outlet': {
+      variant: 'danger',
+      title: 'Batalkan Retur Outlet',
+      message: 'Batalkan retur dari outlet ini? Stok outlet akan dikembalikan.',
+      confirmLabel: 'Ya, Batalkan',
+    },
+    'batal-po': {
+      variant: 'danger',
+      title: 'Batalkan Purchase Order',
+      message: 'Batalkan Purchase Order ini?',
+      confirmLabel: 'Ya, Batalkan',
+    },
+    'batal-do': {
+      variant: 'danger',
+      title: 'Batalkan Distribution Order',
+      message: 'Batalkan Distribution Order ini?',
+      confirmLabel: 'Ya, Batalkan',
+    },
+    'batal-retur-supplier': {
+      variant: 'danger',
+      title: 'Batalkan Retur Supplier',
+      message: 'Batalkan Retur Supplier? Stok gudang akan dikembalikan.',
+      confirmLabel: 'Ya, Batalkan',
+    },
+  };
+
+  const runConfirmAction = () => {
+    if (!confirmAction) return;
+    const { type, item } = confirmAction;
+    setProcessing(true);
+    setConfirmAction(null);
+
+    const done = (msg) => () => { reloadData(); showToast(msg); };
+    const fail = () => (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error');
+    const finish = () => setProcessing(false);
+
+    if (type === 'terima-retur-outlet') {
+      router.patch(route('admin.inventory.gudang.retur-outlet.terima', item.id), {}, { preserveScroll: true, onSuccess: done('Retur outlet berhasil diterima'), onError: fail(), onFinish: finish });
+    } else if (type === 'batal-retur-outlet') {
+      router.patch(route('admin.inventory.gudang.retur-outlet.batal', item.id), {}, { preserveScroll: true, onSuccess: done('Retur outlet dibatalkan'), onError: fail(), onFinish: finish });
+    } else if (type === 'batal-po') {
+      router.patch(route('admin.inventory.gudang.penerimaan.batal', item.id), {}, { preserveScroll: true, onSuccess: done('Purchase Order dibatalkan'), onError: fail(), onFinish: finish });
+    } else if (type === 'batal-do') {
+      router.patch(route('admin.inventory.gudang.distribusi.batal', item.id), {}, { preserveScroll: true, onSuccess: done('Distribution Order dibatalkan'), onError: fail(), onFinish: finish });
+    } else if (type === 'batal-retur-supplier') {
+      router.patch(route('admin.inventory.gudang.retur.batal', item.id), {}, { preserveScroll: true, onSuccess: done('Retur supplier dibatalkan'), onError: fail(), onFinish: finish });
     }
   };
 
@@ -248,8 +262,8 @@ function Gudang() {
     setProcessing(true);
     router.post(route('admin.inventory.gudang.opname'), data, {
       preserveScroll: true,
-      onSuccess: () => { handleCloseModal(); reloadData(); },
-      onError: () => {},
+      onSuccess: () => { handleCloseModal(); reloadData(); showToast('Stock opname berhasil disimpan'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
@@ -266,8 +280,8 @@ function Gudang() {
       catatan: catatan || '',
     }, {
       preserveScroll: true,
-      onSuccess: () => { setTambahStok(null); reloadData(); },
-      onError: () => {},
+      onSuccess: () => { setTambahStok(null); reloadData(); showToast('Stok berhasil ditambahkan'); },
+      onError: (errors) => showToast('Gagal: ' + Object.values(errors).join(', '), 'error'),
       onFinish: () => setProcessing(false),
     });
   };
@@ -392,19 +406,16 @@ function Gudang() {
       <LihatMutasiModal data={lihatMutasi} onClose={() => setLihatMutasi(null)} mutasiLog={mutasiLog} />
       <DetailDistribusiModal data={detailDistribusi} onClose={() => setDetailDistribusi(null)} />
 
-      {/* MODAL NOTIFIKASI */}
-      {appNotification.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50">
-          <div className="bg-white p-6 rounded-lg shadow-xl w-80 text-center">
-            <div className={`text-4xl mb-2 ${appNotification.type === 'success' ? 'text-green-500' : 'text-red-500'}`}>
-              {appNotification.type === 'success' ? '✓' : '⚠'}
-            </div>
-            <h3 className="font-bold text-lg">{appNotification.title}</h3>
-            <p className="text-sm text-gray-600 mb-4">{appNotification.message}</p>
-            <button onClick={() => setAppNotification({ ...appNotification, isOpen: false })} className="bg-emerald-600 text-white w-full py-2 rounded">OK</button>
-          </div>
-        </div>
-      )}
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        variant={confirmAction ? (confirmMeta[confirmAction.type]?.variant || 'danger') : 'danger'}
+        title={confirmAction ? (confirmMeta[confirmAction.type]?.title || 'Konfirmasi') : 'Konfirmasi'}
+        message={confirmAction ? (confirmMeta[confirmAction.type]?.message || '') : ''}
+        confirmLabel={confirmAction ? (confirmMeta[confirmAction.type]?.confirmLabel || 'Ya') : 'Ya'}
+        processing={processing}
+        onConfirm={runConfirmAction}
+        onCancel={() => setConfirmAction(null)}
+      />
     </div>
   );
 }
