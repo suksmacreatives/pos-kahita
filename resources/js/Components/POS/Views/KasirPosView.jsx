@@ -49,26 +49,35 @@ export default function KasirPosView({
     const [customAlert, setCustomAlert] = useState({ isOpen: false, message: '' });
     const [customConfirm, setCustomConfirm] = useState({ isOpen: false, message: '', onConfirm: null });
     const [modalType, setModalType] = useState('default');
+
+    // Helper untuk mengelompokkan varian berdasarkan warna (color kosong -> 'Default')
+    const getColorName = (color) => {
+        if (!color) return 'Default';
+        if (typeof color === 'string') return color;
+        return color.nama || 'Default';
+    };
+
+    // Normalisasi nilai varian agar string "undefined"/"null"/"-" tidak bocor ke backend
+    const normalizeVariantValue = (value) => {
+        if (!value) return null;
+        const v = String(value).trim().toLowerCase();
+        if (v === '' || v === 'undefined' || v === 'null' || v === '-' || v === 'default') return null;
+        return String(value).trim();
+    };
+
     React.useEffect(() => {
         if (isModalOpen && selectedProduct?.variants?.length > 0) {
             const firstV = selectedProduct.variants[0];
-            const colorName = typeof firstV.color === 'string' ? firstV.color : firstV.color?.nama;
+            const colorName = getColorName(firstV.color);
             setSelectedColor(colorName);
             setSelectedSize(firstV.size);
         }
     }, [isModalOpen, selectedProduct]);
 
     const currentVariant = selectedProduct?.variants?.find(v => {
-    const colorName = typeof v.color === 'string' ? v.color : v.color?.nama;
+    const colorName = getColorName(v.color);
     return colorName === selectedColor && v.size === selectedSize;
     });
-
-    // Helper untuk mengelompokkan varian berdasarkan warna
-    const getColorName = (color) => {
-        if (!color) return 'Default';
-        if (typeof color === 'string') return color;
-        return color.nama || 'Default';
-    };
 
     // Helper pemicu alert custom
     const showAlert = (msg) => {
@@ -124,17 +133,16 @@ export default function KasirPosView({
         const [warna, ukuran] = key.split('-');
         const qty = variantSelection[key];
         
-        
         return {
             cart_id: `${selectedProduct.id}-${warna}-${ukuran}-${Date.now()}-${Math.random()}`,
             product_id: selectedProduct.id,
-            variant_color: warna,
-            variant_size: ukuran,
+            variant_color: normalizeVariantValue(warna),
+            variant_size: normalizeVariantValue(ukuran),
             id: selectedProduct.id,
             name: selectedProduct.name,
             price: selectedProduct.price,
-            varianWarna: warna,
-            varianUkuran: ukuran,
+            varianWarna: normalizeVariantValue(warna),
+            varianUkuran: normalizeVariantValue(ukuran),
             quantity: qty
         };
     });
@@ -824,30 +832,37 @@ const handleRemoveCartItem = (cartId) => {
 
             <div className="p-4 flex-1 overflow-y-auto space-y-6">
                 {/* 1. WARNA */}
-                <div>
-                    <p className="font-bold text-sm mb-2">Warna</p>
-                    <div className="flex flex-wrap gap-2">
-                        {Array.from(new Set(selectedProduct.variants?.map(v => typeof v.color === 'string' ? v.color : v.color?.nama))).map(c => (
-                            <button 
-                                key={c} 
-                                onClick={() => { 
-                                    setSelectedColor(c);
-                                    // Reset ke size pertama yang tersedia untuk warna tersebut
-                                    const firstSizeForColor = selectedProduct.variants.find(v => (typeof v.color === 'string' ? v.color : v.color?.nama) === c)?.size;
-                                    setSelectedSize(firstSizeForColor);
-                                }}
-                                className={`px-4 py-2 rounded-l text-xs font-bold border-2 ${selectedColor === c ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}
-                            >{c}</button>
-                        ))}
-                    </div>
-                </div>
+                {(() => {
+                    const colorGroups = Array.from(new Set(selectedProduct.variants?.map(v => getColorName(v.color))));
+                    const hasSizeOnly = colorGroups.length === 1 && colorGroups[0] === 'Default';
+                    if (hasSizeOnly) return null;
+                    return (
+                        <div>
+                            <p className="font-bold text-sm mb-2">Warna</p>
+                            <div className="flex flex-wrap gap-2">
+                                {colorGroups.map(c => (
+                                    <button 
+                                        key={c} 
+                                        onClick={() => { 
+                                            setSelectedColor(c);
+                                            // Reset ke size pertama yang tersedia untuk warna tersebut
+                                            const firstSizeForColor = selectedProduct.variants.find(v => getColorName(v.color) === c)?.size;
+                                            setSelectedSize(firstSizeForColor);
+                                        }}
+                                        className={`px-4 py-2 rounded-l text-xs font-bold border-2 ${selectedColor === c ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200'}`}
+                                    >{c}</button>
+                                ))}
+                            </div>
+                        </div>
+                    );
+                })()}
 
                 {/* 2. UKURAN */}
                 <div>
                     <p className="font-bold text-sm mb-2">Ukuran</p>
                     <div className="flex flex-wrap gap-2">
                         {selectedProduct.variants
-                            .filter(v => (typeof v.color === 'string' ? v.color : v.color?.nama) === selectedColor)
+                            .filter(v => getColorName(v.color) === selectedColor)
                             .map(v => (
                                 <button 
                                     key={v.id}

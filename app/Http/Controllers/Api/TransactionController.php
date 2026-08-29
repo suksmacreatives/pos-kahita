@@ -130,20 +130,32 @@ if ($existingTransaction) {
 
             // 2. Cari Variant
             // 2. Cari Variant yang lebih kuat (Robust)
-$variant = ProductVariant::where('product_id', $item['product_id'])->get()->first(function ($v) use ($item) {
-    
-$dbColor = strtolower(trim((string)$v->color));
-    $dbSize = strtolower(trim((string)$v->size));
+$norm = function ($val) {
+    $v = strtolower(trim((string) $val));
+    if ($v === '' || $v === 'undefined' || $v === 'null' || $v === '-') return '';
+    return $v;
+};
 
-    // Bersihkan data dari Request (handle jika size kosong/null)
-    $reqColor = strtolower(trim((string)($item['variant_color'] ?? '')));
-    $reqSize = strtolower(trim((string)($item['variant_size'] ?? '')));
+$reqColor = $norm($item['variant_color'] ?? '');
+$reqSize  = $norm($item['variant_size'] ?? '');
 
-    // Perbandingan: Jika size di DB adalah null, kita anggap sama dengan string kosong
-    $sizeMatch = ($dbSize === "" && ($reqSize === "" || $reqSize === "null")) 
-                 || ($dbSize === $reqSize);
+$variant = ProductVariant::where('product_id', $item['product_id'])->get()->first(function ($v) use ($reqColor, $reqSize) {
 
-    return ($dbColor === $reqColor) && $sizeMatch;
+    $dbColor = strtolower(trim((string) $v->color));
+    $dbSize = strtolower(trim((string) $v->size));
+
+    // Jika produk hanya dibedakan oleh satu dimensi (mis. hanya ukuran),
+    // cukup cocokkan pada dimensi yang tersedia saja.
+    if ($dbColor === '' && $dbSize !== '') {
+        return $dbSize === $reqSize;
+    }
+
+    if ($dbColor !== '' && $dbSize === '') {
+        return $dbColor === $reqColor;
+    }
+
+    // Kedua dimensi terisi: cocokkan keduanya (warna & ukuran).
+    return ($dbColor === $reqColor) && ($dbSize === $reqSize);
 });
 
 if (!$variant) {
@@ -266,21 +278,33 @@ return response()->json([
             // KEMBALIKAN STOCK OUTLET
             $user = Auth::user();
             foreach ($transaction->items as $item) {
+    $norm = function ($val) {
+        $v = strtolower(trim((string) $val));
+        if ($v === '' || $v === 'undefined' || $v === 'null' || $v === '-') return '';
+        return $v;
+    };
+
+    $trxColor = $norm($item->variant_color ?? '');
+    $trxSize  = $norm($item->variant_size ?? '');
+
     $variant = ProductVariant::where('product_id', $item->product_id)
     ->get()
-    ->first(function ($v) use ($item) {
+    ->first(function ($v) use ($trxColor, $trxSize) {
 
         $dbColor = strtolower(trim((string) $v->color));
         $dbSize  = strtolower(trim((string) $v->size));
 
-        $trxColor = strtolower(trim((string) ($item->variant_color ?? '')));
-        $trxSize  = strtolower(trim((string) ($item->variant_size ?? '')));
+        // Jika produk hanya dibedakan oleh satu dimensi (mis. hanya ukuran),
+        // cukup cocokkan pada dimensi yang tersedia saja.
+        if ($dbColor === '' && $dbSize !== '') {
+            return $dbSize === $trxSize;
+        }
 
-        $sizeMatch =
-            ($dbSize === '' && ($trxSize === '' || $trxSize === 'null'))
-            || ($dbSize === $trxSize);
+        if ($dbColor !== '' && $dbSize === '') {
+            return $dbColor === $trxColor;
+        }
 
-        return $dbColor === $trxColor && $sizeMatch;
+        return ($dbColor === $trxColor) && ($dbSize === $trxSize);
     });
 
 if (!$variant) {

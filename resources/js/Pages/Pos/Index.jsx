@@ -470,8 +470,8 @@ const handleProsesBayarFinal = async () => {
                 items: cart.map((item) => ({ 
                     product_id: item.product_id || item.id, 
                     product_name: item.customName || item.name, 
-                    variant_color: item.varianWarna || null, 
-                    variant_size: item.varianUkuran || null, 
+                    variant_color: item.varianWarna ? (['undefined','null','-','default'].includes(String(item.varianWarna).trim().toLowerCase()) ? null : item.varianWarna) : null, 
+                    variant_size: item.varianUkuran ? (['undefined','null','-','default'].includes(String(item.varianUkuran).trim().toLowerCase()) ? null : item.varianUkuran) : null, 
                     price: item.price, 
                     quantity: item.quantity, 
                     total_price: item.price * item.quantity 
