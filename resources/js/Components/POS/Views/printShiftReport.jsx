@@ -41,25 +41,63 @@ export default function PrintShiftReport({
                     );
                 }
                 const row = (label, value, options = {}) => {
-                    const numberValue = Number(value || 0);
-                    if (
-                        numberValue === 0 &&
-                        options.showZero !== true
-                    ) {
-                        return null;
-                    }
 
-                    return {
-                        type: "row",
-                        left: label,
-                        right: formatRupiah(numberValue),
-                        ...(options.bold
-                            ? { bold: true }
-                            : {}),
-                    };
-                };
+    const numberValue = Number(value || 0);
+
+    if (
+        numberValue === 0 &&
+        options.showZero !== true
+    ) {
+        return null;
+    }
+
+    return textRow(
+        label,
+        formatRupiah(numberValue),
+        options.bold === true
+    );
+};
 
                 const content = [];
+                // =====================================================
+// FORMAT BARIS 80MM
+// Area aman printer 80mm
+// =====================================================
+
+const printWidth = 42;
+
+const textRow = (label, value, bold = false) => {
+    const left = String(label || "");
+    const right = String(value || "");
+
+    // Batasi panjang label
+    const maxLeft = 24;
+
+    const safeLeft = left.substring(0, maxLeft);
+
+    // Jarak antara label dan nominal
+    const spaces = Math.max(
+        1,
+        printWidth - safeLeft.length - right.length
+    );
+
+    const line =
+        safeLeft +
+        " ".repeat(spaces) +
+        right;
+
+    return {
+        type: "text",
+        text: line,
+        ...(bold ? { bold: true } : {}),
+    };
+};
+
+// Spasi vertikal kecil
+const space = (lines = 1) => ({
+    type: "feed",
+    lines,
+});
 
                 const savedConfig =
                     localStorage.getItem(
@@ -254,26 +292,24 @@ export default function PrintShiftReport({
                 if (
                     Number(data.total_transaksi || 0) > 0
                 ) {
-                    content.push({
-                        type: "row",
-                        left: "Total Transaksi",
-                        right: String(
-                            data.total_transaksi
-                        ),
-                    });
+                    content.push(
+                        textRow(
+                            "Total Transaksi",
+                            String(data.total_transaksi)
+                        )
+                    );
                 }
 
                 // Total item
                 if (
                     Number(data.total_item || 0) > 0
                 ) {
-                    content.push({
-                        type: "row",
-                        left: "Total Item",
-                        right: String(
-                            data.total_item
-                        ),
-                    });
+                    content.push(
+                        textRow(
+                            "Total Item",
+                            String(data.total_item)
+                        )
+                    );
                 }
 
                 content.push({
@@ -304,14 +340,13 @@ export default function PrintShiftReport({
                         type: "divider",
                     });
 
-                    content.push({
-                        type: "row",
-                        left: "SELISIH",
-                        right: formatRupiah(
-                            data.discrepancy
-                        ),
-                        bold: true,
-                    });
+                    content.push(
+                        textRow(
+                            "SELISIH",
+                            formatRupiah(data.discrepancy),
+                            true
+                        )
+                    );
                 }
                 if (
                     Array.isArray(data.products) &&
@@ -328,20 +363,20 @@ export default function PrintShiftReport({
                         bold: true,
                     });
 
-                    data.products.forEach(
-                        (item) => {
-                            content.push({
-                                type: "row",
+                    data.products.forEach((item) => {
 
-                                left:
-                                    item.nama ||
-                                    "Produk",
+                        const nama =
+                            item.nama ||
+                            "Produk";
 
-                                right:
-                                    `x${item.qty || 0}`,
-                            });
-                        }
-                    );
+                        const qty =
+                            `x${item.qty || 0}`;
+
+                        content.push(
+                            textRow(nama, qty)
+                        );
+
+                    });
                 }
                 content.push({
                     type: "divider",
