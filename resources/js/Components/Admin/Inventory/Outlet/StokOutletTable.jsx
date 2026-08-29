@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, ChevronUp, Search, AlertCircle, RefreshCw, ArrowRightLeft, Eye, HelpCircle, X, Package } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 export default function StokOutletTable({ selectedOutlet, onAction, outletStok = {}, outlets = [] }) {
   // Local state for search, filters and sort
@@ -255,50 +256,54 @@ export default function StokOutletTable({ selectedOutlet, onAction, outletStok =
             <input
               type="text"
               placeholder="Cari kode / nama..."
-              className="pl-9 pr-4 py-1.5 w-44 md:w-56 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500 transition-colors"
+              className="pl-9 pr-4 py-2 w-44 md:w-56 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500 transition-colors"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
 
-          {/* Kategori select */}
-          <select
-            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
+          {/* Kategori filter */}
+          <SelectDropdown
             value={kategori}
-            onChange={e => setKategori(e.target.value)}
-          >
-            <option value="all">Semua Kategori</option>
-            {categories.filter(c => c !== 'all').map(cat => (
-              <option key={cat} value={cat}>{cat}</option>
-            ))}
-          </select>
+            onChange={setKategori}
+            options={[
+              { value: 'all', label: 'Semua Kategori' },
+              ...categories.filter(c => c !== 'all').map(cat => ({ value: cat, label: cat })),
+            ]}
+            placeholder="Semua Kategori"
+            className="w-44"
+          />
 
           {/* Sort & Status logic only for Single Outlet */}
           {selectedOutlet !== 'all' && (
             <>
-              {/* Status select */}
-              <select
-                className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
+              {/* Status filter */}
+              <SelectDropdown
                 value={status}
-                onChange={e => setStatus(e.target.value)}
-              >
-                <option value="all">Semua Status</option>
-                <option value="normal">Normal</option>
-                <option value="menipis">Menipis</option>
-                <option value="habis">Habis / Kosong</option>
-              </select>
+                onChange={setStatus}
+                options={[
+                  { value: 'all', label: 'Semua Status' },
+                  { value: 'normal', label: 'Normal' },
+                  { value: 'menipis', label: 'Menipis' },
+                  { value: 'habis', label: 'Habis / Kosong' },
+                ]}
+                placeholder="Semua Status"
+                className="w-40"
+              />
 
-              {/* Sort field select */}
-              <select
-                className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
+              {/* Sort filter */}
+              <SelectDropdown
                 value={sortField}
-                onChange={e => setSortField(e.target.value)}
-              >
-                <option value="nama">Urutkan: Abjad A-Z</option>
-                <option value="banyak">Stok Terbanyak</option>
-                <option value="sedikit">Stok Tersedikit</option>
-                <option value="terjual">Terjual Terakhir</option>
-              </select>
+                onChange={setSortField}
+                options={[
+                  { value: 'nama', label: 'Urutkan: Abjad A-Z' },
+                  { value: 'banyak', label: 'Urutkan: Stok Terbanyak' },
+                  { value: 'sedikit', label: 'Urutkan: Stok Tersedikit' },
+                  { value: 'terjual', label: 'Urutkan: Terjual Terakhir' },
+                ]}
+                placeholder="Urutkan: Abjad A-Z"
+                className="w-48"
+              />
             </>
           )}
         </div>

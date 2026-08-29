@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronDown, ChevronUp, Eye, FileSpreadsheet, Trash2 } from 'lucide-react';
+import SelectDropdown from '@/Components/Admin/SelectDropdown';
 
 export default function ReturGudangTable({ selectedOutlet, onCancelRetur, returList = {} }) {
   const [search, setSearch] = useState('');
@@ -87,36 +88,40 @@ export default function ReturGudangTable({ selectedOutlet, onCancelRetur, returL
             <input
               type="text"
               placeholder="Cari No. Retur..."
-              className="pl-9 pr-4 py-1.5 w-44 md:w-56 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500 transition-colors"
+              className="pl-9 pr-4 py-2 w-44 md:w-56 bg-white border border-gray-200 rounded-xl text-xs outline-none focus:border-emerald-500 transition-colors"
               value={search}
               onChange={e => setSearch(e.target.value)}
             />
           </div>
 
           {/* Status filter */}
-          <select
-            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
+          <SelectDropdown
             value={statusFilter}
-            onChange={e => setStatusFilter(e.target.value)}
-          >
-            <option value="all">Semua Status</option>
-            <option value="diajukan">Diajukan</option>
-            <option value="diproses">Diproses</option>
-            <option value="diterima_gudang">Diterima Gudang</option>
-          </select>
+            onChange={setStatusFilter}
+            options={[
+              { value: 'all', label: 'Semua Status' },
+              { value: 'diajukan', label: 'Diajukan' },
+              { value: 'diproses', label: 'Diproses' },
+              { value: 'diterima_gudang', label: 'Diterima Gudang' },
+            ]}
+            placeholder="Semua Status"
+            className="w-40"
+          />
 
           {/* Alasan filter */}
-          <select
-            className="px-3 py-1.5 bg-white border border-gray-200 rounded-xl text-xs text-gray-600 focus:border-emerald-500 outline-none cursor-pointer"
+          <SelectDropdown
             value={alasanFilter}
-            onChange={e => setAlasanFilter(e.target.value)}
-          >
-            <option value="all">Semua Alasan</option>
-            <option value="kelebihan stok">Kelebihan Stok</option>
-            <option value="cacat">Produk Cacat</option>
-            <option value="tidak laku">Tidak Laku</option>
-            <option value="salah kirim">Salah Kirim</option>
-          </select>
+            onChange={setAlasanFilter}
+            options={[
+              { value: 'all', label: 'Semua Alasan' },
+              { value: 'kelebihan stok', label: 'Kelebihan Stok' },
+              { value: 'cacat', label: 'Produk Cacat' },
+              { value: 'tidak laku', label: 'Tidak Laku' },
+              { value: 'salah kirim', label: 'Salah Kirim' },
+            ]}
+            placeholder="Semua Alasan"
+            className="w-40"
+          />
         </div>
       </div>
 
