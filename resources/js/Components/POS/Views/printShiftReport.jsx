@@ -420,9 +420,6 @@ const response = await fetch("http://localhost:9100/print", {
     }),
 });
 
-const result = await response.json();
-console.log("Hasil print:", result);
-
 if (!response.ok) {
     throw new Error("Gagal mencetak rekap tutup kasir (Status: " + response.status + ")");
 }
