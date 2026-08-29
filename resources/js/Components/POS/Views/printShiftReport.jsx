@@ -443,21 +443,16 @@ try {
     window.location.href = "/login";
 }
 
-            } catch (error) {
-                console.error("=================================");
-                console.error("PRINT ERROR:", error);
-                console.error("ERROR MESSAGE:", error?.message);
-                console.error("ERROR STACK:", error?.stack);
-                console.error("=================================");
-
-                alreadyPrinted.current = false;
-
-                alert(
-                    "GAGAL PRINT\n\n" +
-                    "Error: " +
-                    (error?.message || "Unknown error")
-                );
-            }
+           } catch (error) {
+    console.error("PRINT / LOGOUT ERROR:", error);
+    alreadyPrinted.current = false;
+    
+    // Abaikan alert error cetak/logout, langsung arahkan ke login secara paksa agar kasir tetap aman
+    if (onFinished) {
+        onFinished();
+    }
+    window.location.href = "/login";
+}
         };
 
         printToOripos();
