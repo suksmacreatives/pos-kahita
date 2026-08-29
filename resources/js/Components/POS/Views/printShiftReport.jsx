@@ -424,7 +424,7 @@ const result = await response.json();
 console.log("Hasil print:", result);
 
 if (!response.ok) {
-    throw new Error(result?.message || "Gagal mencetak rekap tutup kasir");
+    throw new Error("Gagal mencetak rekap tutup kasir (Status: " + response.status + ")");
 }
 
 console.log("✅ STRUK TUTUP KASIR BERHASIL DICETAK");
