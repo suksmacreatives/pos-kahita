@@ -9,7 +9,7 @@ export default function JenisBayar({ salesHistory = [], formatRupiah }) {
 
 
     const analisisPembayaran = useMemo(() => {
-        const paymentMethods = ['Tunai', 'QRIS', 'Debit', 'Kredit'];
+        const paymentMethods = ['Tunai', 'QRIS', 'Debit', 'Transfer'];
         let grandTotalSemuaMetode = 0;
         let totalSeluruhTransaksi = salesHistory.length;
 

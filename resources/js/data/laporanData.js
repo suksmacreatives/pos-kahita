@@ -1,7 +1,7 @@
 import { addDays, subDays, isWithinInterval, startOfDay, endOfDay, format } from 'date-fns';
 
 export const OUTLETS = ['denpasar', 'jakarta', 'bandung', 'surabaya'];
-export const METODE_BAYAR = ['cash', 'qris', 'transfer', 'debit', 'kredit'];
+export const METODE_BAYAR = ['cash', 'qris', 'transfer', 'debit'];
 const ALASAN_VOID = ['Salah input harga', 'Pelanggan batal beli', 'Pembayaran gagal', 'Stok tidak tersedia', 'Permintaan pelanggan'];
 const ALASAN_REFUND = ['Produk cacat/rusak', 'Ukuran tidak sesuai', 'Warna tidak sesuai', 'Produk tidak seperti deskripsi'];
 const KATEGORI = ['Atasan', 'Bawahan', 'Dress', 'Aksesoris'];

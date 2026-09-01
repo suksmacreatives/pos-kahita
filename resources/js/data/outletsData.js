@@ -60,7 +60,7 @@ export const outlets = [
       dibuka_sejak: '2022-08-15T00:00:00Z',
       konfigurasi: {
         pajak_lokal: 11,
-        metode_bayar: ['Cash', 'QRIS', 'Debit', 'Kredit'],
+        metode_bayar: ['Cash', 'QRIS', 'Debit', 'Transfer'],
         printer_struk: true,
         kasir_aktif_count: 2,
       }

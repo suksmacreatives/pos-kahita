@@ -6,7 +6,7 @@ import ReportTable from '../Shared/ReportTable';
 
 const METODE_ICONS = {
   tunai: Banknote,
-  kartu_kredit: CreditCard,
+  transfer: CreditCard,
   kartu_debit: CreditCard,
   e_wallet: Smartphone,
   transfer_bank: Building2,
@@ -18,7 +18,7 @@ const METODE_COLOR_MAP = ['emerald', 'blue', 'amber', 'purple', 'cyan', 'red'];
 
 const METODE_LABEL = {
   tunai: 'Tunai',
-  kartu_kredit: 'Kartu Kredit',
+  transfer: 'Transfer',
   kartu_debit: 'Kartu Debit',
   e_wallet: 'E-Wallet',
   transfer_bank: 'Transfer Bank',

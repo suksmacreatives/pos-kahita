@@ -353,7 +353,7 @@ const cetakStrukLangsung = async (transaksiData) => {
             content.push({
                 type: "row",
                 left: "KEMBALI",
-                right: formatRupiah(transaksiData.kembali || 0),
+                right: formatRupiah(transaksiData.kembalian || 0),
                 bold: true,
             });
         }
@@ -421,7 +421,7 @@ const handlePrintHistory = (sale) => {
         subtotal: sale.grand_total || 0,
         total: sale.grand_total || 0,
         bayar: sale.grand_total || 0,
-        kembali: 0,
+        kembalian: sale.change_amount || 0,
         metode: sale.payment_method || "TUNAI",
         discount: sale.discount || 0,
         promoName: sale.promo_name || "",

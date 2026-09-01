@@ -154,7 +154,7 @@ console.log("Data Pertama:", salesHistory[0]);
         const mapProduk = {};
         
         // SELARAS DATABASE: Disesuaikan dengan pilihan metode mutasi kas JenisBayar
-        const jenisBayar = { 'Tunai': 0, 'QRIS': 0, 'Debit': 0, 'Kredit': 0 };
+        const jenisBayar = { 'Tunai': 0, 'QRIS': 0, 'Debit': 0, 'Transfer': 0 };
 
         const namaHariIndo = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 

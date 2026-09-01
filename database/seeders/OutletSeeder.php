@@ -40,7 +40,7 @@ class OutletSeeder extends Seeder
                 'konfigurasi' => [
                     'pajak_persen' => 11,
                     'cetak_struk_otomatis' => true,
-                    'metode_pembayaran_aktif' => ['tunai', 'qris', 'debit', 'kredit'],
+                    'metode_pembayaran_aktif' => ['tunai', 'qris', 'debit', 'transfer'],
                 ]
             ],
             [

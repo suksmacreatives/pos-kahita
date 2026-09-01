@@ -42,7 +42,7 @@ export default function LaporanMetodePembayaran({ metodeBayarStats, filteredTran
                     qris: 'bg-purple-100 text-purple-800',
                     transfer: 'bg-blue-100 text-blue-800',
                     debit: 'bg-amber-100 text-amber-800',
-                    kredit: 'bg-rose-100 text-rose-800'
+                    transfer: 'bg-rose-100 text-rose-800'
                 };
                 return (
                     <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium capitalize ${colors[metode]}`}>
@@ -69,7 +69,7 @@ export default function LaporanMetodePembayaran({ metodeBayarStats, filteredTran
             qris: 'blue',
             transfer: 'purple',
             debit: 'amber',
-            kredit: 'rose'
+            transfer: 'rose'
         };
         return mapping[key] || 'gray';
     };
@@ -80,7 +80,7 @@ export default function LaporanMetodePembayaran({ metodeBayarStats, filteredTran
             qris: QrCode,
             transfer: ArrowLeftRight,
             debit: CreditCard,
-            kredit: CreditCard
+            transfer: CreditCard
         };
         return mapping[key] || Banknote;
     };
@@ -89,7 +89,7 @@ export default function LaporanMetodePembayaran({ metodeBayarStats, filteredTran
         <div className="space-y-6">
             {/* 5 Cards Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4">
-                {['cash', 'qris', 'transfer', 'debit', 'kredit'].map(key => {
+                {['cash', 'qris', 'transfer', 'debit', 'transfer'].map(key => {
                     const stats = metodeBayarStats[key] || { total: 0, count: 0, persentase: 0 };
                     return (
                         <LaporanStatCard
@@ -128,7 +128,7 @@ export default function LaporanMetodePembayaran({ metodeBayarStats, filteredTran
                             <option value="QRIS">QRIS</option>
                             <option value="Transfer">Transfer</option>
                             <option value="Debit">Debit</option>
-                            <option value="Kredit">Kredit</option>
+                            <option value="Transfer">Transfer</option>
                         </select>
                         {/* Fake outlet filter for UI consistency with mockup, but it uses the global one actually */}
                         <div className="bg-gray-50 border border-gray-200 text-sm rounded-lg p-2.5 text-gray-500">

@@ -287,14 +287,29 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
                                 />
                             </div>
 
-                            {/* Nominal Uang */}
                             <div className="space-y-1">
-                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Jumlah Uang (Nominal)</label>
-                                <input 
-                                    type="number"
+                                <label className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                                    Jumlah Uang (Nominal)
+                                </label>
+
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
                                     placeholder="Masukkan nilai uang"
-                                    value={formData.jumlah}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, jumlah: e.target.value }))}
+                                    value={
+                                        formData.jumlah
+                                            ? Number(formData.jumlah).toLocaleString("id-ID")
+                                            : ""
+                                    }
+                                    onChange={(e) => {
+                                        // Ambil hanya angka
+                                        const angka = e.target.value.replace(/\D/g, "");
+
+                                        setFormData(prev => ({
+                                            ...prev,
+                                            jumlah: angka
+                                        }));
+                                    }}
                                     className="w-full bg-white border border-slate-200 rounded-l px-3 py-2 text-xs font-medium text-slate-700 focus:outline-none focus:border-[#009664] font-mono"
                                     required
                                 />

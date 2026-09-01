@@ -6,7 +6,7 @@ const METODE_COLORS = {
     qris: '#8B5CF6',     // purple
     transfer: '#3B82F6', // blue
     debit: '#F59E0B',    // amber
-    kredit: '#F43F5E'    // rose
+    transfer: '#F43F5E'    // rose
 };
 
 export default function MetodePembayaranChart({ data }) {

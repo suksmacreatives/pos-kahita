@@ -745,7 +745,7 @@ const handleRemoveCartItem = (cartId) => {
                         </div>
                         <div className="flex-1 overflow-y-auto p-4 space-y-4">
                             <div className="grid grid-cols-2 gap-2">
-                                {['Tunai', 'QRIS', 'Debit', 'Kredit'].map((method) => (
+                                {['Tunai', 'QRIS', 'Debit', 'Transfer'].map((method) => (
                                     <button
                                         key={method}
                                         type="button"

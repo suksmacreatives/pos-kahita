@@ -44,18 +44,13 @@ export default function PrintShiftReport({
                 // Area aman printer 80mm
                 // =====================================================
 
-                const printWidth = 42;
+                const printWidth = 32;
 
                 const textRow = (label, value, bold = false) => {
                     const left = String(label || "");
                     const right = String(value || "");
-
-                    // Batasi panjang label
-                    const maxLeft = 24;
-
+                    const maxLeft = 19;
                     const safeLeft = left.substring(0, maxLeft);
-
-                    // Jarak antara label dan nominal
                     const spaces = Math.max(
                         1,
                         printWidth - safeLeft.length - right.length
@@ -73,7 +68,6 @@ export default function PrintShiftReport({
                     };
                 };
 
-                // Spasi vertikal kecil
                 const space = (lines = 1) => ({
                     type: "feed",
                     lines,
@@ -194,105 +188,180 @@ export default function PrintShiftReport({
                     content.push(modalAwal);
                 }
 
-                const tunai = row(
-                    "Tunai",
-                    data.tunai
+                content.push({
+                    type: "feed",
+                    lines: 1,
+                });
+
+                const paymentMethods = [
+                    ["Tunai", data.tunai],
+                    ["QRIS", data.qris],
+                    ["Debit", data.debit],
+                    ["Transfer", data.transfer],
+                ];
+
+                paymentMethods.forEach(([label, value]) => {
+
+                    const nominal = Number(value || 0);
+
+                    if (nominal > 0) {
+                        content.push(
+                            textRow(
+                                label,
+                                formatRupiah(nominal)
+                            )
+                        );
+                    }
+
+                });
+
+                content.push({
+                    type: "divider",
+                });
+
+                const totalPenjualan = Number(
+                    data.total_penjualan || 0
                 );
 
-                if (tunai) {
-                    content.push(tunai);
+                content.push(
+                    textRow(
+                        "TOTAL PENJUALAN",
+                        formatRupiah(totalPenjualan),
+                        true
+                    )
+                );
+
+                content.push({
+                    type: "divider",
+                });
+
+                const startingCash = Number(
+                    data.starting_cash || 0
+                );
+
+                const tunaiPenjualan = Number(
+                    data.tunai || 0
+                );
+
+                const cashSeharusnya =
+                    startingCash +
+                    tunaiPenjualan;
+
+                content.push(
+                    textRow(
+                        "Cash Seharusnya",
+                        formatRupiah(cashSeharusnya),
+                        true
+                    )
+                );
+
+                const pemasukan = Number(
+                    data.pemasukan ??
+                    data.cash_in ??
+                    data.total_pemasukan ??
+                    0
+                );
+
+                const pengeluaran = Number(
+                    data.pengeluaran ??
+                    data.cash_out ??
+                    data.total_pengeluaran ??
+                    0
+                );
+                // Pemasukan hanya tampil jika ada
+                if (pemasukan > 0) {
+
+                    content.push(
+                        textRow(
+                            "Pemasukan",
+                            formatRupiah(pemasukan)
+                        )
+                    );
+
+                }
+                // Pengeluaran hanya tampil jika ada
+                if (pengeluaran > 0) {
+
+                    content.push(
+                        textRow(
+                            "Pengeluaran",
+                            formatRupiah(pengeluaran)
+                        )
+                    );
+
                 }
 
-                const transfer = row(
-                    "Transfer",
-                    data.transfer
+                const cashAktualSistem =
+                    cashSeharusnya +
+                    pemasukan -
+                    pengeluaran;
+
+                content.push({
+                    type: "divider",
+                });
+
+                content.push(
+                    textRow(
+                        "Cash Aktual Sistem",
+                        formatRupiah(cashAktualSistem),
+                        true
+                    )
                 );
 
-                if (transfer) {
-                    content.push(transfer);
-                }
-
-                const qris = row(
-                    "QRIS",
-                    data.qris
+                const cashFisik = Number(
+                    data.physical_cash || 0
                 );
 
-                if (qris) {
-                    content.push(qris);
-                }
-
-                const debit = row(
-                    "Debit",
-                    data.debit
+                content.push(
+                    textRow(
+                        "Cash Fisik",
+                        formatRupiah(cashFisik),
+                        true
+                    )
                 );
 
-                if (debit) {
-                    content.push(debit);
-                }
-                
-                const kredit = row(
-                    "Kredit",
-                    data.kredit
-                );
+                const discrepancy =
+                    cashFisik -
+                    cashAktualSistem;
 
-                if (kredit) {
-                    content.push(kredit);
-                }
+                if (discrepancy !== 0) {
 
-                const ewallet = row(
-                    "E-Wallet",
-                    data.ewallet
-                );
+                    content.push({
+                        type: "divider",
+                    });
 
-                if (ewallet) {
-                    content.push(ewallet);
-                }
+                    const selisihLabel =
+                        discrepancy > 0
+                            ? "SELISIH LEBIH"
+                            : "SELISIH KURANG";
 
-                const voidRow = row(
-                    "VOID",
-                    data.void
-                );
+                    content.push(
+                        textRow(
+                            selisihLabel,
+                            formatRupiah(Math.abs(discrepancy)),
+                            true
+                        )
+                    );
 
-                if (voidRow) {
-                    content.push(voidRow);
                 }
 
                 content.push({
                     type: "divider",
                 });
 
-                // -----------------------------------------------------
-                // TOTAL PENJUALAN
-                // -----------------------------------------------------
+                if (Number(data.total_transaksi || 0) > 0) {
 
-                const totalPenjualan = row(
-                    "Total Penjualan",
-                    data.total_penjualan,
-                    {
-                        bold: true,
-                    }
-                );
-
-                if (totalPenjualan) {
-                    content.push(totalPenjualan);
-                }
-
-                // Total transaksi
-                if (
-                    Number(data.total_transaksi || 0) > 0
-                ) {
                     content.push(
                         textRow(
                             "Total Transaksi",
                             String(data.total_transaksi)
                         )
                     );
+
                 }
 
-                // Total item
-                if (
-                    Number(data.total_item || 0) > 0
-                ) {
+                if (Number(data.total_item || 0) > 0) {
+
                     content.push(
                         textRow(
                             "Total Item",
@@ -300,47 +369,11 @@ export default function PrintShiftReport({
                         )
                     );
                 }
-
-                content.push({
-                    type: "divider",
-                });
-
-                const cashExpected = row(
-                    "Cash Seharusnya",
-                    data.cash_expected
-                );
-
-                if (cashExpected) {
-                    content.push(cashExpected);
-                }
-
-                const physicalCash = row(
-                    "Cash Fisik",
-                    data.physical_cash
-                );
-
-                if (physicalCash) {
-                    content.push(physicalCash);
-                }
-                if (
-                    Number(data.discrepancy || 0) !== 0
-                ) {
-                    content.push({
-                        type: "divider",
-                    });
-
-                    content.push(
-                        textRow(
-                            "SELISIH",
-                            formatRupiah(data.discrepancy),
-                            true
-                        )
-                    );
-                }
                 if (
                     Array.isArray(data.products) &&
                     data.products.length > 0
                 ) {
+
                     content.push({
                         type: "divider",
                     });
@@ -353,16 +386,22 @@ export default function PrintShiftReport({
                     });
 
                     data.products.forEach((item) => {
+
                         const nama =
                             item.nama ||
+                            item.name ||
                             "Produk";
 
                         const qty =
-                            `x${item.qty || 0}`;
+                            Number(item.qty || item.quantity || 0);
 
                         content.push(
-                            textRow(nama, qty)
+                            textRow(
+                                nama,
+                                `x${qty}`
+                            )
                         );
+
                     });
                 }
                 content.push({
@@ -400,63 +439,58 @@ export default function PrintShiftReport({
                     lines: 3,
                 });
 
-                // =====================================================
-                // 4. KIRIM KE BACKEND PROXY (MENGATASI MIXED CONTENT DI ANDROID)
-                // =====================================================
-
                 console.log(
                     "Mengirim data ke backend proxy..."
                 );
 
                 // KIRIM LANGSUNG KE PRINTER LOKAL (CLEANTER)
-const response = await fetch("http://localhost:9100/print", {
-    method: "POST",
-    headers: {
-        "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-        cut: true,
-        content: content,
-    }),
-});
+                const response = await fetch("http://localhost:9100/print", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        cut: true,
+                        content: content,
+                    }),
+                });
 
-if (!response.ok) {
-    throw new Error("Gagal mencetak rekap tutup kasir (Status: " + response.status + ")");
-}
+                if (!response.ok) {
+                    throw new Error("Gagal mencetak rekap tutup kasir (Status: " + response.status + ")");
+                }
 
-console.log("✅ STRUK TUTUP KASIR BERHASIL DICETAK");
+                console.log("✅ STRUK TUTUP KASIR BERHASIL DICETAK");
 
-if (onFinished) {
-    onFinished();
-}
+                if (onFinished) {
+                    onFinished();
+                }
 
-// LOGOUT SETELAH PRINT BERHASIL
-try {
-    await fetch(route("pos.logout-after-print"), {
-        method: "POST",
-        headers: {
-            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
-            Accept: "application/json",
-        },
-    });
-} finally {
-    window.location.href = "/login";
-}
+                try {
+                    await fetch(route("pos.logout-after-print"), {
+                        method: "POST",
+                        headers: {
+                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
+                            Accept: "application/json",
+                        },
+                    });
+                } finally {
+                    window.location.href = "/login";
+                }
 
-           } catch (error) {
-    console.error("PRINT / LOGOUT ERROR:", error);
-    alreadyPrinted.current = false;
-    
-    if (onFinished) {
-        onFinished();
-    }
-    window.location.href = "/login";
-}
-        };
+                        } catch (error) {
+                    console.error("PRINT / LOGOUT ERROR:", error);
+                    alreadyPrinted.current = false;
+                    
+                    if (onFinished) {
+                        onFinished();
+                    }
+                    window.location.href = "/login";
+                }
+                        };
 
-        printToOripos();
+                        printToOripos();
 
-    }, [data, formatRupiah, onFinished]);
+                    }, [data, formatRupiah, onFinished]);
 
-    return null;
-}
+                    return null;
+                }

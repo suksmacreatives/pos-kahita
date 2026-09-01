@@ -22,7 +22,7 @@ class TransactionController extends Controller
             'discount' => 'nullable|numeric',
             'grand_total' => 'required|numeric',
             'promo_id' => 'nullable|exists:promos,id',
-            'payment_method' => 'required|string', // Tunai, QRIS, Debit, Kredit
+            'payment_method' => 'required|string', // Tunai, QRIS, Debit, Transfer
             'cart_items' => 'required|array|min:1',
             'cart_items.*.product_id' => 'required|exists:products,id',
             'cart_items.*.name' => 'required|string',
