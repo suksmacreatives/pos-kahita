@@ -38,10 +38,12 @@ class ShiftController extends Controller
             );
         }
 
+        $now = Carbon::now('Asia/Makassar');
+
         $shift = CashRegisterShift::create([
             'user_id'        => $user->id,
             'outlet_id'      => $outletId,
-            'opened_at'      => Carbon::now(),
+            'opened_at'      => $now,
             'starting_cash'  => $request->starting_cash,
             'system_cash'    => 0,
             'physical_cash'  => $request->starting_cash,
@@ -80,7 +82,7 @@ class ShiftController extends Controller
             ], 404);
         }
 
-        $closedAt = Carbon::now();
+        $closedAt = Carbon::now('Asia/Makassar');
 
         $transactions = Transaction::with('items')
         ->where('outlet_id', $shift->outlet_id)
