@@ -236,23 +236,11 @@ export default function PrintShiftReport({
                 });
 
                 const startingCash = Number(
-                    data.starting_cash || 0
+                    data.starting_cash || data.modal_awal || 0
                 );
 
                 const tunaiPenjualan = Number(
-                    data.tunai || 0
-                );
-
-                const cashSeharusnya =
-                    startingCash +
-                    tunaiPenjualan;
-
-                content.push(
-                    textRow(
-                        "Cash Seharusnya",
-                        formatRupiah(cashSeharusnya),
-                        true
-                    )
+                    data.tunai || data.penjualan_tunai || 0
                 );
 
                 const pemasukan = Number(
@@ -268,37 +256,39 @@ export default function PrintShiftReport({
                     data.total_pengeluaran ??
                     0
                 );
-                // Pemasukan hanya tampil jika ada
-                if (pemasukan > 0) {
 
-                    content.push(
-                        textRow(
-                            "Pemasukan",
-                            formatRupiah(pemasukan)
-                        )
-                    );
+                // 1. Tampilkan List Transaksi Uang Keluar / Masuk jika ada
+                if (Array.isArray(data.cash_transactions) && data.cash_transactions.length > 0) {
+                    content.push({
+                        type: "divider",
+                    });
 
+                    data.cash_transactions.forEach((tx) => {
+                        // tx.jenis berupa "Uang Masuk" atau "Uang Keluar"
+                        const labelTx = tx.nama ? `${tx.jenis} (${tx.nama})` : tx.jenis;
+                        content.push(
+                            textRow(
+                                labelTx,
+                                `(${formatRupiah(tx.jumlah)})` // Format kurung atau minus untuk uang keluar
+                            )
+                        );
+                    });
                 }
-                // Pengeluaran hanya tampil jika ada
-                if (pengeluaran > 0) {
-
-                    content.push(
-                        textRow(
-                            "Pengeluaran",
-                            formatRupiah(pengeluaran)
-                        )
-                    );
-
-                }
-
-                const cashAktualSistem =
-                    cashSeharusnya +
-                    pemasukan -
-                    pengeluaran;
 
                 content.push({
                     type: "divider",
                 });
+                
+
+                const cashAktualSistem = Number(
+                    data.cash_aktual_sistem ??
+                    (
+                        startingCash +
+                        tunaiPenjualan +
+                        pemasukan -
+                        pengeluaran
+                    )
+                );
 
                 content.push(
                     textRow(
@@ -309,7 +299,7 @@ export default function PrintShiftReport({
                 );
 
                 const cashFisik = Number(
-                    data.physical_cash || 0
+                    data.physical_cash || data.cash_fisik || 0
                 );
 
                 content.push(
@@ -325,7 +315,6 @@ export default function PrintShiftReport({
                     cashAktualSistem;
 
                 if (discrepancy !== 0) {
-
                     content.push({
                         type: "divider",
                     });
@@ -342,7 +331,6 @@ export default function PrintShiftReport({
                             true
                         )
                     );
-
                 }
 
                 content.push({

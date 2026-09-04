@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\CashTransaction;
 use App\Models\CashRegisterShift;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CashTransactionController extends Controller
 {
