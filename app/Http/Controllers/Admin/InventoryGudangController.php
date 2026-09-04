@@ -115,20 +115,29 @@ class InventoryGudangController extends Controller
                 ])->toArray(),
             ]);
 
-        $distribusiOutlet = DistributionOrder::with(['outlet', 'items.product'])
+        $distribusiOutlet = DistributionOrder::with(['outlet', 'onlineShop', 'items.product'])
             ->latest()
             ->get()
             ->map(fn ($do) => [
                 'id' => $do->id,
                 'nomor_do' => $do->nomor_do,
+                'tipe_tujuan' => $do->tipe_tujuan ?? 'outlet',
                 'outlet_id' => $do->outlet_id,
-                'outlet_tujuan' => $do->outlet?->name ?? '',
-                'outlet_warna' => $this->getOutletWarna($do->outlet_id),
-                'outlet_hexColor' => $this->getOutletHexColor($do->outlet_id),
+                'online_shop_id' => $do->online_shop_id,
+                'outlet_tujuan' => $do->tipe_tujuan === 'online'
+                    ? ($do->onlineShop?->nama ?? 'Online Shop')
+                    : ($do->outlet?->name ?? ''),
+                'outlet_warna' => $do->tipe_tujuan === 'online'
+                    ? 'sky'
+                    : $this->getOutletWarna($do->outlet_id),
+                'outlet_hexColor' => $do->tipe_tujuan === 'online'
+                    ? '#0EA5E9'
+                    : $this->getOutletHexColor($do->outlet_id),
                 'tanggal_kirim' => $do->tanggal_kirim?->format('Y-m-d'),
                 'tanggal_terima' => $do->tanggal_terima?->format('Y-m-d'),
                 'total_qty' => $do->total_qty,
                 'status' => $do->status,
+                'created_at' => $do->created_at?->toIso8601String(),
                 'items' => $do->items->map(fn ($item) => [
                     'produk_id' => $item->product_id,
                     'nama' => $item->nama,
@@ -137,6 +146,8 @@ class InventoryGudangController extends Controller
                     'qty' => $item->qty,
                 ])->toArray(),
             ]);
+
+        $distribusiOnline = $distribusiOutlet->where('tipe_tujuan', 'online')->values();
 
         $returSupplier = SupplierReturn::with(['supplier', 'items.product'])
             ->latest()
@@ -224,6 +235,11 @@ class InventoryGudangController extends Controller
             'kota' => $s->kota,
         ]);
 
+        $onlineShopList = \App\Models\OnlineShop::all()->map(fn ($s) => [
+            'id' => $s->id,
+            'nama' => $s->nama,
+        ]);
+
         return Inertia::render('Admin/Inventory/Gudang', [
             'warehouseProducts' => $warehouseProducts,
             'gudangStats' => $gudangStats,
@@ -236,6 +252,82 @@ class InventoryGudangController extends Controller
             'stockOpname' => $stockOpname,
             'outlets' => $outletList,
             'suppliers' => $supplierList,
+            'onlineShops' => $onlineShopList,
+        ]);
+    }
+
+    public function indexOnlineShop()
+    {
+        $products = Product::with(['variants', 'category'])->orderBy('created_at', 'desc')->get();
+
+        $warehouseProducts = $products->map(function ($p) {
+            $totalStok = $p->variants->sum('stock');
+            $stokMinimum = 10;
+
+            return [
+                'id' => $p->id,
+                'kode_produk' => $p->sku,
+                'nama_produk' => $p->name,
+                'kategori' => $p->category?->name ?? '',
+                'harga_beli' => (int) $p->cost_price,
+                'warna_hex' => $this->getFirstVariantColor($p->variants),
+                'varian' => $p->variants->map(fn ($v) => [
+                    'ukuran' => $v->size,
+                    'warna' => $v->color ?? '',
+                    'warna_hex' => $this->mapNamaWarnaKeHex($v->color ?? ''),
+                    'stok' => (int) $v->stock,
+                    'sku' => $v->sku,
+                ])->toArray(),
+                'total_stok' => $totalStok,
+                'stok_minimum' => $stokMinimum,
+                'status' => $this->getStokStatus($totalStok, $stokMinimum),
+            ];
+        });
+
+        $distribusiOnline = DistributionOrder::with(['outlet', 'onlineShop', 'items.product'])
+            ->where('tipe_tujuan', 'online')
+            ->latest()
+            ->get()
+            ->map(fn ($do) => [
+                'id' => $do->id,
+                'nomor_do' => $do->nomor_do,
+                'tipe_tujuan' => $do->tipe_tujuan ?? 'outlet',
+                'outlet_id' => $do->outlet_id,
+                'online_shop_id' => $do->online_shop_id,
+                'outlet_tujuan' => $do->onlineShop?->nama ?? 'Online Shop',
+                'outlet_warna' => 'sky',
+                'outlet_hexColor' => '#0EA5E9',
+                'tanggal_kirim' => $do->tanggal_kirim?->format('Y-m-d'),
+                'tanggal_terima' => $do->tanggal_terima?->format('Y-m-d'),
+                'total_qty' => $do->total_qty,
+                'status' => $do->status,
+                'created_at' => $do->created_at?->toIso8601String(),
+                'items' => $do->items->map(fn ($item) => [
+                    'produk_id' => $item->product_id,
+                    'nama' => $item->nama,
+                    'ukuran' => $item->ukuran,
+                    'warna' => $item->warna,
+                    'qty' => $item->qty,
+                ])->toArray(),
+            ]);
+
+        $onlineShopList = \App\Models\OnlineShop::all()->map(fn ($s) => [
+            'id' => $s->id,
+            'nama' => $s->nama,
+        ]);
+
+        $outletList = Outlet::all()->map(fn ($o) => [
+            'id' => $o->id,
+            'nama' => $o->name,
+            'warna' => $this->getOutletWarna($o->id),
+            'hexColor' => $this->getOutletHexColor($o->id),
+        ]);
+
+        return Inertia::render('Admin/Inventory/OnlineShop', [
+            'warehouseProducts' => $warehouseProducts,
+            'distribusiOnline' => $distribusiOnline,
+            'onlineShops' => $onlineShopList,
+            'outlets' => $outletList,
         ]);
     }
 
@@ -361,8 +453,10 @@ class InventoryGudangController extends Controller
     public function storeDistribusi(Request $request)
     {
         $validated = $request->validate([
-            'outlet_id' => 'required|exists:outlets,id',
-            'outlet_tujuan' => 'required|string',
+            'tipe_tujuan' => 'required|in:outlet,online',
+            'outlet_id' => 'nullable|exists:outlets,id',
+            'online_shop_id' => 'nullable|exists:online_shops,id',
+            'outlet_tujuan' => 'nullable|string',
             'tanggal_kirim' => 'nullable|date',
             'items' => 'required|array|min:1',
             'items.*.produk_id' => 'required|exists:products,id',
@@ -373,6 +467,20 @@ class InventoryGudangController extends Controller
             'status' => 'required|in:draft,dikirim',
         ]);
 
+        if ($validated['tipe_tujuan'] === 'online') {
+            $validated['outlet_id'] = null;
+            if (empty($validated['online_shop_id'])) {
+                return redirect()->back()->with('error', 'Silakan pilih tujuan online shop terlebih dahulu');
+            }
+            $validated['status'] = 'dikirim';
+        } else {
+            $validated['online_shop_id'] = null;
+        }
+
+        $tujuanNama = $validated['outlet_tujuan'] ?? ($validated['tipe_tujuan'] === 'online'
+            ? (\App\Models\OnlineShop::find($validated['online_shop_id'])?->nama ?? 'Online Shop')
+            : '');
+
         DB::beginTransaction();
         try {
             $totalQty = collect($validated['items'])->sum('qty');
@@ -381,6 +489,8 @@ class InventoryGudangController extends Controller
             $do = DistributionOrder::create([
                 'nomor_do' => $nomorDo,
                 'outlet_id' => $validated['outlet_id'],
+                'tipe_tujuan' => $validated['tipe_tujuan'],
+                'online_shop_id' => $validated['online_shop_id'],
                 'tanggal_kirim' => $validated['tanggal_kirim'] ?? ($validated['status'] === 'dikirim' ? now()->format('Y-m-d') : null),
                 'total_qty' => $totalQty,
                 'status' => $validated['status'],
@@ -416,7 +526,7 @@ class InventoryGudangController extends Controller
                     'product_variant_id' => null,
                     'type' => 'distribusi',
                     'qty' => -$totalQty,
-                    'note' => 'Distribusi ke: ' . ($validated['outlet_tujuan'] ?? ''),
+                    'note' => 'Distribusi ke: ' . ($tujuanNama ?: ($validated['outlet_tujuan'] ?? '')),
                     'user_id' => Auth::id(),
                 ]);
             }
@@ -600,6 +710,43 @@ class InventoryGudangController extends Controller
 
     public function cancelDistributionOrder(DistributionOrder $distributionOrder)
     {
+        $isOnline = ($distributionOrder->tipe_tujuan ?? 'outlet') === 'online';
+
+        if ($isOnline) {
+            if ($distributionOrder->status !== 'dikirim') {
+                return redirect()->back()->with('error', 'Hanya DO online shop yang bisa dibatalkan');
+            }
+            if ($distributionOrder->created_at && $distributionOrder->created_at->lt(now()->subHours(24))) {
+                return redirect()->back()->with('error', 'DO online shop hanya bisa dibatalkan dalam 24 jam setelah dibuat');
+            }
+
+            DB::beginTransaction();
+            try {
+                foreach ($distributionOrder->items as $item) {
+                    if ($item->productVariant) {
+                        $item->productVariant->increment('stock', $item->qty);
+
+                        StockMovement::create([
+                            'product_variant_id' => $item->product_variant_id,
+                            'type' => 'distribusi',
+                            'reference_type' => 'distribution_order',
+                            'reference_id' => $distributionOrder->id,
+                            'qty' => (int) $item->qty,
+                            'note' => 'Pembatalan distribusi online shop: ' . $item->nama,
+                            'user_id' => Auth::id(),
+                        ]);
+                    }
+                }
+
+                $distributionOrder->update(['status' => 'dibatalkan']);
+                DB::commit();
+                return redirect()->back()->with('success', 'Distribution Order online shop dibatalkan, stok gudang dikembalikan');
+            } catch (\Exception $e) {
+                DB::rollBack();
+                return redirect()->back()->with('error', 'Gagal membatalkan DO: ' . $e->getMessage());
+            }
+        }
+
         if (!in_array($distributionOrder->status, ['draft'])) {
             return redirect()->back()->with('error', 'Hanya DO dengan status draft yang bisa dibatalkan');
         }

@@ -143,6 +143,14 @@ export default function Sidebar({ isOpen, onClose }) {
                     ),
                     pattern: /^\/admin\/inventory\/outlet/,
                 },
+                ...(isScoped ? [] : [{
+                    label: "Online Shop",
+                    href: getRoute(
+                        "admin.inventory.online-shop",
+                        "/admin/inventory/online-shop",
+                    ),
+                    pattern: /^\/admin\/inventory\/online-shop/,
+                }]),
             ],
         },
         ...(isScoped ? [] : [{

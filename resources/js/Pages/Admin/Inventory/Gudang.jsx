@@ -42,6 +42,7 @@ function Gudang() {
     gudangStats: initialStats,
     outlets,
     suppliers,
+    onlineShops,
     errors: validationErrors,
   } = props;
 
@@ -382,6 +383,7 @@ function Gudang() {
         onClose={handleCloseModal}
         onSubmit={handleDistribusiSubmit}
         outlets={outlets}
+        onlineShops={onlineShops}
         warehouseProducts={produkStok}
         processing={processing}
       />

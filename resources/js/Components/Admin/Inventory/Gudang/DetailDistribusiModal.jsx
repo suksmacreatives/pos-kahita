@@ -4,6 +4,7 @@ import { X, Send } from "lucide-react";
 
 export default function DetailDistribusiModal({ data, onClose }) {
   if (!data) return null;
+  const isOnline = (data.tipe_tujuan || 'outlet') === 'online';
   return createPortal(
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -11,7 +12,7 @@ export default function DetailDistribusiModal({ data, onClose }) {
           <div className="flex items-center gap-3">
             <Send className="w-5 h-5 text-sky-600" />
             <div>
-              <h3 className="text-sm font-bold text-gray-800">Detail Distribusi Outlet</h3>
+              <h3 className="text-sm font-bold text-gray-800">Detail Distribusi {isOnline ? 'Online Shop' : 'Outlet'}</h3>
               <p className="text-[10px] text-gray-400">{data.nomor_do} — {data.outlet_tujuan}</p>
             </div>
           </div>
@@ -20,10 +21,10 @@ export default function DetailDistribusiModal({ data, onClose }) {
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
           <div className="grid grid-cols-3 gap-4 text-xs">
             <div className="bg-gray-50 rounded-xl p-3">
-              <p className="text-gray-400 font-medium">Outlet</p>
+              <p className="text-gray-400 font-medium">Tujuan</p>
               <p className="font-bold text-gray-800 mt-0.5 flex items-center gap-1.5">
                 <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: data.outlet_hexColor }} />
-                {data.outlet_tujuan}
+                {isOnline ? (data.outlet_tujuan ? `Online Shop — ${data.outlet_tujuan}` : 'Online Shop') : data.outlet_tujuan}
               </p>
             </div>
             <div className="bg-gray-50 rounded-xl p-3">

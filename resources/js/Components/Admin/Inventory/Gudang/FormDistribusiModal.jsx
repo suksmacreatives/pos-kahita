@@ -4,13 +4,16 @@ import { X, Search, AlertTriangle } from "lucide-react";
 import SelectDropdown from '@/Components/Admin/SelectDropdown';
 import VariantTableGrid from "./VariantTableGrid";
 
-export default function FormDistribusiModal({ open, onClose, onSubmit, outlets = [], warehouseProducts = [], processing = false }) {
+export default function FormDistribusiModal({ open, onClose, onSubmit, outlets = [], onlineShops = [], warehouseProducts = [], processing = false }) {
+  const [tipeTujuan, setTipeTujuan] = useState("outlet");
   const [outletId, setOutletId] = useState("");
+  const [onlineShopId, setOnlineShopId] = useState("");
   const [tanggal, setTanggal] = useState(new Date().toISOString().split("T")[0]);
   const [productSearch, setProductSearch] = useState("");
   const [items, setItems] = useState([]);
 
   const selectedOutlet = outlets.find(o => o.id === parseInt(outletId));
+  const selectedOnlineShop = onlineShops.find(s => s.id === parseInt(onlineShopId));
   const filteredProducts = useMemo(() => {
     if (!productSearch) return warehouseProducts;
     const q = productSearch.toLowerCase();
@@ -54,10 +57,14 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
 
   const handleSubmit = (e, mode) => {
     e.preventDefault();
-    if (!outletId || flatItems.length === 0) return;
+    const effectiveTipe = tipeTujuan === 'online' ? 'online' : 'outlet';
+    const isOnline = effectiveTipe === 'online';
+    if ((isOnline ? !onlineShopId : !outletId) || flatItems.length === 0) return;
     onSubmit({
-      outlet_id: parseInt(outletId),
-      outlet_tujuan: selectedOutlet?.nama,
+      tipe_tujuan: effectiveTipe,
+      outlet_id: isOnline ? null : parseInt(outletId),
+      online_shop_id: isOnline ? parseInt(onlineShopId) : null,
+      outlet_tujuan: isOnline ? selectedOnlineShop?.nama : selectedOutlet?.nama,
       outlet_warna: selectedOutlet?.warna,
       outlet_hexColor: selectedOutlet?.hexColor,
       tanggal_kirim: mode === 'dikirim' ? tanggal : null,
@@ -73,6 +80,7 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
     });
     setItems([]);
     setOutletId("");
+    setOnlineShopId("");
     onClose();
   };
 
@@ -80,12 +88,38 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
     <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="px-6 py-4 border-b flex items-center justify-between bg-gray-50">
-          <div><h3 className="text-sm font-bold text-gray-800">Tambah Distribusi ke Outlet</h3><p className="text-[10px] text-gray-400">Catat pengiriman barang ke outlet</p></div>
+          <div><h3 className="text-sm font-bold text-gray-800">Tambah Distribusi</h3><p className="text-[10px] text-gray-400">Catat pengiriman barang ke outlet / online shop</p></div>
           <button onClick={onClose} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-800 hover:bg-gray-100 cursor-pointer"><X className="w-5 h-5" /></button>
         </div>
         <form onSubmit={(e) => handleSubmit(e, 'dikirim')} className="flex-1 flex flex-col min-h-0">
           <div className="p-6 space-y-4 flex-1 overflow-y-auto">
             <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase block mb-1.5">Tujuan *</label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setTipeTujuan('outlet'); setOnlineShopId(""); }}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${tipeTujuan === 'outlet' ? 'bg-emerald-50 border-emerald-300 text-emerald-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    Outlet
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setTipeTujuan('online'); setOutletId(""); }}
+                    className={`px-3 py-2 rounded-xl text-xs font-semibold border transition-colors cursor-pointer ${tipeTujuan === 'online' ? 'bg-sky-50 border-sky-300 text-sky-700' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    Online Shop
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-bold text-gray-500 uppercase block mb-1.5">Tanggal Kirim</label>
+                <input type="date" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-500 outline-none" value={tanggal} onChange={e => setTanggal(e.target.value)} />
+              </div>
+            </div>
+
+            {tipeTujuan === 'outlet' ? (
               <div>
                 <label className="text-xs font-bold text-gray-500 uppercase block mb-1.5">Outlet *</label>
                 <SelectDropdown
@@ -102,11 +136,24 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
                   </div>
                 )}
               </div>
+            ) : (
               <div>
-                <label className="text-xs font-bold text-gray-500 uppercase block mb-1.5">Tanggal Kirim</label>
-                <input type="date" className="w-full px-3 py-2 border border-gray-200 rounded-xl text-xs focus:border-emerald-500 outline-none" value={tanggal} onChange={e => setTanggal(e.target.value)} />
+                <label className="text-xs font-bold text-gray-500 uppercase block mb-1.5">Tujuan Online Shop *</label>
+                <SelectDropdown
+                  value={onlineShopId}
+                  onChange={setOnlineShopId}
+                  options={onlineShops.map(s => ({ value: s.id, label: s.nama }))}
+                  placeholder="-- Pilih Online Shop --"
+                  searchable
+                />
+                {selectedOnlineShop && (
+                  <div className="flex items-center gap-1.5 mt-1.5 px-1">
+                    <span className="w-2 h-2 rounded-full bg-sky-500" />
+                    <span className="text-[10px] text-gray-500">{selectedOnlineShop.nama}</span>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
             <div>
               <div className="flex items-center justify-between mb-2">
@@ -155,7 +202,7 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
               <div className="flex gap-2">
                 <button type="button" onClick={() => setItems([])} className="px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:bg-gray-100 cursor-pointer">Reset</button>
                 <button type="button" onClick={(e) => handleSubmit(e, 'draft')} className="px-4 py-2 border border-emerald-200 text-emerald-700 rounded-xl text-xs font-semibold hover:bg-emerald-50 cursor-pointer">Simpan Draft</button>
-                <button type="submit" disabled={!outletId || flatItems.length === 0 || processing} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md disabled:opacity-50">{processing ? 'Menyimpan...' : 'Proses Distribusi'}</button>
+                <button type="submit" disabled={(tipeTujuan === 'online' ? !onlineShopId : !outletId) || flatItems.length === 0 || processing} className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md disabled:opacity-50">{processing ? 'Menyimpan...' : 'Proses Distribusi'}</button>
               </div>
             </div>
           )}

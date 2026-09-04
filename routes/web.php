@@ -183,6 +183,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::get('/admin/inventory/branch', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Stok Cabang']); })->name('admin.inventory.branch');
         Route::get('/admin/inventory/mutation', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Mutasi Barang']); })->name('admin.inventory.mutation');
         Route::get('/admin/inventory/outlet', [OutletInventoryController::class, 'index'])->name('admin.inventory.outlet');
+        Route::get('/admin/inventory/online-shop', [InventoryGudangController::class, 'indexOnlineShop'])->name('admin.inventory.online-shop');
         Route::post('/admin/inventory/outlet/penerimaan/{distributionOrder}/konfirmasi', [OutletInventoryController::class, 'konfirmasiTerima'])->name('admin.inventory.outlet.penerimaan.konfirmasi');
         Route::post('/admin/inventory/outlet/transfer', [OutletInventoryController::class, 'storeTransfer'])->name('admin.inventory.outlet.transfer');
         Route::patch('/admin/inventory/outlet/transfer/{id}/terima', [OutletInventoryController::class, 'konfirmasiTerimaTransfer'])->name('admin.inventory.outlet.transfer.terima');

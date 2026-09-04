@@ -9,6 +9,8 @@ class DistributionOrder extends Model
     protected $fillable = [
         'nomor_do',
         'outlet_id',
+        'tipe_tujuan',
+        'online_shop_id',
         'tanggal_kirim',
         'tanggal_terima',
         'total_qty',
@@ -24,6 +26,11 @@ class DistributionOrder extends Model
     public function outlet()
     {
         return $this->belongsTo(Outlet::class);
+    }
+
+    public function onlineShop()
+    {
+        return $this->belongsTo(OnlineShop::class);
     }
 
     public function items()
