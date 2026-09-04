@@ -126,7 +126,7 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
         const data = await response.json();
 
         if (response.ok) {
-            window.location.reload();
+            
             // Gunakan data dari respon backend jika perlu (misal: mengambil ID baru)
             const newItem = {
                 id: data.id || Date.now(), // Ambil ID dari database

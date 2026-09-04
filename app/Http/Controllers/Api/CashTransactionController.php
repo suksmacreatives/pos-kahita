@@ -12,7 +12,7 @@ class CashTransactionController extends Controller
 {
     public function store(Request $request)
 {
-    $user = auth()->user();
+    $user = Auth::user();
     if (!$user) return response()->json(['message' => 'Unauthorized'], 401);
 
     // 1. Cari shift aktif
