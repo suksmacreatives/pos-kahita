@@ -280,15 +280,14 @@ export default function PrintShiftReport({
                 });
                 
 
-                // 2. Perbaiki Rumus Cash Seharusnya sesuai backend: Modal Awal + Tunai + Cash In - Cash Out
-                const cashSeharusnya =
-                    startingCash +
-                    tunaiPenjualan +
-                    pemasukan -
-                    pengeluaran;
-
                 const cashAktualSistem = Number(
-                    data.cash_aktual_sistem ?? cashSeharusnya
+                    data.cash_aktual_sistem ??
+                    (
+                        startingCash +
+                        tunaiPenjualan +
+                        pemasukan -
+                        pengeluaran
+                    )
                 );
 
                 content.push(

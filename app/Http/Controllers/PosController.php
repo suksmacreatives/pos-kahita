@@ -185,154 +185,364 @@ class PosController extends Controller
     }
 
     public function tutupKasir(Request $request)
-{
-    $user = $request->user();
+    {
+        $user = $request->user();
 
-    $activeShift = CashRegisterShift::where('user_id', $user->id)
-        ->where('status', 'open')
-        ->latest()
-        ->first();
+        $activeShift = CashRegisterShift::where('user_id', $user->id)
+            ->where('status', 'open')
+            ->latest()
+            ->first();
 
-    if (!$activeShift) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Tidak ada shift yang aktif.'
-        ], 400);
-    }
+        if (!$activeShift) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Tidak ada shift yang aktif.'
+            ], 400);
+        }
 
-    $cashTransactions = CashTransaction::where('shift_id', $activeShift->id)
-        ->orderBy('created_at', 'asc')
-        ->get();
+        /*
+        |--------------------------------------------------------------------------
+        | 1. AMBIL TRANSAKSI KAS
+        |--------------------------------------------------------------------------
+        */
+        $cashTransactions = CashTransaction::where(
+            'shift_id',
+            $activeShift->id
+        )
+            ->orderBy('created_at', 'asc')
+            ->get();
 
-    $cashIn = $cashTransactions
-        ->where('transaction_type', 'IN')
-        ->sum('amount');
+        $cashIn = (float) $cashTransactions
+            ->where('transaction_type', 'IN')
+            ->sum('amount');
 
-    $cashOut = $cashTransactions
-        ->where('transaction_type', 'OUT')
-        ->sum('amount');
+        $cashOut = (float) $cashTransactions
+            ->where('transaction_type', 'OUT')
+            ->sum('amount');
 
-    $transactions = Transaction::where('shift_id', $activeShift->id)
-        ->get();
 
-    $paymentSummary = $transactions
-        ->groupBy(function ($transaction) {
-            return strtoupper(
+        /*
+        |--------------------------------------------------------------------------
+        | 2. AMBIL TRANSAKSI PENJUALAN SHIFT INI
+        |--------------------------------------------------------------------------
+        */
+        $transactions = Transaction::with('items')
+            ->where('shift_id', $activeShift->id)
+            ->where('status', 'completed')
+            ->get();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3. RINGKAS PENJUALAN BERDASARKAN METODE PEMBAYARAN
+        |--------------------------------------------------------------------------
+        */
+        $penjualanTunai = 0;
+        $penjualanQris = 0;
+        $penjualanDebit = 0;
+        $penjualanTransfer = 0;
+
+        foreach ($transactions as $transaction) {
+
+            $paymentMethod = strtoupper(
                 trim($transaction->payment_method ?? 'TUNAI')
             );
-        })
-        ->map(function ($items) {
-            return [
-                'payment_method' => $items->first()->payment_method ?? 'TUNAI',
-                'total' => $items->sum(function ($transaction) {
-                    return (float) $transaction->grand_total;
-                }),
-                'transaction_count' => $items->count(),
-            ];
-        })
-        ->values()
-        ->toArray();
 
-    $totalPenjualan = $transactions->sum(function ($transaction) {
-        return (float) $transaction->grand_total;
-    });
+            $grandTotal = (float) $transaction->grand_total;
 
-    $penjualanTunai = $transactions
-        ->filter(function ($transaction) {
-            return strtoupper(
-                trim($transaction->payment_method ?? 'TUNAI')
-            ) === 'TUNAI';
-        })
-        ->sum(function ($transaction) {
-            return (float) $transaction->grand_total;
-        });
-    $modalAwal = (float) $activeShift->initial_cash;
-    $cashSeharusnya =
-        $modalAwal
-        + $penjualanTunai
-        + $cashIn
-        - $cashOut;
-    $cashFisik = (float) $request->input('physical_cash', 0);
-    $selisih = $cashFisik - $cashSeharusnya;
-    $selisihJenis = null;
-    if ($selisih < 0) {
-        $selisihJenis = 'KURANG';
-    } elseif ($selisih > 0) {
-        $selisihJenis = 'LEBIH';
-    }
+            switch ($paymentMethod) {
 
-    $totalItem = 0;
-    foreach ($transactions as $transaction) {
-        $totalItem += $transaction->items()->sum('quantity');
-    }
+                case 'TUNAI':
+                case 'CASH':
+                    $penjualanTunai += $grandTotal;
+                    break;
 
-    $produkTerjual = [];
-    foreach ($transactions as $transaction) {
-        foreach ($transaction->items as $item) {
-            $namaProduk =
-                $item->product_name_snapshot
-                ?? $item->product_name
-                ?? 'Produk';
-            $key = $namaProduk;
-            if (!isset($produkTerjual[$key])) {
-                $produkTerjual[$key] = [
-                    'nama' => $namaProduk,
-                    'qty' => 0,
-                ];
+                case 'QRIS':
+                    $penjualanQris += $grandTotal;
+                    break;
+
+                case 'DEBIT':
+                    $penjualanDebit += $grandTotal;
+                    break;
+
+                case 'TRANSFER':
+                    $penjualanTransfer += $grandTotal;
+                    break;
             }
-            $produkTerjual[$key]['qty'] += (int) $item->quantity;
         }
-    }
-    $produkTerjual = array_values($produkTerjual);
-    $activeShift->update([
-        'status' => 'closed',
-        'physical_cash' => $cashFisik,
-        'closed_at' => now(),
-    ]);
 
-    $shiftReport = [
-        'kasir' => $user->name,
-        'outlet' => Outlet::find($user->outlet_id)?->name ?? '-',
-        'waktu_buka' => $activeShift->opened_at
-            ? $activeShift->opened_at->format('d-m-Y H:i')
-            : '-',
-        'waktu_tutup' => now()->format('d-m-Y H:i'),
-        'modal_awal' => $modalAwal,
-        'payment_summary' => $paymentSummary,
-        'penjualan_tunai' => $penjualanTunai,
-        'total_penjualan' => $totalPenjualan,
 
-        'cash_transactions' => $cashTransactions
-            ->map(function ($item) {
-                return [
-                    'nama' => $item->name,
-                    'jenis' => $item->transaction_type === 'IN'
-                        ? 'Uang Masuk'
-                        : 'Uang Keluar',
-                    'kategori' => $item->category,
-                    'jumlah' => (float) $item->amount,
-                    'deskripsi' => $item->description,
-                ];
-            })
-            ->values()
-            ->toArray(),
-        'cash_in' => $cashIn,
-        'cash_out' => $cashOut,
-        'cash_seharusnya' => $cashSeharusnya,
-        'cash_aktual_sistem' => $cashSeharusnya,
-        'cash_fisik' => $cashFisik,
-        'selisih' => abs($selisih),
-        'selisih_jenis' => $selisihJenis,
-        'total_transaksi' => $transactions->count(),
-        'total_item' => $totalItem,
+        /*
+        |--------------------------------------------------------------------------
+        | 4. TOTAL PENJUALAN
+        |--------------------------------------------------------------------------
+        */
+        $totalPenjualan =
+            $penjualanTunai
+            + $penjualanQris
+            + $penjualanDebit
+            + $penjualanTransfer;
 
-        'produk_terjual' => $produkTerjual,
-    ];
 
-    return response()->json([
-        'success' => true,
-        'shift_report' => $shiftReport
-    ]);
+        /*
+        |--------------------------------------------------------------------------
+        | 5. MODAL AWAL
+        |--------------------------------------------------------------------------
+        */
+        $modalAwal = (float) $activeShift->initial_cash;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 6. CASH AKTUAL SISTEM
+        |
+        | HANYA:
+        | Modal Awal
+        | + Penjualan Tunai
+        | + Uang Masuk
+        | - Uang Keluar
+        |
+        | QRIS / DEBIT / TRANSFER TIDAK MASUK CASH
+        |--------------------------------------------------------------------------
+        */
+        $cashAktualSistem =
+            $modalAwal
+            + $penjualanTunai
+            + $cashIn
+            - $cashOut;
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 7. CASH FISIK
+        |--------------------------------------------------------------------------
+        */
+        $cashFisik = (float) $request->input('physical_cash', 0);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 8. SELISIH
+        |--------------------------------------------------------------------------
+        */
+        $selisih = $cashFisik - $cashAktualSistem;
+
+        $selisihJenis = null;
+
+        if ($selisih < 0) {
+            $selisihJenis = 'KURANG';
+        } elseif ($selisih > 0) {
+            $selisihJenis = 'LEBIH';
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 9. TOTAL ITEM
+        |--------------------------------------------------------------------------
+        */
+        $totalItem = 0;
+
+        foreach ($transactions as $transaction) {
+            foreach ($transaction->items as $item) {
+                $totalItem += (int) $item->quantity;
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 10. PRODUK TERJUAL
+        |--------------------------------------------------------------------------
+        */
+        $produkTerjual = [];
+
+        foreach ($transactions as $transaction) {
+
+            foreach ($transaction->items as $item) {
+
+                $namaProduk =
+                    $item->product_name_snapshot
+                    ?? $item->product_name
+                    ?? 'Produk';
+
+                if (!isset($produkTerjual[$namaProduk])) {
+
+                    $produkTerjual[$namaProduk] = [
+                        'nama' => $namaProduk,
+                        'qty' => 0,
+                    ];
+                }
+
+                $produkTerjual[$namaProduk]['qty'] += (int) $item->quantity;
+            }
+        }
+
+        $produkTerjual = array_values($produkTerjual);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 11. PAYMENT SUMMARY
+        |--------------------------------------------------------------------------
+        */
+        $paymentSummary = [
+            [
+                'payment_method' => 'TUNAI',
+                'total' => $penjualanTunai,
+                'transaction_count' => $transactions->filter(function ($transaction) {
+                    return in_array(
+                        strtoupper(trim($transaction->payment_method ?? 'TUNAI')),
+                        ['TUNAI', 'CASH']
+                    );
+                })->count(),
+            ],
+            [
+                'payment_method' => 'QRIS',
+                'total' => $penjualanQris,
+                'transaction_count' => $transactions->filter(function ($transaction) {
+                    return strtoupper(
+                        trim($transaction->payment_method ?? '')
+                    ) === 'QRIS';
+                })->count(),
+            ],
+            [
+                'payment_method' => 'DEBIT',
+                'total' => $penjualanDebit,
+                'transaction_count' => $transactions->filter(function ($transaction) {
+                    return strtoupper(
+                        trim($transaction->payment_method ?? '')
+                    ) === 'DEBIT';
+                })->count(),
+            ],
+            [
+                'payment_method' => 'TRANSFER',
+                'total' => $penjualanTransfer,
+                'transaction_count' => $transactions->filter(function ($transaction) {
+                    return strtoupper(
+                        trim($transaction->payment_method ?? '')
+                    ) === 'TRANSFER';
+                })->count(),
+            ],
+        ];
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 12. TUTUP SHIFT
+        |--------------------------------------------------------------------------
+        */
+        $activeShift->update([
+            'status' => 'closed',
+            'physical_cash' => $cashFisik,
+            'closed_at' => now(),
+        ]);
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 13. DATA UNTUK PRINT SHIFT REPORT
+        |--------------------------------------------------------------------------
+        |
+        | Nama field dibuat konsisten dengan PrintShiftReport.jsx
+        |--------------------------------------------------------------------------
+        */
+        $shiftReport = [
+
+            // Identitas
+            'kasir' => $user->name,
+
+            'outlet' => Outlet::find($user->outlet_id)?->name ?? '-',
+
+            'opened_at' => $activeShift->opened_at
+                ? $activeShift->opened_at->format('d-m-Y H:i')
+                : '-',
+
+            'closed_at' => now()->format('d-m-Y H:i'),
+
+
+            // Modal
+            'starting_cash' => $modalAwal,
+            'modal_awal' => $modalAwal,
+
+
+            // Penjualan
+            'tunai' => $penjualanTunai,
+            'penjualan_tunai' => $penjualanTunai,
+
+            'qris' => $penjualanQris,
+
+            'debit' => $penjualanDebit,
+
+            'transfer' => $penjualanTransfer,
+
+            'total_penjualan' => $totalPenjualan,
+
+            'payment_summary' => $paymentSummary,
+
+
+            // Transaksi kas
+            'cash_transactions' => $cashTransactions
+                ->map(function ($item) {
+
+                    return [
+                        'id' => $item->id,
+
+                        'nama' => $item->name,
+
+                        'jenis' => $item->transaction_type === 'IN'
+                            ? 'Uang Masuk'
+                            : 'Uang Keluar',
+
+                        'kategori' => $item->category,
+
+                        'jumlah' => (float) $item->amount,
+
+                        'deskripsi' => $item->description,
+
+                        'created_at' => $item->created_at
+                            ? $item->created_at->format('d-m-Y H:i')
+                            : null,
+                    ];
+                })
+                ->values()
+                ->toArray(),
+
+
+            // Total transaksi kas
+            'pemasukan' => $cashIn,
+            'cash_in' => $cashIn,
+
+            'pengeluaran' => $cashOut,
+            'cash_out' => $cashOut,
+
+
+            // Cash
+            'cash_aktual_sistem' => $cashAktualSistem,
+
+            'physical_cash' => $cashFisik,
+            'cash_fisik' => $cashFisik,
+
+
+            // Selisih
+            'selisih' => abs($selisih),
+
+            'selisih_jenis' => $selisihJenis,
+
+
+            // Statistik
+            'total_transaksi' => $transactions->count(),
+
+            'total_item' => $totalItem,
+
+            'produk_terjual' => $produkTerjual,
+        ];
+
+
+        return response()->json([
+            'success' => true,
+            'shift_report' => $shiftReport
+        ]);
     }
     
 }
