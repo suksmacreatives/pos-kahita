@@ -64,170 +64,428 @@ class ShiftController extends Controller
     // TUTUP KASIR
     // ==========================================================
     public function tutupKasir(Request $request)
-    {
-        $request->validate([
-            'physical_cash' => 'required|numeric|min:0',
-        ]);
+{
+    $request->validate([
+        'physical_cash' => 'required|numeric|min:0',
+    ]);
 
-        $user = Auth::user();
+    $user = Auth::user();
 
-        $shift = CashRegisterShift::where('user_id', $user->id)
-            ->where('status', 'open')
-            ->first();
+    $shift = CashRegisterShift::where('user_id', $user->id)
+        ->where('status', 'open')
+        ->first();
 
-        if (!$shift) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Shift tidak ditemukan.'
-            ], 404);
-        }
+    if (!$shift) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Shift tidak ditemukan.'
+        ], 404);
+    }
 
-        $closedAt = Carbon::now('Asia/Makassar');
+    $closedAt = Carbon::now('Asia/Makassar');
 
-        $transactions = Transaction::with('items')
-        ->where('outlet_id', $shift->outlet_id)
-        ->whereBetween(
-            'created_at',
-            [$shift->opened_at, $closedAt]
-        )
-        ->where('status','!=','void')
+    // ==========================================================
+    // 1. AMBIL SEMUA TRANSAKSI DALAM SHIFT
+    //    Termasuk COMPLETED dan VOID
+    // ==========================================================
+
+    $transactions = Transaction::with('items')
+        ->where('shift_id', $shift->id)
         ->get();
 
-        $totalTunai = $transactions
-            ->where('payment_method', 'Tunai')
-            ->sum('grand_total');
+    // ==========================================================
+    // 2. TRANSAKSI COMPLETED
+    //    Hanya ini yang dihitung sebagai penjualan
+    // ==========================================================
 
-        $totalTransfer = $transactions
-            ->where('payment_method', 'Transfer')
-            ->sum('grand_total');
+    $completedTransactions = $transactions
+        ->where('status', 'completed')
+        ->values();
 
-        $totalQris = $transactions
-            ->where('payment_method', 'QRIS')
-            ->sum('grand_total');
+    // ==========================================================
+    // 3. TRANSAKSI VOID
+    //    Tidak dihitung, tetapi tetap dikirim ke struk
+    // ==========================================================
 
-        $totalDebit = $transactions
-            ->where('payment_method', 'Debit')
-            ->sum('grand_total');
+    $voidTransactions = $transactions
+        ->where('status', 'void')
+        ->values();
 
-        $totalEwallet = $transactions
-            ->where('payment_method', 'E-Wallet')
-            ->sum('grand_total');
+    // ==========================================================
+    // 4. HITUNG PENJUALAN PER METODE PEMBAYARAN
+    // ==========================================================
 
-        $totalVoid = Transaction::where('outlet_id', $shift->outlet_id)
-            ->whereBetween(
-                'created_at',
-                [$shift->opened_at, $closedAt]
-            )
-            ->where('status', 'void')
-            ->sum('grand_total');
+    $totalTunai = 0;
+    $totalTransfer = 0;
+    $totalQris = 0;
+    $totalDebit = 0;
+    $totalEwallet = 0;
 
-        $totalPenjualan = $transactions->sum('grand_total');
+    foreach ($completedTransactions as $transaction) {
 
-        $totalTransaksi = $transactions->count();
+        $paymentMethod = strtoupper(
+            trim($transaction->payment_method ?? '')
+        );
 
-        $totalItem = TransactionItem::whereIn(
-                'transaction_id',
-                $transactions->pluck('id')
-            )
-            ->sum('quantity');
+        $grandTotal = (float) $transaction->grand_total;
 
-        $totalCash = $shift->starting_cash + $totalTunai;
+        switch ($paymentMethod) {
 
-        $discrepancy =
-            $request->physical_cash - $totalCash;
+            case 'TUNAI':
+            case 'CASH':
+                $totalTunai += $grandTotal;
+                break;
 
-        $shift->update([
-            'closed_at'      => $closedAt,
-            'physical_cash'  => $request->physical_cash,
-            'system_cash'    => $totalCash,
-            'discrepancy'    => $discrepancy,
-            'status'         => 'closed',
-        ]);
+            case 'TRANSFER':
+                $totalTransfer += $grandTotal;
+                break;
 
-        // Notify admins about shift closure
-        $admins = User::whereIn('role', ['admin', 'owner'])->where('status', 'aktif')->get();
-        $severity = abs($discrepancy) > 0 ? 'warning' : 'info';
-        foreach ($admins as $admin) {
-            $admin->notify(new ShiftNotification([
-                'title'    => 'Shift Ditutup',
-                'message'  => "Shift {$user->name} ditutup" . ($discrepancy != 0 ? " (selisih: Rp " . number_format(abs($discrepancy), 0, ',', '.') . ")" : ""),
-                'link'     => '/admin/reports?kategori=kasir&sub=performa-kasir',
-                'icon'     => 'clock',
-                'severity' => $severity,
-            ]));
+            case 'QRIS':
+                $totalQris += $grandTotal;
+                break;
+
+            case 'DEBIT':
+                $totalDebit += $grandTotal;
+                break;
+
+            case 'E-WALLET':
+            case 'EWALLET':
+                $totalEwallet += $grandTotal;
+                break;
         }
+    }
 
-        session()->forget('active_shift_id');
+    // ==========================================================
+    // 5. TOTAL PENJUALAN
+    // ==========================================================
 
-        $produkTerjual = [];
+    $totalPenjualan =
+        $totalTunai
+        + $totalTransfer
+        + $totalQris
+        + $totalDebit
+        + $totalEwallet;
 
-foreach ($transactions as $trx) {
+    // ==========================================================
+    // 6. CASH TRANSACTION
+    //    Ambil UANG MASUK / UANG KELUAR dari shift
+    // ==========================================================
 
-    foreach ($trx->items as $item) {
+    $cashTransactions = \App\Models\CashTransaction::where(
+        'shift_id',
+        $shift->id
+    )
+        ->orderBy('created_at', 'asc')
+        ->get();
 
-        $nama = $item->product_name_snapshot;
+    $totalPemasukan = (float) $cashTransactions
+        ->where('transaction_type', 'IN')
+        ->sum('amount');
 
-        if ($item->variant_color || $item->variant_size) {
+    $totalPengeluaran = (float) $cashTransactions
+        ->where('transaction_type', 'OUT')
+        ->sum('amount');
 
-            $nama .= " (";
+    // ==========================================================
+    // 7. CASH AKTUAL SISTEM
+    //
+    // Modal Awal
+    // + Penjualan Tunai
+    // + Uang Masuk
+    // - Uang Keluar
+    // ==========================================================
 
-            if ($item->variant_color) {
-                $nama .= $item->variant_color;
-            }
+    $cashAktualSistem =
+        (float) $shift->starting_cash
+        + $totalTunai
+        + $totalPemasukan
+        - $totalPengeluaran;
 
-            if ($item->variant_size) {
+    // ==========================================================
+    // 8. CASH FISIK
+    // ==========================================================
+
+    $cashFisik = (float) $request->physical_cash;
+
+    // ==========================================================
+    // 9. SELISIH
+    // ==========================================================
+
+    $discrepancy = $cashFisik - $cashAktualSistem;
+
+    $selisihJenis = null;
+
+    if ($discrepancy < 0) {
+        $selisihJenis = 'KURANG';
+    } elseif ($discrepancy > 0) {
+        $selisihJenis = 'LEBIH';
+    }
+
+    // ==========================================================
+    // 10. TOTAL TRANSAKSI
+    //     Hanya COMPLETED
+    // ==========================================================
+
+    $totalTransaksi = $completedTransactions->count();
+
+    // ==========================================================
+    // 11. TOTAL ITEM TERJUAL
+    //     Hanya COMPLETED
+    // ==========================================================
+
+    $totalItem = 0;
+
+    foreach ($completedTransactions as $trx) {
+
+        foreach ($trx->items as $item) {
+
+            $totalItem += (int) $item->quantity;
+        }
+    }
+
+    // ==========================================================
+    // 12. PRODUK TERJUAL
+    //     Hanya COMPLETED
+    // ==========================================================
+
+    $produkTerjual = [];
+
+    foreach ($completedTransactions as $trx) {
+
+        foreach ($trx->items as $item) {
+
+            $nama = $item->product_name_snapshot ?? 'Produk';
+
+            if ($item->variant_color || $item->variant_size) {
+
+                $nama .= " (";
 
                 if ($item->variant_color) {
-                    $nama .= " / ";
+                    $nama .= $item->variant_color;
                 }
 
-                $nama .= $item->variant_size;
+                if ($item->variant_size) {
+
+                    if ($item->variant_color) {
+                        $nama .= " / ";
+                    }
+
+                    $nama .= $item->variant_size;
+                }
+
+                $nama .= ")";
             }
 
-            $nama .= ")";
+            if (!isset($produkTerjual[$nama])) {
+
+                $produkTerjual[$nama] = [
+                    'nama' => $nama,
+                    'qty' => 0,
+                ];
+            }
+
+            $produkTerjual[$nama]['qty'] += (int) $item->quantity;
         }
+    }
 
-        if (!isset($produkTerjual[$nama])) {
+    // ==========================================================
+    // 13. DATA TRANSAKSI VOID UNTUK STRUK
+    // ==========================================================
 
-            $produkTerjual[$nama] = [
-                'nama' => $nama,
-                'qty' => 0,
+    $voidData = $voidTransactions
+        ->map(function ($transaction) {
+
+            return [
+                'invoice_number' => $transaction->invoice_number,
+                'customer_name' => $transaction->customer_name,
+                'grand_total' => (float) $transaction->grand_total,
+                'payment_method' => $transaction->payment_method,
+                'voided_at' => $transaction->voided_at
+                    ? Carbon::parse($transaction->voided_at)
+                        ->format('d-m-Y H:i')
+                    : null,
             ];
-        }
+        })
+        ->values()
+        ->toArray();
 
-        $produkTerjual[$nama]['qty'] += $item->quantity;
+    // ==========================================================
+    // 14. UPDATE SHIFT
+    // ==========================================================
+
+    $shift->update([
+        'closed_at' => $closedAt,
+        'physical_cash' => $cashFisik,
+        'system_cash' => $cashAktualSistem,
+        'discrepancy' => $discrepancy,
+        'status' => 'closed',
+    ]);
+
+    // ==========================================================
+    // 15. NOTIFIKASI ADMIN
+    // ==========================================================
+
+    $admins = User::whereIn('role', ['admin', 'owner'])
+        ->where('status', 'aktif')
+        ->get();
+
+    $severity = abs($discrepancy) > 0
+        ? 'warning'
+        : 'info';
+
+    foreach ($admins as $admin) {
+
+        $admin->notify(new ShiftNotification([
+            'title' => 'Shift Ditutup',
+
+            'message' =>
+                "Shift {$user->name} ditutup"
+                . (
+                    $discrepancy != 0
+                        ? " (selisih: Rp "
+                        . number_format(
+                            abs($discrepancy),
+                            0,
+                            ',',
+                            '.'
+                        )
+                        . ")"
+                        : ""
+                ),
+
+            'link' => '/admin/reports?kategori=kasir&sub=performa-kasir',
+
+            'icon' => 'clock',
+
+            'severity' => $severity,
+        ]));
     }
+
+    // ==========================================================
+    // 16. HAPUS SESSION SHIFT
+    // ==========================================================
+
+    session()->forget('active_shift_id');
+
+    // ==========================================================
+    // 17. REKAP UNTUK PRINTSHIFTREPORT
+    // ==========================================================
+
+    $rekapShiftData = [
+
+        'kasir' => $user->name,
+
+        'opened_at' => Carbon::parse(
+            $shift->opened_at
+        )->format('d-m-Y H:i'),
+
+        'closed_at' => $closedAt->format(
+            'd-m-Y H:i'
+        ),
+
+        // ------------------------------
+        // CASH
+        // ------------------------------
+
+        'starting_cash' => (float) $shift->starting_cash,
+
+        'physical_cash' => $cashFisik,
+
+        'cash_aktual_sistem' => $cashAktualSistem,
+
+        'cash_expected' => $cashAktualSistem,
+
+        'system_cash' => $cashAktualSistem,
+
+        'discrepancy' => abs($discrepancy),
+
+        'selisih' => abs($discrepancy),
+
+        'selisih_jenis' => $selisihJenis,
+
+        // ------------------------------
+        // PENJUALAN
+        // ------------------------------
+
+        'tunai' => $totalTunai,
+
+        'transfer' => $totalTransfer,
+
+        'qris' => $totalQris,
+
+        'debit' => $totalDebit,
+
+        'ewallet' => $totalEwallet,
+
+        'total_penjualan' => $totalPenjualan,
+
+        // ------------------------------
+        // CASH TRANSACTION
+        // ------------------------------
+
+        'pemasukan' => $totalPemasukan,
+
+        'cash_in' => $totalPemasukan,
+
+        'pengeluaran' => $totalPengeluaran,
+
+        'cash_out' => $totalPengeluaran,
+
+        // ------------------------------
+        // TRANSAKSI
+        // ------------------------------
+
+        'total_transaksi' => $totalTransaksi,
+
+        'total_item' => $totalItem,
+
+        'products' => array_values($produkTerjual),
+
+        // ------------------------------
+        // VOID
+        // ------------------------------
+
+        'total_void' => count($voidData),
+
+        'void_transactions' => $voidData,
+
+        // ------------------------------
+        // DETAIL CASH TRANSACTION
+        // ------------------------------
+
+        'cash_transactions' => $cashTransactions
+            ->map(function ($item) {
+
+                return [
+                    'id' => $item->id,
+                    'nama' => $item->name,
+
+                    'jenis' =>
+                        $item->transaction_type === 'IN'
+                            ? 'Uang Masuk'
+                            : 'Uang Keluar',
+
+                    'kategori' => $item->category,
+
+                    'jumlah' => (float) $item->amount,
+
+                    'deskripsi' => $item->description,
+
+                    'created_at' => $item->created_at
+                        ? Carbon::parse($item->created_at)
+                            ->format('d-m-Y H:i')
+                        : null,
+                ];
+            })
+            ->values()
+            ->toArray(),
+    ];
+
+    return response()->json([
+        'success' => true,
+        'shift_report' => $rekapShiftData,
+    ]);
 }
-
-        $rekapShiftData = [
-            'kasir'            => $user->name,
-            'opened_at'        => Carbon::parse($shift->opened_at)->format('d-m-Y H:i'),
-            'closed_at'        => Carbon::parse($closedAt)->format('d-m-Y H:i'),
-
-            'starting_cash'    => $shift->starting_cash,
-            'cash_expected'    => $totalCash,
-            'system_cash'      => $totalCash,
-            'physical_cash'    => $shift->physical_cash,
-            'discrepancy'      => $shift->discrepancy,
-
-            'tunai'            => $totalTunai,
-            'transfer'         => $totalTransfer,
-            'qris'             => $totalQris,
-            'debit'            => $totalDebit,
-            'ewallet'          => $totalEwallet,
-            'void'             => $totalVoid,
-
-            'total_penjualan' => $totalPenjualan,
-            'total_transaksi' => $totalTransaksi,
-            'total_item'      => $totalItem,
-            'products' => array_values($produkTerjual),
-        ];
-
-        return response()->json([
-            'success'      => true,
-            'shift_report' => $rekapShiftData,
-        ]);
-    }
 
     // ==========================================================
     // RIWAYAT SHIFT
