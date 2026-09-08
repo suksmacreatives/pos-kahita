@@ -577,9 +577,10 @@ const handleProsesBayarFinal = async () => {
         const result = await response.json();
 
         if (!result.success) {
-            alert("Gagal menutup kasir");
-            return;
-        }
+    console.error("❌ GAGAL TUTUP KASIR:", result);
+    alert(result.message || "Gagal menutup kasir");
+    return;
+}
 
         // tutup modal
         setShowModalTutup(false);

@@ -433,402 +433,404 @@ export default function PrintShiftReport({
                     lines: 2,
                 });
 
-                // console.log(
-                //     "Mengirim data ke backend proxy..."
-                // );
+                console.log(
+                    "Mengirim data ke backend proxy..."
+                );
 
-                // // KIRIM LANGSUNG KE PRINTER LOKAL (CLEANTER)
-                // const response = await fetch("http://localhost:9100/print", {
-                //     method: "POST",
-                //     headers: {
-                //         "Content-Type": "application/json",
-                //     },
-                //     body: JSON.stringify({
-                //         cut: true,
-                //         content: content,
-                //     }),
-                // });
+                // KIRIM LANGSUNG KE PRINTER LOKAL (CLEANTER)
+                const response = await fetch("http://localhost:9100/print", {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({
+                        cut: true,
+                        content: content,
+                    }),
+                });
 
-                // if (!response.ok) {
-                //     throw new Error("Gagal mencetak rekap tutup kasir (Status: " + response.status + ")");
-                // }
-
-                // console.log("✅ STRUK TUTUP KASIR BERHASIL DICETAK");
-
-                // if (onFinished) {
-                //     onFinished();
-                // }
-
-                // try {
-                //     await fetch(route("pos.logout-after-print"), {
-                //         method: "POST",
-                //         headers: {
-                //             "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
-                //             Accept: "application/json",
-                //         },
-                //     });
-                // } finally {
-                //     window.location.href = "/login";
-                // }
-                console.log("=================================");
-console.log("PREVIEW REKAP TUTUP KASIR");
-console.log("DATA BACKEND:", data);
-console.log("CONTENT:", content);
-console.log("=================================");
-
-const previewWindow = window.open("", "_blank");
-
-if (previewWindow) {
-    previewWindow.document.write(`
-        <html>
-        <head>
-            <title>Preview Rekap Tutup Kasir</title>
-
-            <style>
-                body {
-                    background: #f2f2f2;
-                    font-family: Arial, sans-serif;
-                    padding: 30px;
+                if (!response.ok) {
+                    throw new Error("Gagal mencetak rekap tutup kasir (Status: " + response.status + ")");
                 }
 
-                .receipt {
-                    width: 80mm;
-                    margin: auto;
-                    padding: 15px;
-                    background: white;
-                    box-sizing: border-box;
-                    font-family: "Courier New", monospace;
-                    font-size: 12px;
+                console.log("✅ STRUK TUTUP KASIR BERHASIL DICETAK");
+
+                if (onFinished) {
+                    onFinished();
                 }
 
-                .center {
-                    text-align: center;
+                try {
+                    await fetch(route("pos.logout-after-print"), {
+                        method: "POST",
+                        headers: {
+                            "X-CSRF-TOKEN": document.querySelector('meta[name="csrf-token"]').content,
+                            Accept: "application/json",
+                        },
+                    });
+                } finally {
+                    window.location.href = "/login";
                 }
+                // changes update struk tutup kasir, jika ingin menampilkan preview struk, silahkan uncomment kode dibawah ini
 
-                .bold {
-                    font-weight: bold;
-                }
+// console.log("=================================");
+// console.log("PREVIEW REKAP TUTUP KASIR");
+// console.log("DATA BACKEND:", data);
+// console.log("CONTENT:", content);
+// console.log("=================================");
 
-                .divider {
-                    border-top: 1px dashed black;
-                    margin: 8px 0;
-                }
+// const previewWindow = window.open("", "_blank");
 
-                .row {
-                    display: flex;
-                    justify-content: space-between;
-                    gap: 10px;
-                }
+// if (previewWindow) {
+//     previewWindow.document.write(`
+//         <html>
+//         <head>
+//             <title>Preview Rekap Tutup Kasir</title>
 
-                .label {
-                    flex: 1;
-                }
+//             <style>
+//                 body {
+//                     background: #f2f2f2;
+//                     font-family: Arial, sans-serif;
+//                     padding: 30px;
+//                 }
 
-                .value {
-                    text-align: right;
-                    white-space: nowrap;
-                }
+//                 .receipt {
+//                     width: 80mm;
+//                     margin: auto;
+//                     padding: 15px;
+//                     background: white;
+//                     box-sizing: border-box;
+//                     font-family: "Courier New", monospace;
+//                     font-size: 12px;
+//                 }
 
-                .debug {
-                    width: 80mm;
-                    margin: 20px auto;
-                    padding: 15px;
-                    background: white;
-                    box-sizing: border-box;
-                    font-family: Arial, sans-serif;
-                }
+//                 .center {
+//                     text-align: center;
+//                 }
 
-                pre {
-                    white-space: pre-wrap;
-                    word-break: break-word;
-                }
-            </style>
-        </head>
+//                 .bold {
+//                     font-weight: bold;
+//                 }
 
-        <body>
+//                 .divider {
+//                     border-top: 1px dashed black;
+//                     margin: 8px 0;
+//                 }
 
-            <div class="receipt">
+//                 .row {
+//                     display: flex;
+//                     justify-content: space-between;
+//                     gap: 10px;
+//                 }
 
-                <div class="center bold">
-                    ${notaConfig.namaToko || "KAHITA BUSANA"}
-                </div>
+//                 .label {
+//                     flex: 1;
+//                 }
 
-                ${
-                    notaConfig.alamatToko
-                        ? `<div class="center">
-                            ${notaConfig.alamatToko}
-                           </div>`
-                        : ""
-                }
+//                 .value {
+//                     text-align: right;
+//                     white-space: nowrap;
+//                 }
 
-                ${
-                    notaConfig.telpToko
-                        ? `<div class="center">
-                            ${notaConfig.telpToko}
-                           </div>`
-                        : ""
-                }
+//                 .debug {
+//                     width: 80mm;
+//                     margin: 20px auto;
+//                     padding: 15px;
+//                     background: white;
+//                     box-sizing: border-box;
+//                     font-family: Arial, sans-serif;
+//                 }
 
-                <div class="divider"></div>
+//                 pre {
+//                     white-space: pre-wrap;
+//                     word-break: break-word;
+//                 }
+//             </style>
+//         </head>
 
-                <div class="center bold">
-                    REKAP TUTUP KASIR
-                </div>
+//         <body>
 
-                <br>
+//             <div class="receipt">
 
-                Kasir : ${data.kasir || "-"}<br>
-                Buka  : ${data.opened_at || "-"}<br>
-                Tutup : ${data.closed_at || "-"}
+//                 <div class="center bold">
+//                     ${notaConfig.namaToko || "KAHITA BUSANA"}
+//                 </div>
 
-                <div class="divider"></div>
+//                 ${
+//                     notaConfig.alamatToko
+//                         ? `<div class="center">
+//                             ${notaConfig.alamatToko}
+//                            </div>`
+//                         : ""
+//                 }
 
-                <div class="row">
-                    <span class="label">Modal Awal</span>
-                    <span class="value">
-                        ${formatRupiah(data.starting_cash || 0)}
-                    </span>
-                </div>
+//                 ${
+//                     notaConfig.telpToko
+//                         ? `<div class="center">
+//                             ${notaConfig.telpToko}
+//                            </div>`
+//                         : ""
+//                 }
 
-                <br>
+//                 <div class="divider"></div>
 
-                ${
-                    Number(data.tunai || 0) > 0
-                        ? `
-                            <div class="row">
-                                <span class="label">Tunai</span>
-                                <span class="value">
-                                    ${formatRupiah(data.tunai)}
-                                </span>
-                            </div>
-                        `
-                        : ""
-                }
+//                 <div class="center bold">
+//                     REKAP TUTUP KASIR
+//                 </div>
 
-                ${
-                    Number(data.qris || 0) > 0
-                        ? `
-                            <div class="row">
-                                <span class="label">QRIS</span>
-                                <span class="value">
-                                    ${formatRupiah(data.qris)}
-                                </span>
-                            </div>
-                        `
-                        : ""
-                }
+//                 <br>
 
-                ${
-                    Number(data.debit || 0) > 0
-                        ? `
-                            <div class="row">
-                                <span class="label">Debit</span>
-                                <span class="value">
-                                    ${formatRupiah(data.debit)}
-                                </span>
-                            </div>
-                        `
-                        : ""
-                }
+//                 Kasir : ${data.kasir || "-"}<br>
+//                 Buka  : ${data.opened_at || "-"}<br>
+//                 Tutup : ${data.closed_at || "-"}
 
-                ${
-                    Number(data.transfer || 0) > 0
-                        ? `
-                            <div class="row">
-                                <span class="label">Transfer</span>
-                                <span class="value">
-                                    ${formatRupiah(data.transfer)}
-                                </span>
-                            </div>
-                        `
-                        : ""
-                }
+//                 <div class="divider"></div>
 
-                <div class="divider"></div>
+//                 <div class="row">
+//                     <span class="label">Modal Awal</span>
+//                     <span class="value">
+//                         ${formatRupiah(data.starting_cash || 0)}
+//                     </span>
+//                 </div>
 
-                <div class="row bold">
-                    <span class="label">
-                        TOTAL PENJUALAN
-                    </span>
+//                 <br>
 
-                    <span class="value">
-                        ${formatRupiah(
-                            data.total_penjualan || 0
-                        )}
-                    </span>
-                </div>
+//                 ${
+//                     Number(data.tunai || 0) > 0
+//                         ? `
+//                             <div class="row">
+//                                 <span class="label">Tunai</span>
+//                                 <span class="value">
+//                                     ${formatRupiah(data.tunai)}
+//                                 </span>
+//                             </div>
+//                         `
+//                         : ""
+//                 }
 
-                <div class="divider"></div>
+//                 ${
+//                     Number(data.qris || 0) > 0
+//                         ? `
+//                             <div class="row">
+//                                 <span class="label">QRIS</span>
+//                                 <span class="value">
+//                                     ${formatRupiah(data.qris)}
+//                                 </span>
+//                             </div>
+//                         `
+//                         : ""
+//                 }
 
-                ${
-                    Number(
-                        data.pemasukan ||
-                        data.cash_in ||
-                        0
-                    ) > 0
-                        ? `
-                            <div class="row">
-                                <span class="label">
-                                    Pemasukan
-                                </span>
+//                 ${
+//                     Number(data.debit || 0) > 0
+//                         ? `
+//                             <div class="row">
+//                                 <span class="label">Debit</span>
+//                                 <span class="value">
+//                                     ${formatRupiah(data.debit)}
+//                                 </span>
+//                             </div>
+//                         `
+//                         : ""
+//                 }
 
-                                <span class="value">
-                                    ${formatRupiah(
-                                        data.pemasukan ||
-                                        data.cash_in ||
-                                        0
-                                    )}
-                                </span>
-                            </div>
-                        `
-                        : ""
-                }
+//                 ${
+//                     Number(data.transfer || 0) > 0
+//                         ? `
+//                             <div class="row">
+//                                 <span class="label">Transfer</span>
+//                                 <span class="value">
+//                                     ${formatRupiah(data.transfer)}
+//                                 </span>
+//                             </div>
+//                         `
+//                         : ""
+//                 }
 
-                ${
-                    Number(
-                        data.pengeluaran ||
-                        data.cash_out ||
-                        0
-                    ) > 0
-                        ? `
-                            <div class="row">
-                                <span class="label">
-                                    Pengeluaran
-                                </span>
+//                 <div class="divider"></div>
 
-                                <span class="value">
-                                    ${formatRupiah(
-                                        data.pengeluaran ||
-                                        data.cash_out ||
-                                        0
-                                    )}
-                                </span>
-                            </div>
-                        `
-                        : ""
-                }
+//                 <div class="row bold">
+//                     <span class="label">
+//                         TOTAL PENJUALAN
+//                     </span>
 
-                <div class="divider"></div>
+//                     <span class="value">
+//                         ${formatRupiah(
+//                             data.total_penjualan || 0
+//                         )}
+//                     </span>
+//                 </div>
 
-                <div class="row bold">
-                    <span class="label">
-                        Cash Aktual Sistem
-                    </span>
+//                 <div class="divider"></div>
 
-                    <span class="value">
-                        ${formatRupiah(
-                            data.cash_aktual_sistem ||
-                            data.system_cash ||
-                            0
-                        )}
-                    </span>
-                </div>
+//                 ${
+//                     Number(
+//                         data.pemasukan ||
+//                         data.cash_in ||
+//                         0
+//                     ) > 0
+//                         ? `
+//                             <div class="row">
+//                                 <span class="label">
+//                                     Pemasukan
+//                                 </span>
 
-                <div class="row bold">
-                    <span class="label">
-                        Cash Fisik
-                    </span>
+//                                 <span class="value">
+//                                     ${formatRupiah(
+//                                         data.pemasukan ||
+//                                         data.cash_in ||
+//                                         0
+//                                     )}
+//                                 </span>
+//                             </div>
+//                         `
+//                         : ""
+//                 }
 
-                    <span class="value">
-                        ${formatRupiah(
-                            data.physical_cash || 0
-                        )}
-                    </span>
-                </div>
+//                 ${
+//                     Number(
+//                         data.pengeluaran ||
+//                         data.cash_out ||
+//                         0
+//                     ) > 0
+//                         ? `
+//                             <div class="row">
+//                                 <span class="label">
+//                                     Pengeluaran
+//                                 </span>
 
-                <div class="divider"></div>
+//                                 <span class="value">
+//                                     ${formatRupiah(
+//                                         data.pengeluaran ||
+//                                         data.cash_out ||
+//                                         0
+//                                     )}
+//                                 </span>
+//                             </div>
+//                         `
+//                         : ""
+//                 }
 
-                <div class="row">
-                    <span class="label">
-                        Total Transaksi
-                    </span>
+//                 <div class="divider"></div>
 
-                    <span class="value">
-                        ${data.total_transaksi || 0}
-                    </span>
-                </div>
+//                 <div class="row bold">
+//                     <span class="label">
+//                         Cash Aktual Sistem
+//                     </span>
 
-                <div class="row">
-                    <span class="label">
-                        Total Item
-                    </span>
+//                     <span class="value">
+//                         ${formatRupiah(
+//                             data.cash_aktual_sistem ||
+//                             data.system_cash ||
+//                             0
+//                         )}
+//                     </span>
+//                 </div>
 
-                    <span class="value">
-                        ${data.total_item || 0}
-                    </span>
-                </div>
+//                 <div class="row bold">
+//                     <span class="label">
+//                         Cash Fisik
+//                     </span>
 
-                ${
-                    Array.isArray(data.products) &&
-                    data.products.length > 0
-                        ? `
-                            <div class="divider"></div>
+//                     <span class="value">
+//                         ${formatRupiah(
+//                             data.physical_cash || 0
+//                         )}
+//                     </span>
+//                 </div>
 
-                            <div class="center bold">
-                                PRODUK TERJUAL
-                            </div>
+//                 <div class="divider"></div>
 
-                            <br>
+//                 <div class="row">
+//                     <span class="label">
+//                         Total Transaksi
+//                     </span>
 
-                            ${data.products.map(item => `
-                                <div class="row">
-                                    <span class="label">
-                                        ${
-                                            item.nama ||
-                                            item.name ||
-                                            "Produk"
-                                        }
-                                    </span>
+//                     <span class="value">
+//                         ${data.total_transaksi || 0}
+//                     </span>
+//                 </div>
 
-                                    <span class="value">
-                                        x${
-                                            item.qty ||
-                                            item.quantity ||
-                                            0
-                                        }
-                                    </span>
-                                </div>
-                            `).join("")}
-                        `
-                        : ""
-                }
+//                 <div class="row">
+//                     <span class="label">
+//                         Total Item
+//                     </span>
 
-                <div class="divider"></div>
+//                     <span class="value">
+//                         ${data.total_item || 0}
+//                     </span>
+//                 </div>
 
-                ${
-                    notaConfig.showHeaderTerimakasih
-                        ? `
-                            <div class="center bold">
-                                ${
-                                    notaConfig.teksTerimakasih ||
-                                    "Terima Kasih"
-                                }
-                            </div>
-                        `
-                        : ""
-                }
+//                 ${
+//                     Array.isArray(data.products) &&
+//                     data.products.length > 0
+//                         ? `
+//                             <div class="divider"></div>
 
-            </div>
+//                             <div class="center bold">
+//                                 PRODUK TERJUAL
+//                             </div>
 
-            <div class="debug">
-                <strong>
-                    DEBUG DATA BACKEND
-                </strong>
+//                             <br>
 
-                <pre>
-${JSON.stringify(data, null, 2)}
-                </pre>
-            </div>
+//                             ${data.products.map(item => `
+//                                 <div class="row">
+//                                     <span class="label">
+//                                         ${
+//                                             item.nama ||
+//                                             item.name ||
+//                                             "Produk"
+//                                         }
+//                                     </span>
 
-        </body>
-        </html>
-    `);
+//                                     <span class="value">
+//                                         x${
+//                                             item.qty ||
+//                                             item.quantity ||
+//                                             0
+//                                         }
+//                                     </span>
+//                                 </div>
+//                             `).join("")}
+//                         `
+//                         : ""
+//                 }
 
-    previewWindow.document.close();
-}
+//                 <div class="divider"></div>
+
+//                 ${
+//                     notaConfig.showHeaderTerimakasih
+//                         ? `
+//                             <div class="center bold">
+//                                 ${
+//                                     notaConfig.teksTerimakasih ||
+//                                     "Terima Kasih"
+//                                 }
+//                             </div>
+//                         `
+//                         : ""
+//                 }
+
+//             </div>
+
+//             <div class="debug">
+//                 <strong>
+//                     DEBUG DATA BACKEND
+//                 </strong>
+
+//                 <pre>
+// ${JSON.stringify(data, null, 2)}
+//                 </pre>
+//             </div>
+
+//         </body>
+//         </html>
+//     `);
+
+//     previewWindow.document.close();
+// }
 
 
-                        } catch (error) {
+                    } catch (error) {
                     console.error("PRINT / LOGOUT ERROR:", error);
                     alreadyPrinted.current = false;
                     

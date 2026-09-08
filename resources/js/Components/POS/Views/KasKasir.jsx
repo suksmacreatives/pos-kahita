@@ -104,15 +104,24 @@ export default function KasKasir({ formatRupiah, initialCash = 0, kasHistory = [
     };
 
    const handleSimpanTransaksi = async (e) => {
-    e.preventDefault();
+        e.preventDefault();
+        try {
+           const getCookie = (name) => {
+            const value = `; ${document.cookie}`;
+            const parts = value.split(`; ${name}=`);
+            if (parts.length === 2) return decodeURIComponent(parts.pop().split(';').shift());
+        };
 
-    try {
+        const csrfToken = getCookie('XSRF-TOKEN');
+
         const response = await fetch(route('cash-transactions.store'), {
             method: 'POST',
+            credentials: 'same-origin', // Sangat penting agar cookie sesi ikut terkirim
             headers: {
                 'Accept': 'application/json',
                 'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.content
+                'X-XSRF-TOKEN': csrfToken, // Laravel memvalidasi token dari header ini jika dikirim via fetch
+                'X-Requested-With': 'XMLHttpRequest',
             },
             body: JSON.stringify({
                 jenis: formData.jenis,
