@@ -8,13 +8,19 @@ import {
     AlertTriangle,
     Archive,
     Boxes,
-    Eye
+    Eye,
+    Share2
 } from "lucide-react";
 import { Fragment } from "react";
+import FormDistribusiModal from "@/Components/Admin/Inventory/Gudang/FormDistribusiModal";
+import { router } from '@inertiajs/react';
 
 export default function InventoryStockView({
     products = [],
     categories = [],
+    outlets = [],
+    onlineShops = [],
+    outletSlug = null,
 }) {
 
     const [search, setSearch] = useState("");
@@ -22,6 +28,32 @@ export default function InventoryStockView({
     const [selectedProduct, setSelectedProduct] = useState(null);
     const [expandedProduct, setExpandedProduct] = useState(null);
     const [status, setStatus] = useState("");
+
+    const [distribusiProduct, setDistribusiProduct] = useState(null);
+    const [distribusiModalOpen, setDistribusiModalOpen] = useState(false);
+
+    const produkDistribusi = distribusiProduct
+    ? [
+        {
+            id: distribusiProduct.id,
+            kode_produk: distribusiProduct.sku,
+            nama_produk: distribusiProduct.name,
+            varian: (distribusiProduct.variants || []).map((v) => ({
+                id: v.id,
+                ukuran: v.size,
+                warna: v.color || '',
+                warna_hex: '#6b7280',
+                stok: Number(v.stock || 0),
+                sku: v.sku,
+            })),
+            total_stok: (distribusiProduct.variants || []).reduce(
+                (total, v) => total + Number(v.stock || 0),
+                0
+            ),
+        },
+    ]
+    : [];
+
     const getProductStock = (product) => {
     if (!product?.variants) return 0;
 
@@ -393,6 +425,27 @@ if (status === "aman") {
                     >
                         <Eye size={16} />
                     </button>
+                    <button
+                        onClick={() => {
+                            setDistribusiProduct(product);
+                            setDistribusiModalOpen(true);
+                        }}
+                        title="Distribusi ke Outlet / Online Shop"
+                        className="
+                            inline-flex
+                            items-center
+                            justify-center
+                            w-9
+                            h-9
+                            rounded-lg
+                            bg-emerald-50
+                            text-emerald-600
+                            hover:bg-emerald-100
+                            transition
+                        "
+                    >
+                        <Share2 size={16} />
+                    </button>
                 </td>
 
             </tr>
@@ -480,6 +533,65 @@ if (status === "aman") {
                 </div>
 
             </div>
+            <FormDistribusiModal
+                open={distribusiModalOpen}
+                onClose={() => {
+                    setDistribusiModalOpen(false);
+                    setDistribusiProduct(null);
+                }}
+                onSubmit={(data) => {
+                    if (data.tipe_tujuan === 'outlet') {
+                        if (!outletSlug) {
+                            console.error('Outlet asal tidak ditemukan.');
+                            return;
+                        }
+
+                        router.post(
+                            route('admin.inventory.outlet.transfer'),
+                            {
+                                outlet_asal_id: outletSlug,
+
+                                outlet_tujuan_id:
+                                    outlets.find(
+                                        (o) => o.id === Number(data.outlet_id)
+                                    )?.slug,
+
+                                items: data.items.map((item) => ({
+                                    product_id: item.produk_id,
+                                    product_variant_id: item.variant_id,
+                                    nama: item.nama,
+                                    ukuran: item.ukuran,
+                                    warna: item.warna,
+                                    qty: Number(item.qty),
+                                })),
+
+                                tanggal: data.tanggal_kirim || data.tanggal,
+                            },
+                            {
+                                preserveScroll: true,
+
+                                onSuccess: () => {
+                                    setDistribusiModalOpen(false);
+                                    setDistribusiProduct(null);
+                                },
+
+                                onError: (errors) => {
+                                    console.error(
+                                        'Gagal distribusi:',
+                                        errors
+                                    );
+                                },
+                            }
+                        );
+                        return;
+                    }
+                    console.log('Distribusi Online Shop:', data);
+                }}
+                outlets={outlets}
+                onlineShops={onlineShops}
+                warehouseProducts={produkDistribusi}
+                processing={false}
+            />
 
         </div>
     );

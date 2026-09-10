@@ -30,6 +30,8 @@ export default function Index({
     outlet_name = '',
     penerimaanList = {},
     outletSlug = null,
+     outlets = [],
+    onlineShops = [],
 }) {
 
      const { props } = usePage();   
@@ -904,6 +906,9 @@ const handleProsesBayarFinal = async () => {
                             <InventoryStockView
                                 products={products_from_db}
                                 categories={categories}
+                                outlets={outlets}
+                                onlineShops={onlineShops}
+                                outletSlug={outletSlug}
                             />
                         )}
                         {activeMenu === 'absensi' && (<Absensi attendances={attendances} />)}

@@ -43,7 +43,7 @@ class PosController extends Controller
                 ->where('transaction_type', 'OUT')
                 ->sum('amount');
         }
-            
+
         // Ambil absensi hari ini
         $attendances = Attendance::with('user')
             ->whereDate('date', today())
@@ -158,6 +158,19 @@ class PosController extends Controller
                     'variants' => $variants,
                 ];
             });
+
+                        $outletList = Outlet::all()->map(fn ($o) => [
+                'id' => $o->id,
+                'nama' => $o->name,
+                'warna' => 'emerald',
+                'hexColor' => '#10B981',
+            ]);
+
+            $onlineShopList = \App\Models\OnlineShop::all()->map(fn ($s) => [
+                'id' => $s->id,
+                'nama' => $s->nama,
+            ]);
+
         return Inertia::render('Pos/Index', [
             'is_shift_open_db' => $activeShift ? true : false,
             'active_shift_details' => $activeShift,
@@ -168,6 +181,9 @@ class PosController extends Controller
             'outlet_name' => $outlet?->name,
             'penerimaanList' => $penerimaanList,
             'outletSlug' => $outlet?->slug,
+
+            'outlets' => $outletList,
+            'onlineShops' => $onlineShopList,
         ]);
     }
 
