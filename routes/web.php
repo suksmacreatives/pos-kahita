@@ -47,7 +47,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::middleware(['role:cashier'])->group(function () {
         Route::get('/pos', [PosController::class, 'index'])->name('cashier.pos');
         Route::get('/pos/sidebar-data', [DashboardPosController::class, 'dapatkanDataSidebar'])->name('pos.sidebar-data');
-        
+        Route::post('/admin/inventory/gudang/distribusi', [InventoryGudangController::class, 'storeDistribusi'])->name('admin.inventory.gudang.distribusi');
         // --- TAMBAHAN ROUTE POS BARU (KASKASIR & TRANSAKSI) ---
         // Logika Buka & Tutup Sesi Laci Kasir
         Route::post('/pos/buka-kasir', [ShiftController::class, 'bukaKasir'])->name('pos.buka-kasir');

@@ -28,6 +28,7 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
         nama: produk.nama_produk,
         kode: produk.kode_produk,
         variants: produk.varian.map(v => ({
+          id: v.id,
           ukuran: v.ukuran,
           warna: v.warna || '',
           warna_hex: v.warna_hex || '#6b7280',
