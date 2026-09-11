@@ -18,7 +18,7 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
     if (!productSearch) return warehouseProducts;
     const q = productSearch.toLowerCase();
     return warehouseProducts.filter(p => p.nama_produk.toLowerCase().includes(q) || p.kode_produk.toLowerCase().includes(q));
-  }, [productSearch]);
+  }, [productSearch, warehouseProducts]);
 
   const addItem = (produk) => {
     setItems(prev => {
@@ -69,20 +69,17 @@ export default function FormDistribusiModal({ open, onClose, onSubmit, outlets =
       outlet_warna: selectedOutlet?.warna,
       outlet_hexColor: selectedOutlet?.hexColor,
       tanggal_kirim: mode === 'dikirim' ? tanggal : null,
-      items: flatItems.map(v => ({
-        produk_id: v.produk_id,
-        nama: v.nama,
-        ukuran: v.ukuran,
-        warna: v.warna,
-        qty: parseInt(v.qty),
-      })),
+items: flatItems.map(v => ({
+                        produk_id: v.produk_id,
+                        product_variant_id: v.id,
+                        nama: v.nama,
+                        ukuran: v.ukuran,
+                        warna: v.warna,
+                        qty: parseInt(v.qty),
+                    })),
       total_qty: totalQty,
       status: mode === 'draft' ? 'draft' : 'dikirim',
     });
-    setItems([]);
-    setOutletId("");
-    setOnlineShopId("");
-    onClose();
   };
 
   return createPortal(

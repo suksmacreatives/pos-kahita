@@ -14,13 +14,14 @@ import {
 import { Fragment } from "react";
 import FormDistribusiModal from "@/Components/Admin/Inventory/Gudang/FormDistribusiModal";
 import { router } from '@inertiajs/react';
+import toast from 'react-hot-toast';
 
 export default function InventoryStockView({
     products = [],
     categories = [],
     outlets = [],
     onlineShops = [],
-    outletSlug = null,
+    outletSlug = "",
 }) {
 
     const [search, setSearch] = useState("");
@@ -31,6 +32,55 @@ export default function InventoryStockView({
 
     const [distribusiProduct, setDistribusiProduct] = useState(null);
     const [distribusiModalOpen, setDistribusiModalOpen] = useState(false);
+    const [distribusiProcessing, setDistribusiProcessing] = useState(false);
+
+    const closeDistribusiModal = () => {
+        setDistribusiModalOpen(false);
+        setDistribusiProduct(null);
+    };
+
+    const handleDistribusiSubmit = (data) => {
+        if (distribusiProcessing) return;
+        setDistribusiProcessing(true);
+
+        const items = (data.items || []).map(v => ({
+            product_id: v.produk_id,
+            product_variant_id: v.product_variant_id,
+            nama: v.nama,
+            ukuran: v.ukuran || null,
+            warna: v.warna || null,
+            qty: parseInt(v.qty || 0),
+        }));
+
+        const options = {
+            preserveScroll: true,
+            onSuccess: () => {
+                closeDistribusiModal();
+                toast.success(data.tipe_tujuan === 'online' ? 'Distribusi online shop berhasil dicatat' : 'Transfer antar outlet berhasil dibuat');
+            },
+            onError: (errors) => {
+                toast.error('Gagal: ' + Object.values(errors).join(', '));
+            },
+            onFinish: () => setDistribusiProcessing(false),
+        };
+
+        if (data.tipe_tujuan === 'online') {
+            router.post(route('pos.inventory.distribusi-online'), {
+                online_shop_id: data.online_shop_id,
+                tanggal_kirim: data.tanggal_kirim || null,
+                items,
+            }, options);
+        } else {
+            const outletTujuan = outlets.find(o => o.id === Number(data.outlet_id));
+            router.post(route('pos.inventory.transfer'), {
+                outlet_asal_id: outletSlug,
+                outlet_tujuan_id: outletTujuan?.slug,
+                tgl_transfer: data.tanggal_kirim || new Date().toISOString().split('T')[0],
+                alasan: 'permintaan',
+                items,
+            }, options);
+        }
+    };
 
     const produkDistribusi = distribusiProduct
     ? [
@@ -325,51 +375,12 @@ export default function InventoryStockView({
 
             <FormDistribusiModal
                 open={distribusiModalOpen}
-                onClose={() => {
-                    setDistribusiModalOpen(false);
-                    setDistribusiProduct(null);
-                }}
-                onSubmit={(data) => {
-                    if (data.tipe_tujuan === 'outlet') {
-                        if (!outletSlug) {
-                            console.error('Outlet asal tidak ditemukan.');
-                            return;
-                        }
-
-                        router.post(
-                            route('/admin/inventory/gudang/distribusi'),
-                            {
-                                outlet_asal_id: outletSlug,
-                                outlet_tujuan_id: outlets.find((o) => o.id === Number(data.outlet_id))?.slug,
-                                items: data.items.map((item) => ({
-                                    product_id: item.produk_id,
-                                    product_variant_id: item.id, // Diambil dari id varian modal
-                                    nama: item.nama,
-                                    ukuran: item.ukuran,
-                                    warna: item.warna,
-                                    qty: Number(item.qty),
-                                })),
-                                tanggal: data.tanggal_kirim || data.tanggal,
-                            },
-                            {
-                                preserveScroll: true,
-                                onSuccess: () => {
-                                    setDistribusiModalOpen(false);
-                                    setDistribusiProduct(null);
-                                },
-                                onError: (errors) => {
-                                    console.error('Gagal distribusi:', errors);
-                                },
-                            }
-                        );
-                        return;
-                    }
-                    console.log('Distribusi Online Shop:', data);
-                }}
+                onClose={closeDistribusiModal}
+                onSubmit={handleDistribusiSubmit}
                 outlets={outlets}
                 onlineShops={onlineShops}
                 warehouseProducts={produkDistribusi}
-                processing={false}
+                processing={distribusiProcessing}
             />
         </div>
     );
