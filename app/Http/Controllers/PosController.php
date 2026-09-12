@@ -161,6 +161,7 @@ class PosController extends Controller
 
                         $outletList = Outlet::all()->map(fn ($o) => [
                 'id' => $o->id,
+                'slug' => $o->slug,
                 'nama' => $o->name,
                 'warna' => 'emerald',
                 'hexColor' => '#10B981',

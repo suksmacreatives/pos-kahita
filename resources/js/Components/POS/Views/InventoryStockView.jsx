@@ -72,6 +72,11 @@ export default function InventoryStockView({
             }, options);
         } else {
             const outletTujuan = outlets.find(o => o.id === Number(data.outlet_id));
+            if (!outletTujuan?.slug) {
+                toast.error('Gagal: Outlet tujuan tidak ditemukan');
+                setDistribusiProcessing(false);
+                return;
+            }
             router.post(route('pos.inventory.transfer'), {
                 outlet_asal_id: outletSlug,
                 outlet_tujuan_id: outletTujuan?.slug,
