@@ -1,23 +1,29 @@
 <?php
 
-use App\Http\Controllers\ProfileController;
-use App\Http\Controllers\PosController;
-use App\Http\Controllers\Admin\UserController;
-use App\Http\Controllers\Admin\DashboardController;
-use App\Http\Controllers\POS\DashboardPosController;
-use App\Http\Controllers\ProductController;
-use App\Http\Controllers\Admin\CategoryController;
-// Menambahkan import Controller Baru yang kita buat
-use App\Http\Controllers\POS\ShiftController;
-use App\Http\Controllers\Api\TransactionController;
-use App\Http\Controllers\Api\CashTransactionController;
 use App\Http\Controllers\AbsensiController;
-use App\Http\Controllers\Admin\InventoryGudangController;
+use App\Http\Controllers\Admin\CategoryController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\Inventory\OutletInventoryController;
+use App\Http\Controllers\Admin\InventoryGudangController;
+use App\Http\Controllers\Admin\NotificationController;
+use App\Http\Controllers\Admin\Outlets\OutletController;
+// Menambahkan import Controller Baru yang kita buat
+use App\Http\Controllers\Admin\Outlets\OutletKasirController;
+use App\Http\Controllers\Admin\Outlets\OutletShiftController;
+use App\Http\Controllers\Admin\Outlets\OutletTargetController;
+use App\Http\Controllers\Admin\ReportsController;
 use App\Http\Controllers\Admin\SettingsController;
+use App\Http\Controllers\Admin\UserController;
+use App\Http\Controllers\Api\CashTransactionController;
+use App\Http\Controllers\Api\TransactionController;
+use App\Http\Controllers\POS\DashboardPosController;
+use App\Http\Controllers\POS\ShiftController;
+use App\Http\Controllers\PosController;
+use App\Http\Controllers\ProductController;
+use App\Http\Controllers\ProfileController;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use Illuminate\Support\Facades\Auth;
 
 // 1. Halaman utama langsung redirect ke Login
 Route::get('/', function () {
@@ -34,15 +40,14 @@ Route::get('/dashboard', function () {
         }
         abort(403, 'Akun kasir Anda belum ditugaskan di outlet mana pun. Hubungi Admin Pusat.');
     }
-    
+
     // Admin masuk ke Dashboard Utama terlebih dahulu
     return redirect()->route('admin.dashboard.index');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-
 // 3. KELOMPOK RUTE KHUSUS USER YANG SUDAH LOGIN
 Route::middleware(['auth', 'verified'])->group(function () {
-    
+
     // AREA KASIR (Mengarah ke Halaman POS Baru Anda di Pages/Pos/Index.jsx)
     Route::middleware(['role:cashier'])->group(function () {
         Route::get('/pos', [PosController::class, 'index'])->name('cashier.pos');
@@ -55,10 +60,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/pos/buka-kasir', [ShiftController::class, 'bukaKasir'])->name('pos.buka-kasir');
         Route::post('/pos/tutup-kasir', [ShiftController::class, 'tutupKasir'])->name('pos.tutup-kasir');
         Route::post('/pos/logout-after-print', [ShiftController::class, 'logoutAfterPrint'])
-        ->name('pos.logout-after-print');
+            ->name('pos.logout-after-print');
         // SISIPAN AMAN: Rute untuk menampilkan data shift kasir hari ini di tabel bawah
         Route::get('/pos/riwayat-shift', [ShiftController::class, 'riwayatShiftHariIni'])->name('pos.riwayat-shift');
-        
+
         // Route::post('/print-shift-proxy', function (\Illuminate\Http\Request $request) {
         //     try {
         //         $response = \Illuminate\Support\Facades\Http::timeout(5)->post('http://localhost:9100/print', [
@@ -91,16 +96,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/pos/penerimaan/{distributionOrder}/konfirmasi', [PosController::class, 'konfirmasiPenerimaan'])->name('pos.penerimaan.konfirmasi');
     });
     Route::post('/cash-transactions', [CashTransactionController::class, 'store'])
-    ->name('cash-transactions.store');
-    Route::post('/transactions/{id}/void', [\App\Http\Controllers\Api\TransactionController::class, 'void'])
-    ->name('transactions.void');
+        ->name('cash-transactions.store');
+    Route::post('/transactions/{id}/void', [TransactionController::class, 'void'])
+        ->name('transactions.void');
     Route::post('/absensi', [AbsensiController::class, 'store'])->name('absensi.store');
     Route::post('/absensi/pulang/{attendance}', [AbsensiController::class, 'clockOut'])
-    ->name('absensi.pulang');
+        ->name('absensi.pulang');
 
     // AREA ADMIN
     Route::middleware(['role:admin'])->group(function () {
-        
+
         // --- MENU 1: DASHBOARD UTAMA ---
         Route::get('/admin/dashboard', [DashboardController::class, 'index'])->name('admin.dashboard.index');
         Route::post('/admin/dashboard/export', [DashboardController::class, 'export'])->name('admin.dashboard.export');
@@ -118,6 +123,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/admin/products/{product}', [ProductController::class, 'update'])->name('admin.products.update');
         Route::delete('/admin/products/{product}', [ProductController::class, 'destroy'])->name('admin.products.destroy');
         Route::post('/admin/products/export', [ProductController::class, 'export'])->name('admin.products.export');
+        Route::get('/admin/products/barcode-label', [ProductController::class, 'barcodeLabel'])->name('admin.products.barcode-label');
 
         // --- MENU 4: KATEGORI PRODUK ---
         Route::get('/admin/categories', [CategoryController::class, 'index'])->name('admin.categories.index');
@@ -126,42 +132,42 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/categories/{category}', [CategoryController::class, 'destroy'])->name('admin.categories.destroy');
 
         // --- MENU 5: KELOLA PROMO ---
-        Route::get('/admin/promos', function () { 
-            return Inertia::render('Admin/Placeholder', ['title' => 'Kelola Promo']); 
+        Route::get('/admin/promos', function () {
+            return Inertia::render('Admin/Placeholder', ['title' => 'Kelola Promo']);
         })->name('admin.promos.index');
 
         // --- MENU: LAPORAN (REPORTS) ---
         Route::prefix('/admin/reports')->name('admin.reports.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Admin\ReportsController::class, 'index'])->name('index');
-            Route::post('/export', [\App\Http\Controllers\Admin\ReportsController::class, 'export'])->name('export');
+            Route::get('/', [ReportsController::class, 'index'])->name('index');
+            Route::post('/export', [ReportsController::class, 'export'])->name('export');
         });
 
         // --- NOTIFICATIONS ---
         Route::prefix('/admin/notifications')->name('admin.notifications.')->group(function () {
-            Route::post('/{notification}/read', [\App\Http\Controllers\Admin\NotificationController::class, 'markAsRead'])->name('read');
-            Route::post('/read-all', [\App\Http\Controllers\Admin\NotificationController::class, 'markAllAsRead'])->name('read-all');
+            Route::post('/{notification}/read', [NotificationController::class, 'markAsRead'])->name('read');
+            Route::post('/read-all', [NotificationController::class, 'markAllAsRead'])->name('read-all');
         });
 
         // --- MENU: OUTLETS ---
         Route::prefix('/admin/outlets')->name('admin.outlets.')->group(function () {
-            Route::get('/', [\App\Http\Controllers\Admin\Outlets\OutletController::class, 'index'])->name('index');
-            Route::post('/', [\App\Http\Controllers\Admin\Outlets\OutletController::class, 'store'])->name('store');
-            
-            Route::get('/kasir', [\App\Http\Controllers\Admin\Outlets\OutletKasirController::class, 'index'])->name('kasir');
-            Route::post('/kasir', [\App\Http\Controllers\Admin\Outlets\OutletKasirController::class, 'store'])->name('kasir.store');
-            Route::put('/kasir/{kasir}', [\App\Http\Controllers\Admin\Outlets\OutletKasirController::class, 'update'])->name('kasir.update');
-            Route::delete('/kasir/{kasir}', [\App\Http\Controllers\Admin\Outlets\OutletKasirController::class, 'destroy'])->name('kasir.destroy');
-            Route::patch('/kasir/{kasir}/toggle', [\App\Http\Controllers\Admin\Outlets\OutletKasirController::class, 'toggleStatus'])->name('kasir.toggle');
-            Route::post('/kasir/{kasir}/reset-password', [\App\Http\Controllers\Admin\Outlets\OutletKasirController::class, 'resetPassword'])->name('kasir.reset-password');
-            Route::post('/kasir/{kasir}/shifts', [\App\Http\Controllers\Admin\Outlets\OutletShiftController::class, 'bulkUpdate'])->name('shifts.update');
+            Route::get('/', [OutletController::class, 'index'])->name('index');
+            Route::post('/', [OutletController::class, 'store'])->name('store');
 
-            Route::get('/target', [\App\Http\Controllers\Admin\Outlets\OutletTargetController::class, 'index'])->name('target');
-            Route::post('/target', [\App\Http\Controllers\Admin\Outlets\OutletTargetController::class, 'store'])->name('target.store');
+            Route::get('/kasir', [OutletKasirController::class, 'index'])->name('kasir');
+            Route::post('/kasir', [OutletKasirController::class, 'store'])->name('kasir.store');
+            Route::put('/kasir/{kasir}', [OutletKasirController::class, 'update'])->name('kasir.update');
+            Route::delete('/kasir/{kasir}', [OutletKasirController::class, 'destroy'])->name('kasir.destroy');
+            Route::patch('/kasir/{kasir}/toggle', [OutletKasirController::class, 'toggleStatus'])->name('kasir.toggle');
+            Route::post('/kasir/{kasir}/reset-password', [OutletKasirController::class, 'resetPassword'])->name('kasir.reset-password');
+            Route::post('/kasir/{kasir}/shifts', [OutletShiftController::class, 'bulkUpdate'])->name('shifts.update');
 
-            Route::get('/{outlet}', [\App\Http\Controllers\Admin\Outlets\OutletController::class, 'show'])->name('detail');
-            Route::put('/{outlet}', [\App\Http\Controllers\Admin\Outlets\OutletController::class, 'update'])->name('update');
-            Route::delete('/{outlet}', [\App\Http\Controllers\Admin\Outlets\OutletController::class, 'destroy'])->name('destroy');
-            Route::patch('/{outlet}/toggle', [\App\Http\Controllers\Admin\Outlets\OutletController::class, 'toggleStatus'])->name('toggle');
+            Route::get('/target', [OutletTargetController::class, 'index'])->name('target');
+            Route::post('/target', [OutletTargetController::class, 'store'])->name('target.store');
+
+            Route::get('/{outlet}', [OutletController::class, 'show'])->name('detail');
+            Route::put('/{outlet}', [OutletController::class, 'update'])->name('update');
+            Route::delete('/{outlet}', [OutletController::class, 'destroy'])->name('destroy');
+            Route::patch('/{outlet}/toggle', [OutletController::class, 'toggleStatus'])->name('toggle');
         });
         // --- SUB-MENU: INVENTORY / STOK ---
         Route::get('/admin/inventory/gudang', [InventoryGudangController::class, 'index'])->name('admin.inventory.gudang');
@@ -181,9 +187,15 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/admin/inventory/gudang/distribusi/{distributionOrder}/batal', [InventoryGudangController::class, 'cancelDistributionOrder'])->name('admin.inventory.gudang.distribusi.batal');
         Route::patch('/admin/inventory/gudang/retur/{supplierReturn}/batal', [InventoryGudangController::class, 'cancelReturSupplier'])->name('admin.inventory.gudang.retur.batal');
 
-        Route::get('/admin/inventory/central', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Stok Barang Pusat']); })->name('admin.inventory.central');
-        Route::get('/admin/inventory/branch', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Stok Cabang']); })->name('admin.inventory.branch');
-        Route::get('/admin/inventory/mutation', function () { return Inertia::render('Admin/Placeholder', ['title' => 'Mutasi Barang']); })->name('admin.inventory.mutation');
+        Route::get('/admin/inventory/central', function () {
+            return Inertia::render('Admin/Placeholder', ['title' => 'Stok Barang Pusat']);
+        })->name('admin.inventory.central');
+        Route::get('/admin/inventory/branch', function () {
+            return Inertia::render('Admin/Placeholder', ['title' => 'Stok Cabang']);
+        })->name('admin.inventory.branch');
+        Route::get('/admin/inventory/mutation', function () {
+            return Inertia::render('Admin/Placeholder', ['title' => 'Mutasi Barang']);
+        })->name('admin.inventory.mutation');
         Route::get('/admin/inventory/outlet', [OutletInventoryController::class, 'index'])->name('admin.inventory.outlet');
         Route::get('/admin/inventory/online-shop', [InventoryGudangController::class, 'indexOnlineShop'])->name('admin.inventory.online-shop');
         Route::post('/admin/inventory/outlet/penerimaan/{distributionOrder}/konfirmasi', [OutletInventoryController::class, 'konfirmasiTerima'])->name('admin.inventory.outlet.penerimaan.konfirmasi');
@@ -194,7 +206,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/inventory/outlet/retur/{id}', [OutletInventoryController::class, 'cancelRetur'])->name('admin.inventory.outlet.retur.cancel');
         Route::post('/admin/inventory/outlet/opname', [OutletInventoryController::class, 'storeOpname'])->name('admin.inventory.outlet.opname');
         Route::post('/admin/inventory/outlet/opname/{id}/selesai', [OutletInventoryController::class, 'submitOpname'])->name('admin.inventory.outlet.opname.selesai');
-        
+
         // --- SUB-MENU: SETTINGS ---
         Route::prefix('/admin/settings')->name('admin.settings.')->group(function () {
             Route::get('/', [SettingsController::class, 'index'])->name('index');
@@ -220,14 +232,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
         });
     });
 
-    
-
     // Rute manajemen profil bersama
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');
 });
-
-
 
 require __DIR__.'/auth.php';

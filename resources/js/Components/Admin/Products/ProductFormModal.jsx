@@ -2,8 +2,10 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useForm, usePage } from "@inertiajs/react";
 import toast from "react-hot-toast";
-import { X, Upload, ChevronDown, Search } from "lucide-react";
+import { X, Upload, ChevronDown, Search, Printer } from "lucide-react";
 import VariantManager from "./VariantManager";
+import Barcode from "./Barcode";
+import { printBarcodeLabels } from "@/lib/barcode";
 
 function convertProductVariants(varian) {
   if (!varian || varian.length === 0) {
@@ -275,6 +277,26 @@ export default function ProductFormModal({
                 }} placeholder="KHT-XXXX"
                   className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2 bg-slate-50" />
                 {fieldError("kode_produk")}
+
+                {data.kode_produk && (
+                  <div className="mt-2 flex items-center gap-3 p-2.5 bg-white border border-gray-150 rounded-xl">
+                    <Barcode value={data.kode_produk} className="h-10 w-32 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Preview Barcode</p>
+                      <p className="text-[10px] text-gray-400 truncate">{data.kode_produk}</p>
+                    </div>
+                    {isEditMode && (
+                      <button
+                        type="button"
+                        onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_produk' })}
+                        className="flex items-center gap-1.5 px-2.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                      >
+                        <Printer className="w-3.5 h-3.5" />
+                        Cetak Label
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div>

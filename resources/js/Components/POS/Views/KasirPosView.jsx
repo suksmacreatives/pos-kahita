@@ -1,12 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 export default function KasirPosView({
     promos = [],
     selectedPromo,
     setSelectedPromo,
     filteredProducts,
+    allProducts = [],
     searchQuery,
     setSearchQuery,
+    addToCart,
     cart,
     setCart,
     outlet_name,
@@ -64,6 +66,122 @@ export default function KasirPosView({
         if (v === '' || v === 'undefined' || v === 'null' || v === '-' || v === 'default') return null;
         return String(value).trim();
     };
+
+    // --- BARCODE SCANNER ---
+    // Scanner barcode berperilaku seperti keyboard (ketik cepat + Enter).
+    const allProductsRef = useRef(allProducts);
+    allProductsRef.current = allProducts;
+    const scanBufferRef = useRef('');
+    const lastKeyTimeRef = useRef(0);
+    const isScanSequenceRef = useRef(false);
+    const scanHandlerRef = useRef(null);
+
+    const buildCartItem = (product, v, qty = 1) => ({
+        cart_id: `${product.id}-${normalizeVariantValue(v?.color)}-${normalizeVariantValue(v?.size)}-${Date.now()}-${Math.random()}`,
+        product_id: product.id,
+        variant_color: normalizeVariantValue(v?.color),
+        variant_size: normalizeVariantValue(v?.size),
+        id: product.id,
+        name: product.name,
+        price: Number(v?.price || product.price || 0),
+        varianWarna: normalizeVariantValue(v?.color),
+        varianUkuran: normalizeVariantValue(v?.size),
+        quantity: qty,
+    });
+
+    const processScan = (code) => {
+        const c = String(code || '').trim().toUpperCase();
+        if (!c) return;
+
+        const products = allProductsRef.current;
+        let matched = null;
+
+        // 1. Cocokkan SKU varian (paling presisi)
+        for (const p of products) {
+            for (const v of p.variants || []) {
+                if (v.sku && String(v.sku).toUpperCase() === c) {
+                    matched = { product: p, variant: v };
+                    break;
+                }
+            }
+            if (matched) break;
+        }
+
+        // 2. Cocokkan SKU produk
+        if (!matched) {
+            const p = products.find((pp) => pp.sku && String(pp.sku).toUpperCase() === c);
+            matched = p ? { product: p, variant: null } : null;
+        }
+
+        if (!matched) {
+            showAlert(`Barcode "${code}" tidak ditemukan. Pastikan produk sudah terdaftar.`);
+            return;
+        }
+
+        setSearchQuery('');
+        const { product, variant } = matched;
+
+        // Tutup modal varian lama jika masih terbuka (hindari konflik)
+        if (isModalOpen) {
+            setIsModalOpen(false);
+            setVariantSelection({});
+        }
+
+        // Scan SKU varian → langsung masuk keranjang ke varian tersebut
+        if (variant) {
+            addToCart(buildCartItem(product, variant));
+            return;
+        }
+
+        // Produk non-varian atau 1 varian → langsung tambah
+        const variants = product.variants || [];
+        if (variants.length <= 1) {
+            addToCart(buildCartItem(product, variants[0] || {}));
+            return;
+        }
+
+        // Produk multi-varian → buka modal pemilihan warna/ukuran
+        handleCardClick(product);
+    };
+
+    useEffect(() => {
+        scanHandlerRef.current = processScan;
+    });
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Enter') {
+                const code = scanBufferRef.current.trim();
+                if (code.length >= 3 && isScanSequenceRef.current && scanHandlerRef.current) {
+                    e.preventDefault();
+                    scanBufferRef.current = '';
+                    isScanSequenceRef.current = false;
+                    scanHandlerRef.current(code);
+                } else {
+                    scanBufferRef.current = '';
+                    isScanSequenceRef.current = false;
+                }
+                return;
+            }
+
+            if (e.key.length === 1) {
+                const now = Date.now();
+                const gap = now - lastKeyTimeRef.current;
+                lastKeyTimeRef.current = now;
+
+                if (gap > 0 && gap <= 50) {
+                    isScanSequenceRef.current = true;
+                } else if (gap > 120) {
+                    isScanSequenceRef.current = false;
+                }
+
+                scanBufferRef.current += e.key;
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     React.useEffect(() => {
         if (isModalOpen && selectedProduct?.variants?.length > 0) {

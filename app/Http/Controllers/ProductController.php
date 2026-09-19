@@ -2,20 +2,20 @@
 
 namespace App\Http\Controllers;
 
+use App\Exports\ProductExport;
+use App\Models\Outlet;
+use App\Models\OutletStock;
 use App\Models\Product;
 use App\Models\ProductCategory;
-use App\Models\ProductVariant;
-use App\Models\OutletStock;
-use App\Models\Outlet;
 use App\Models\TransactionItem;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
-use Inertia\Inertia;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
-use Barryvdh\DomPDF\Facade\Pdf;
+use Inertia\Inertia;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use App\Exports\ProductExport;
 
 class ProductController extends Controller
 {
@@ -30,16 +30,16 @@ class ProductController extends Controller
         $products = Product::with(['category', 'variants.outletStocks', 'outlet', 'outlets']);
 
         if ($kategori !== 'Semua Kategori') {
-            $products->whereHas('category', fn($q) => $q->where('name', $kategori));
+            $products->whereHas('category', fn ($q) => $q->where('name', $kategori));
         }
 
         $products = $products->orderBy('created_at', 'desc')->get();
 
-        $salesData = \App\Models\TransactionItem::selectRaw('product_id, SUM(quantity) as total_terjual')
+        $salesData = TransactionItem::selectRaw('product_id, SUM(quantity) as total_terjual')
             ->groupBy('product_id')
             ->pluck('total_terjual', 'product_id');
 
-        $mapped = $products->map(function ($p) use ($salesData, $status, $search, $outlet) {
+        $mapped = $products->map(function ($p) use ($salesData) {
             $variants = $p->variants->map(fn ($v) => [
                 'color_name' => $v->color,
                 'size_label' => in_array($v->size, ['', null], true) ? null : $v->size,
@@ -75,23 +75,22 @@ class ProductController extends Controller
         });
 
         if ($search) {
-            $mapped = $mapped->filter(fn($p) =>
-                str_contains(strtolower($p['nama_produk']), strtolower($search)) ||
+            $mapped = $mapped->filter(fn ($p) => str_contains(strtolower($p['nama_produk']), strtolower($search)) ||
                 str_contains(strtolower($p['kode_produk']), strtolower($search))
             )->values();
         }
 
         if ($status === 'aktif') {
-            $mapped = $mapped->filter(fn($p) => $p['status'] === 'aktif')->values();
+            $mapped = $mapped->filter(fn ($p) => $p['status'] === 'aktif')->values();
         } elseif ($status === 'nonaktif') {
-            $mapped = $mapped->filter(fn($p) => $p['status'] === 'nonaktif')->values();
+            $mapped = $mapped->filter(fn ($p) => $p['status'] === 'nonaktif')->values();
         } elseif ($status === 'habis') {
-            $mapped = $mapped->filter(fn($p) => array_sum($p['stok_per_outlet']) + $p['stok_gudang'] === 0)->values();
+            $mapped = $mapped->filter(fn ($p) => array_sum($p['stok_per_outlet']) + $p['stok_gudang'] === 0)->values();
         }
 
         $collection = $mapped;
         $totalProduk = $collection->count();
-        $totalVarian = $collection->sum(fn($p) => count($p['varian']) ?: 1);
+        $totalVarian = $collection->sum(fn ($p) => count($p['varian']) ?: 1);
 
         $outletNames = Outlet::aktif()->pluck('name', 'id')->toArray();
         $outletIds = array_keys($outletNames);
@@ -100,23 +99,86 @@ class ProductController extends Controller
             $excel = new ProductExport($collection->toArray());
             $spreadsheet = $excel->build();
             $writer = new Xlsx($spreadsheet);
+
             return response()->streamDownload(function () use ($writer) {
                 $writer->save('php://output');
-            }, 'produk-' . now()->format('YmdHis') . '.xlsx', [
+            }, 'produk-'.now()->format('YmdHis').'.xlsx', [
                 'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
             ]);
         }
 
         $pdf = Pdf::loadView('exports.product-pdf', [
-            'title'       => 'Katalog Produk - Kahita Busana',
-            'products'    => $collection,
+            'title' => 'Katalog Produk - Kahita Busana',
+            'products' => $collection,
             'totalProduk' => $totalProduk,
             'totalVarian' => $totalVarian,
             'outletNames' => $outletNames,
-            'outletIds'   => $outletIds,
+            'outletIds' => $outletIds,
         ]);
 
-        return $pdf->download('produk-' . now()->format('YmdHis') . '.pdf');
+        return $pdf->download('produk-'.now()->format('YmdHis').'.pdf');
+    }
+
+    public function barcodeLabel(Request $request)
+    {
+        $validated = $request->validate([
+            'product_ids' => 'required|array',
+            'product_ids.*' => 'integer|exists:products,id',
+            'qty' => 'nullable|integer|min:1|max:100',
+            'mode' => 'nullable|in:per_produk,per_varian',
+            'include_price' => 'nullable|in:0,1,true,false',
+            'label_size' => 'nullable|in:50x25,50x30',
+        ]);
+
+        $qty = (int) ($validated['qty'] ?? 1);
+        $mode = $validated['mode'] ?? 'per_produk';
+        $includePrice = filter_var($validated['include_price'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        $labelSize = $validated['label_size'] ?? '50x25';
+
+        $products = Product::with('variants')
+            ->whereIn('id', $validated['product_ids'])
+            ->get();
+
+        $labels = [];
+
+        foreach ($products as $product) {
+            $kode = $product->sku;
+
+            if ($mode === 'per_varian' && $product->variants->isNotEmpty()) {
+                foreach ($product->variants as $variant) {
+                    $variantCode = $variant->sku ?: $kode;
+
+                    for ($i = 0; $i < $qty; $i++) {
+                        $labels[] = [
+                            'name' => $product->name,
+                            'variant_color' => $variant->color,
+                            'variant_size' => $variant->size,
+                            'price' => $includePrice ? (int) ($variant->price ?? $product->price) : null,
+                            'code' => $variantCode,
+                        ];
+                    }
+                }
+
+                continue;
+            }
+
+            for ($i = 0; $i < $qty; $i++) {
+                $labels[] = [
+                    'name' => $product->name,
+                    'variant_color' => '',
+                    'variant_size' => '',
+                    'price' => $includePrice ? (int) $product->price : null,
+                    'code' => $kode,
+                ];
+            }
+        }
+
+        return response()->view('prints.barcode-label', [
+            'title' => 'Label Barcode - Kahita Busana',
+            'labels' => collect($labels),
+            'include_price' => $includePrice,
+            'label_size' => $labelSize,
+        ]);
     }
 
     public function create()
@@ -240,20 +302,20 @@ class ProductController extends Controller
             'category_id' => $validated['category_id'] ?? null,
             'sub_kategori' => $validated['sub_kategori'] ?? null,
             'status' => $validated['status'] ?? 'aktif',
-            'outlet_id' => !empty($outletTersedia) ? (int) $outletTersedia[0] : null,
-            'outlet_ids' => !empty($outletTersedia) ? $outletTersedia : null,
+            'outlet_id' => ! empty($outletTersedia) ? (int) $outletTersedia[0] : null,
+            'outlet_ids' => ! empty($outletTersedia) ? $outletTersedia : null,
             'image' => $imagePath,
         ]);
 
         $product->outlets()->sync($outletTersedia);
 
         $usedSkus = [];
-        if (!empty($validated['variants'])) {
+        if (! empty($validated['variants'])) {
             foreach ($validated['variants'] as $v) {
-                $sku = $v['sku'] ?? $validated['kode_produk'] . '-ALL';
+                $sku = $v['sku'] ?? $validated['kode_produk'].'-ALL';
 
                 if (in_array($sku, $usedSkus)) {
-                    $sku = $sku . '-' . uniqid();
+                    $sku = $sku.'-'.uniqid();
                 }
                 $usedSkus[] = $sku;
 
@@ -268,9 +330,9 @@ class ProductController extends Controller
                         'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
                         'sku' => $sku,
                     ]);
-                } catch (\Illuminate\Database\QueryException $e) {
+                } catch (QueryException $e) {
                     if ($e->getCode() == 23000) {
-                        $sku = $sku . '-' . uniqid();
+                        $sku = $sku.'-'.uniqid();
                         $variant = $product->variants()->create([
                             'color' => $v['color_name'] ?? null,
                             'size' => $v['size_label'] ?? null,
@@ -301,7 +363,7 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'nama_produk' => 'required|string|max:255',
-            'kode_produk' => 'required|string|unique:products,sku,' . $product->id,
+            'kode_produk' => 'required|string|unique:products,sku,'.$product->id,
             'harga_jual' => 'required|numeric|min:0',
             'harga_beli' => 'required|numeric|min:0',
             'deskripsi' => 'nullable|string',
@@ -342,8 +404,8 @@ class ProductController extends Controller
             'category_id' => $validated['category_id'] ?? null,
             'sub_kategori' => $validated['sub_kategori'] ?? null,
             'status' => $validated['status'] ?? 'aktif',
-            'outlet_id' => !empty($outletTersedia) ? (int) $outletTersedia[0] : null,
-            'outlet_ids' => !empty($outletTersedia) ? $outletTersedia : null,
+            'outlet_id' => ! empty($outletTersedia) ? (int) $outletTersedia[0] : null,
+            'outlet_ids' => ! empty($outletTersedia) ? $outletTersedia : null,
         ];
 
         if ($request->hasFile('image')) {
@@ -356,17 +418,17 @@ class ProductController extends Controller
         $product->update($updateData);
         $product->outlets()->sync($outletTersedia);
 
-        if ($request->has('variants') && !empty($validated['variants'])) {
+        if ($request->has('variants') && ! empty($validated['variants'])) {
             // Hapus data stok lama secara eksplisit (outlet dulu baru variant)
             $product->variants->each(fn ($v) => $v->outletStocks()->delete());
             $product->variants()->delete();
 
             $usedSkus = [];
             foreach ($validated['variants'] as $v) {
-                $sku = $v['sku'] ?? $validated['kode_produk'] . '-ALL';
+                $sku = $v['sku'] ?? $validated['kode_produk'].'-ALL';
 
                 if (in_array($sku, $usedSkus)) {
-                    $sku = $sku . '-' . uniqid();
+                    $sku = $sku.'-'.uniqid();
                 }
                 $usedSkus[] = $sku;
 
@@ -381,9 +443,9 @@ class ProductController extends Controller
                         'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
                         'sku' => $sku,
                     ]);
-                } catch (\Illuminate\Database\QueryException $e) {
+                } catch (QueryException $e) {
                     if ($e->getCode() == 23000) {
-                        $sku = $sku . '-' . uniqid();
+                        $sku = $sku.'-'.uniqid();
                         $variant = $product->variants()->create([
                             'color' => $v['color_name'] ?? null,
                             'size' => $v['size_label'] ?? null,
@@ -416,18 +478,18 @@ class ProductController extends Controller
             Storage::disk('public')->delete($product->image);
         }
         $product->delete();
+
         return redirect()->back()->with('success', 'Produk berhasil dihapus!');
     }
 
     private function assertHasDimensionVariant(array $validated): void
     {
         $hasDimension = collect($validated['variants'] ?? [])
-            ->contains(fn ($v) =>
-                !empty(trim((string) ($v['color_name'] ?? ''))) ||
-                !empty(trim((string) ($v['size_label'] ?? '')))
+            ->contains(fn ($v) => ! empty(trim((string) ($v['color_name'] ?? ''))) ||
+                ! empty(trim((string) ($v['size_label'] ?? '')))
             );
 
-        if (!$hasDimension) {
+        if (! $hasDimension) {
             throw ValidationException::withMessages([
                 'variants' => 'Produk harus memiliki minimal 1 varian (warna atau ukuran)',
             ]);
@@ -442,6 +504,7 @@ class ProductController extends Controller
 
         if (is_string($value)) {
             $decoded = json_decode($value, true);
+
             return is_array($decoded) ? $decoded : [];
         }
 

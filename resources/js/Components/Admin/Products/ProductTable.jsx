@@ -11,8 +11,10 @@ import {
     Edit,
     Trash,
     ArrowUpDown,
+    Printer,
 } from "lucide-react";
 import ProductBadge from "./ProductBadge";
+import { printBarcodeLabels } from "@/lib/barcode";
 
 export const categoryConfig = {
     Atasan: {
@@ -262,6 +264,13 @@ export default function ProductTable({
                                                 title="Edit Produk"
                                             >
                                                 <Edit className="w-3.5 h-3.5" />
+                                            </button>
+                                            <button
+                                                onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_varian' })}
+                                                className="p-1.5 rounded-lg border border-gray-100 bg-white hover:bg-amber-50 hover:text-amber-600 transition-colors shadow-sm cursor-pointer"
+                                                title="Cetak Label Barcode"
+                                            >
+                                                <Printer className="w-3.5 h-3.5" />
                                             </button>
                                             <button
                                                 onClick={() =>
