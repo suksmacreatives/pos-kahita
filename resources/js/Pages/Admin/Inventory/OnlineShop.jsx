@@ -12,8 +12,8 @@ import ConfirmDialog from '@/Components/Admin/ConfirmDialog';
 function OnlineShop() {
   const { props } = usePage();
   const {
-    warehouseProducts: initialProducts,
-    distribusiOnline: initialDistribusi,
+    warehouseProducts: produkStok,
+    distribusiOnline: distribusi,
     onlineShops,
     outlets,
   } = props;
@@ -22,8 +22,6 @@ function OnlineShop() {
   const [modalOpen, setModalOpen] = useState(false);
   const [detail, setDetail] = useState(null);
   const [confirmBatal, setConfirmBatal] = useState(null);
-  const [produkStok] = useState(initialProducts || []);
-  const [distribusi] = useState(initialDistribusi || []);
 
   const showToast = (message, type = 'success') => {
     if (type === 'error') toast.error(message);

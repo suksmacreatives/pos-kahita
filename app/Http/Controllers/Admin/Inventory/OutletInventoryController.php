@@ -8,6 +8,8 @@ use App\Http\Requests\Inventory\Outlet\StoreReturGudangRequest;
 use App\Http\Requests\Inventory\Outlet\StoreTransferRequest;
 use App\Http\Requests\Inventory\Outlet\SubmitOpnameOutletRequest;
 use App\Models\DistributionOrder;
+use App\Models\DistributionOrderItem;
+use App\Models\OnlineShop;
 use App\Models\Outlet;
 use App\Models\OutletStock;
 use App\Models\ProductVariant;
@@ -315,6 +317,143 @@ class OutletInventoryController extends Controller
             DB::rollBack();
             Log::error('Store opname error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal menyimpan opname: ' . $e->getMessage());
+        }
+    }
+
+    public function storeTransferKasir(StoreTransferRequest $request)
+    {
+        $user = $request->user();
+        $asal = $user->outlet_id ? Outlet::find($user->outlet_id) : null;
+        if (!$asal) {
+            return back()->withErrors(['error' => 'Outlet kasir tidak ditemukan']);
+        }
+
+        $data = $request->validated();
+        $tujuan = Outlet::where('slug', $data['outlet_tujuan_id'])->first();
+        if (!$tujuan) {
+            return back()->withErrors(['error' => 'Outlet tujuan tidak ditemukan.']);
+        }
+
+        $data['outlet_asal_id'] = $asal->slug;
+        $data['outlet_tujuan_id'] = $tujuan->slug;
+
+        try {
+            $this->transferService->processTransfer($data);
+            return back()->with('success', 'Transfer antar outlet berhasil dibuat.');
+        } catch (\App\Exceptions\InsufficientStockException $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        } catch (\Exception $e) {
+            Log::error('Store transfer kasir error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Gagal membuat transfer: ' . $e->getMessage()]);
+        }
+    }
+
+    public function konfirmasiTerimaTransferKasir(Request $request, int $id)
+    {
+        $user = $request->user();
+
+        try {
+            if ($user->outlet_id) {
+                $transfer = \App\Models\OutletTransfer::findOrFail($id);
+                abort_if($transfer->outlet_tujuan_id !== $user->outlet_id, 403);
+            }
+
+            $this->transferService->confirmReceive($id);
+            return back()->with('success', 'Transfer berhasil dikonfirmasi diterima.');
+        } catch (\App\Exceptions\InsufficientStockException $e) {
+            return back()->withErrors(['error' => $e->getMessage()]);
+        } catch (\Exception $e) {
+            Log::error('Konfirmasi terima transfer kasir error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Gagal konfirmasi transfer: ' . $e->getMessage()]);
+        }
+    }
+
+    public function storeDistribusiOnlineKasir(Request $request)
+    {
+        $validated = $request->validate([
+            'online_shop_id' => 'required|exists:online_shops,id',
+            'tanggal_kirim' => 'nullable|date',
+            'items' => 'required|array|min:1',
+            'items.*.product_id' => 'required|exists:products,id',
+            'items.*.product_variant_id' => 'required|exists:product_variants,id',
+            'items.*.nama' => 'required|string',
+            'items.*.ukuran' => 'nullable|string',
+            'items.*.warna' => 'nullable|string',
+            'items.*.qty' => 'required|integer|min:1',
+        ]);
+
+        $user = $request->user();
+        $asal = $user->outlet_id ? Outlet::find($user->outlet_id) : null;
+        if (!$asal) {
+            return back()->withErrors(['error' => 'Outlet kasir tidak ditemukan']);
+        }
+
+        $onlineShop = OnlineShop::find($validated['online_shop_id']);
+        if (!$onlineShop) {
+            return back()->withErrors(['error' => 'Online shop tidak ditemukan']);
+        }
+
+        DB::beginTransaction();
+        try {
+            $totalQty = 0;
+            foreach ($validated['items'] as $item) {
+                $stokTersedia = (int) (OutletStock::where('outlet_id', $asal->id)
+                    ->where('product_variant_id', $item['product_variant_id'])
+                    ->value('stock') ?? 0);
+
+                if ($stokTersedia < $item['qty']) {
+                    DB::rollBack();
+                    return back()->withErrors(['error' =>
+                        'Stok ' . $item['nama'] . ' tidak mencukupi! Tersedia: ' . $stokTersedia]);
+                }
+                $totalQty += $item['qty'];
+            }
+
+            $nomorDo = 'DO-' . now()->format('Ymd') . '-' . str_pad(DistributionOrder::max('id') + 1, 3, '0', STR_PAD_LEFT);
+
+            $do = DistributionOrder::create([
+                'nomor_do' => $nomorDo,
+                'outlet_id' => null,
+                'tipe_tujuan' => 'online',
+                'online_shop_id' => $onlineShop->id,
+                'tanggal_kirim' => $validated['tanggal_kirim'] ?? now()->format('Y-m-d'),
+                'total_qty' => $totalQty,
+                'status' => 'dikirim',
+            ]);
+
+            foreach ($validated['items'] as $item) {
+                OutletStock::where('outlet_id', $asal->id)
+                    ->where('product_variant_id', $item['product_variant_id'])
+                    ->decrement('stock', $item['qty']);
+
+                DistributionOrderItem::create([
+                    'distribution_order_id' => $do->id,
+                    'product_id' => $item['product_id'],
+                    'product_variant_id' => $item['product_variant_id'],
+                    'nama' => $item['nama'],
+                    'ukuran' => $item['ukuran'] ?? null,
+                    'warna' => $item['warna'] ?? null,
+                    'qty' => $item['qty'],
+                ]);
+
+                StockMovement::create([
+                    'product_variant_id' => $item['product_variant_id'],
+                    'outlet_id' => $asal->id,
+                    'type' => 'distribusi',
+                    'reference_type' => 'distribution_order',
+                    'reference_id' => $do->id,
+                    'qty' => -$item['qty'],
+                    'note' => 'Distribusi outlet ' . $asal->name . ' → online shop ' . $onlineShop->nama . ' - ' . $item['nama'],
+                    'user_id' => Auth::id(),
+                ]);
+            }
+
+            DB::commit();
+            return back()->with('success', 'Distribusi online shop berhasil dicatat.');
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Store distribusi online kasir error: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Gagal: ' . $e->getMessage()]);
         }
     }
 

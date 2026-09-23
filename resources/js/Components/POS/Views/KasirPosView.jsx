@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Barcode } from 'lucide-react';
 import BarcodeScannerModal from '../BarcodeScannerModal';
 
+
 export default function KasirPosView({
     promos = [],
     selectedPromo,

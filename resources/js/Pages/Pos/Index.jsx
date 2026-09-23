@@ -134,7 +134,16 @@ export default function Index({
 
     useEffect(() => { loadSidebarData(); }, []);
 
-    const filteredProducts = useMemo(() => displayProducts.filter((p) => p.name.toLowerCase().includes(searchQuery.toLowerCase())), [searchQuery, displayProducts]);
+    const filteredProducts = useMemo(() => {
+    const q = (searchQuery || '').trim().toLowerCase();
+    if (!q) return displayProducts;
+    return displayProducts.filter((p) => {
+        const nameHit = (p.name || '').toLowerCase().includes(q);
+        const skuHit = (p.sku || '').toLowerCase().includes(q);
+        const variantHit = (p.variants || []).some((v) => (v.sku || '').toLowerCase().includes(q));
+        return nameHit || skuHit || variantHit;
+    });
+}, [searchQuery, displayProducts]);
     
     const subtotal = useMemo(() => cart.reduce((acc, item) => acc + (item.price * item.quantity), 0), [cart]);
 
@@ -857,7 +866,7 @@ const handleProsesBayarFinal = async () => {
                         <div className="text-xs font-bold tracking-wider opacity-90">{new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</div>
                     </header>
                     <div className="flex-1 flex overflow-hidden w-full h-full">
-                        {activeMenu === 'kasir' && (<KasirPosView  promos={promos} selectedPromo={selectedPromo} setSelectedPromo={setSelectedPromo} filteredProducts={filteredProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} nilaiDiskon={nilaiDiskon} totalSetelahDiskon={totalSetelahDiskon} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} isSidebarOpen={isSidebarOpen} />)}
+                        {activeMenu === 'kasir' && (<KasirPosView  promos={promos} selectedPromo={selectedPromo} setSelectedPromo={setSelectedPromo} filteredProducts={filteredProducts} allProducts={displayProducts} searchQuery={searchQuery} setSearchQuery={setSearchQuery} addToCart={addToCart} cart={cart} setCart={setCart} savedBills={savedBills} setSavedBills={setSavedBills} customerName={customerName} setCustomerName={setCustomerName} isCheckoutView={isCheckoutView} setIsCheckoutView={setIsCheckoutView} selectedPayment={selectedPayment} setSelectedPayment={setSelectedPayment} inputUangDiterima={inputUangDiterima} setInputUangDiterima={setInputUangDiterima} subtotal={subtotal} nilaiDiskon={nilaiDiskon} totalSetelahDiskon={totalSetelahDiskon} sisaTagihan={sisaTagihan} uangKembalian={uangKembalian} handleProsesBayarFinal={handleProsesBayarFinal} formatRupiah={formatRupiah} isSidebarOpen={isSidebarOpen} />)}
                         {/* ... (Menu lainnya tetap sama) */}
                         {activeMenu === 'penjualan' && (<DataPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} onPrint={handlePrintHistory} onVoid={handleVoid} />)}
                         {activeMenu === 'laporan-ringkasan' && (<RingkasanPenjualan salesHistory={salesHistory} formatRupiah={formatRupiah} />)}

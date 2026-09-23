@@ -272,6 +272,7 @@ class InventoryGudangController extends Controller
                 'harga_beli' => (int) $p->cost_price,
                 'warna_hex' => $this->getFirstVariantColor($p->variants),
                 'varian' => $p->variants->map(fn ($v) => [
+                    'id' => $v->id,
                     'ukuran' => $v->size,
                     'warna' => $v->color ?? '',
                     'warna_hex' => $this->mapNamaWarnaKeHex($v->color ?? ''),
@@ -470,7 +471,7 @@ class InventoryGudangController extends Controller
         if ($validated['tipe_tujuan'] === 'online') {
             $validated['outlet_id'] = null;
             if (empty($validated['online_shop_id'])) {
-                return redirect()->back()->with('error', 'Silakan pilih tujuan online shop terlebih dahulu');
+                return back()->withErrors(['error' => 'Silakan pilih tujuan online shop terlebih dahulu']);
             }
             $validated['status'] = 'dikirim';
         } else {
@@ -504,8 +505,8 @@ class InventoryGudangController extends Controller
                         DB::rollBack();
                         $label = $item['ukuran'];
                         if (!empty($item['warna'])) $label = $item['warna'] . ' / ' . $label;
-                        return redirect()->back()->with('error',
-                            'Stok ' . $item['nama'] . ' (' . $label . ') tidak mencukupi! Tersedia: ' . $variant->stock);
+                        return back()->withErrors(['error' =>
+                            'Stok ' . $item['nama'] . ' (' . $label . ') tidak mencukupi! Tersedia: ' . $variant->stock]);
                     }
                     $variant->decrement('stock', $item['qty']);
                 }
@@ -535,7 +536,7 @@ class InventoryGudangController extends Controller
             return redirect()->back()->with('success', 'Distribusi berhasil disimpan');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+            return back()->withErrors(['error' => 'Gagal: ' . $e->getMessage()]);
         }
     }
 
@@ -714,10 +715,10 @@ class InventoryGudangController extends Controller
 
         if ($isOnline) {
             if ($distributionOrder->status !== 'dikirim') {
-                return redirect()->back()->with('error', 'Hanya DO online shop yang bisa dibatalkan');
+                return back()->withErrors(['error' => 'Hanya DO online shop yang bisa dibatalkan']);
             }
             if ($distributionOrder->created_at && $distributionOrder->created_at->lt(now()->subHours(24))) {
-                return redirect()->back()->with('error', 'DO online shop hanya bisa dibatalkan dalam 24 jam setelah dibuat');
+                return back()->withErrors(['error' => 'DO online shop hanya bisa dibatalkan dalam 24 jam setelah dibuat']);
             }
 
             DB::beginTransaction();
@@ -743,12 +744,12 @@ class InventoryGudangController extends Controller
                 return redirect()->back()->with('success', 'Distribution Order online shop dibatalkan, stok gudang dikembalikan');
             } catch (\Exception $e) {
                 DB::rollBack();
-                return redirect()->back()->with('error', 'Gagal membatalkan DO: ' . $e->getMessage());
+                return back()->withErrors(['error' => 'Gagal membatalkan DO: ' . $e->getMessage()]);
             }
         }
 
         if (!in_array($distributionOrder->status, ['draft'])) {
-            return redirect()->back()->with('error', 'Hanya DO dengan status draft yang bisa dibatalkan');
+            return back()->withErrors(['error' => 'Hanya DO dengan status draft yang bisa dibatalkan']);
         }
 
         $distributionOrder->update(['status' => 'dibatalkan']);

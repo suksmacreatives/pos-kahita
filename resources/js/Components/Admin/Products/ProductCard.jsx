@@ -1,8 +1,9 @@
 // resources/js/Components/Admin/Products/ProductCard.jsx
 import React from 'react';
-import { Eye, Edit, Trash, Shirt } from 'lucide-react';
+import { Eye, Edit, Trash, Shirt, Printer } from 'lucide-react';
 import ProductBadge from './ProductBadge';
 import { categoryConfig, formatRupiah } from './ProductTable';
+import { printBarcodeLabels } from '@/lib/barcode';
 
 export default function ProductCard({ product, onOpenDrawer, onOpenEdit, onDeleteProduct }) {
   const config = categoryConfig[product.kategori] || { bg: 'bg-gray-100 text-gray-500', icon: Shirt };
@@ -92,13 +93,20 @@ export default function ProductCard({ product, onOpenDrawer, onOpenEdit, onDelet
       </div>
 
       {/* Action Buttons Footer */}
-      <div className="border-t border-gray-50 bg-slate-50/50 p-2.5 grid grid-cols-3 gap-1.5">
+      <div className="border-t border-gray-50 bg-slate-50/50 p-2.5 grid grid-cols-4 gap-1.5">
         <button
           onClick={() => onOpenDrawer(product)}
           className="flex items-center justify-center gap-1 py-1.5 bg-white border border-gray-100 hover:bg-emerald-50 hover:text-emerald-600 hover:border-emerald-200 text-gray-600 rounded-lg text-[10px] font-semibold shadow-sm transition-colors cursor-pointer"
         >
           <Eye className="w-3.5 h-3.5" />
           Lihat
+        </button>
+        <button
+          onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_varian' })}
+          className="flex items-center justify-center gap-1 py-1.5 bg-white border border-gray-100 hover:bg-amber-50 hover:text-amber-600 hover:border-amber-200 text-gray-600 rounded-lg text-[10px] font-semibold shadow-sm transition-colors cursor-pointer"
+        >
+          <Printer className="w-3.5 h-3.5" />
+          Label
         </button>
         <button
           onClick={() => onOpenEdit(product)}

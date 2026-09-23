@@ -1,9 +1,11 @@
 // resources/js/Components/Admin/Products/ProductDetailDrawer.jsx
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Edit, Power, DollarSign, ShoppingBag, Store, Warehouse, MapPin } from 'lucide-react';
+import { X, Edit, Power, DollarSign, ShoppingBag, Store, Warehouse, MapPin, Printer } from 'lucide-react';
 import { categoryConfig, formatRupiah } from './ProductTable';
 import ProductBadge from './ProductBadge';
+import Barcode from './Barcode';
+import { printBarcodeLabels } from '@/lib/barcode';
 
 export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEdit, onToggleStatus, allOutlets = [] }) {
   const [activeColorTab, setActiveColorTab] = useState('');
@@ -103,6 +105,27 @@ export default function ProductDetailDrawer({ isOpen, onClose, product, onOpenEd
             <p className="text-xs text-gray-600 leading-relaxed bg-slate-50 border border-slate-100 p-3 rounded-xl whitespace-pre-line">
               {product.deskripsi || 'Tidak ada deskripsi produk.'}
             </p>
+          </div>
+
+          {/* Section Barcode */}
+          <div className="space-y-2">
+            <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide flex items-center gap-1">
+              Barcode
+            </h4>
+            <div className="flex items-center gap-3 p-3 bg-white border border-gray-150 rounded-xl">
+              <Barcode value={product.kode_produk} className="h-10 w-36 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] text-gray-400 font-mono truncate">{product.kode_produk}</p>
+                <p className="text-[10px] text-gray-400">Scan di kasir untuk menambah produk</p>
+              </div>
+              <button
+                onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_produk' })}
+                className="flex items-center gap-1.5 px-2.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+              >
+                <Printer className="w-3.5 h-3.5" />
+                Cetak
+              </button>
+            </div>
           </div>
 
           {/* Section Varian: Tabs by Color */}
