@@ -112,10 +112,31 @@ export default function KasirPosView({
         }
 
         // 2. Cocokkan SKU produk
-        if (!matched) {
-            const p = products.find((pp) => pp.sku && String(pp.sku).toUpperCase() === c);
-            matched = p ? { product: p, variant: null } : null;
-        }
+        // 2. Cocokkan kode produk
+if (!matched) {
+    const p = products.find(
+        (pp) =>
+            pp.kode_produk &&
+            String(pp.kode_produk).toUpperCase() === c
+    );
+
+    matched = p
+        ? { product: p, variant: null }
+        : null;
+}
+
+// 3. Cocokkan SKU produk
+if (!matched) {
+    const p = products.find(
+        (pp) =>
+            pp.sku &&
+            String(pp.sku).toUpperCase() === c
+    );
+
+    matched = p
+        ? { product: p, variant: null }
+        : null;
+}
 
         if (!matched) {
             showAlert(`Barcode "${code}" tidak ditemukan. Pastikan produk sudah terdaftar.`);
