@@ -1,12 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Barcode } from 'lucide-react';
+import BarcodeScannerModal from '../BarcodeScannerModal';
 
 export default function KasirPosView({
     promos = [],
     selectedPromo,
     setSelectedPromo,
     filteredProducts,
+    allProducts = [],
     searchQuery,
     setSearchQuery,
+    addToCart,
     cart,
     setCart,
     outlet_name,
@@ -32,7 +36,8 @@ export default function KasirPosView({
     // --- STATE MANAGEMENT VIEW KIRI ---
     // 'grid' = menampilkan produk, 'saved_list' = menampilkan tabel daftar belanja full-screen
     const [leftContentView, setLeftContentView] = useState('grid');
-
+    const [isBarcodeScannerOpen, setIsBarcodeScannerOpen] = useState(false);
+    const [selectedCategory, setSelectedCategory] = useState('all');
     const [showPromoModal, setShowPromoModal] = useState(false);
     
 
@@ -64,6 +69,122 @@ export default function KasirPosView({
         if (v === '' || v === 'undefined' || v === 'null' || v === '-' || v === 'default') return null;
         return String(value).trim();
     };
+
+    // --- BARCODE SCANNER ---
+    // Scanner barcode berperilaku seperti keyboard (ketik cepat + Enter).
+    const allProductsRef = useRef(allProducts);
+    allProductsRef.current = allProducts;
+    const scanBufferRef = useRef('');
+    const lastKeyTimeRef = useRef(0);
+    const isScanSequenceRef = useRef(false);
+    const scanHandlerRef = useRef(null);
+
+    const buildCartItem = (product, v, qty = 1) => ({
+        cart_id: `${product.id}-${normalizeVariantValue(v?.color)}-${normalizeVariantValue(v?.size)}-${Date.now()}-${Math.random()}`,
+        product_id: product.id,
+        variant_color: normalizeVariantValue(v?.color),
+        variant_size: normalizeVariantValue(v?.size),
+        id: product.id,
+        name: product.name,
+        price: Number(v?.price || product.price || 0),
+        varianWarna: normalizeVariantValue(v?.color),
+        varianUkuran: normalizeVariantValue(v?.size),
+        quantity: qty,
+    });
+
+    const processScan = (code) => {
+        const c = String(code || '').trim().toUpperCase();
+        if (!c) return;
+
+        const products = allProductsRef.current;
+        let matched = null;
+
+        // 1. Cocokkan SKU varian (paling presisi)
+        for (const p of products) {
+            for (const v of p.variants || []) {
+                if (v.sku && String(v.sku).toUpperCase() === c) {
+                    matched = { product: p, variant: v };
+                    break;
+                }
+            }
+            if (matched) break;
+        }
+
+        // 2. Cocokkan SKU produk
+        if (!matched) {
+            const p = products.find((pp) => pp.sku && String(pp.sku).toUpperCase() === c);
+            matched = p ? { product: p, variant: null } : null;
+        }
+
+        if (!matched) {
+            showAlert(`Barcode "${code}" tidak ditemukan. Pastikan produk sudah terdaftar.`);
+            return;
+        }
+
+        setSearchQuery('');
+        const { product, variant } = matched;
+
+        // Tutup modal varian lama jika masih terbuka (hindari konflik)
+        if (isModalOpen) {
+            setIsModalOpen(false);
+            setVariantSelection({});
+        }
+
+        // Scan SKU varian → langsung masuk keranjang ke varian tersebut
+        if (variant) {
+            addToCart(buildCartItem(product, variant));
+            return;
+        }
+
+        // Produk non-varian atau 1 varian → langsung tambah
+        const variants = product.variants || [];
+        if (variants.length <= 1) {
+            addToCart(buildCartItem(product, variants[0] || {}));
+            return;
+        }
+
+        // Produk multi-varian → buka modal pemilihan warna/ukuran
+        handleCardClick(product);
+    };
+
+    useEffect(() => {
+        scanHandlerRef.current = processScan;
+    });
+
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (e.key === 'Enter') {
+                const code = scanBufferRef.current.trim();
+                if (code.length >= 3 && isScanSequenceRef.current && scanHandlerRef.current) {
+                    e.preventDefault();
+                    scanBufferRef.current = '';
+                    isScanSequenceRef.current = false;
+                    scanHandlerRef.current(code);
+                } else {
+                    scanBufferRef.current = '';
+                    isScanSequenceRef.current = false;
+                }
+                return;
+            }
+
+            if (e.key.length === 1) {
+                const now = Date.now();
+                const gap = now - lastKeyTimeRef.current;
+                lastKeyTimeRef.current = now;
+
+                if (gap > 0 && gap <= 50) {
+                    isScanSequenceRef.current = true;
+                } else if (gap > 120) {
+                    isScanSequenceRef.current = false;
+                }
+
+                scanBufferRef.current += e.key;
+            }
+        };
+
+        document.addEventListener('keydown', handleKeyDown);
+        return () => document.removeEventListener('keydown', handleKeyDown);
+    }, []);
 
     React.useEffect(() => {
         if (isModalOpen && selectedProduct?.variants?.length > 0) {
@@ -222,6 +343,26 @@ const handleRemoveCartItem = (cartId) => {
         prev.filter(item => item.cart_id !== cartId)
     );
 };
+const categoryOptions = React.useMemo(() => {
+    const categories = filteredProducts
+        .map((product) => product.category?.name)
+        .filter(Boolean);
+
+    return ['all', ...new Set(categories)];
+}, [filteredProducts]);
+
+// Filter produk berdasarkan kategori
+const categoryFilteredProducts = React.useMemo(() => {
+    if (selectedCategory === 'all') {
+        return filteredProducts;
+    }
+
+    return filteredProducts.filter(
+        (product) =>
+            product.category?.name?.toLowerCase() ===
+            selectedCategory.toLowerCase()
+    );
+}, [filteredProducts, selectedCategory]);
 
 
     return (
@@ -237,94 +378,172 @@ const handleRemoveCartItem = (cartId) => {
         {/* =========================
             SEARCH PRODUK
         ========================== */}
-        <div className="mb-5">
-            <div className="relative max-w-xl">
+        {/* =========================
+    SEARCH + BARCODE + KATEGORI
+========================== */}
+<div className="mb-6">
 
-                {/* Icon Search */}
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                    <svg
-                        className="w-5 h-5 text-slate-400"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            strokeWidth="2"
-                            d="M21 21l-4.35-4.35m2.35-5.65a8 8 0 11-16 0 8 8 0 0116 0z"
-                        />
-                    </svg>
-                </div>
+    <div className="flex items-center gap-3">
 
-                <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) =>
-                        setSearchQuery(e.target.value)
-                    }
-                    placeholder="Cari nama produk..."
+        {/* SEARCH PRODUK */}
+        <div className="relative flex-1">
+
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                <svg
+                    className="w-5 h-5 text-slate-400"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                >
+                    <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth="2"
+                        d="M21 21l-4.35-4.35m2.35-5.65a8 8 0 11-16 0 8 8 0 0116 0z"
+                    />
+                </svg>
+            </div>
+
+            <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Cari nama produk..."
+                className="
+                    w-full
+                    pl-11
+                    pr-10
+                    py-3
+                    bg-white
+                    border
+                    border-slate-200
+                    rounded-xl
+                    text-sm
+                    text-slate-700
+                    outline-none
+                    focus:border-[#009664]
+                    focus:ring-2
+                    focus:ring-[#009664]/10
+                    transition
+                "
+            />
+
+            {searchQuery && (
+                <button
+                    type="button"
+                    onClick={() => setSearchQuery('')}
                     className="
-                        w-full
-                        pl-11
-                        pr-10
-                        py-3
-                        bg-white
-                        border
-                        border-slate-200
-                        rounded-xl
-                        text-sm
-                        text-slate-700
-                        outline-none
-                        focus:border-[#009664]
-                        focus:ring-2
-                        focus:ring-[#009664]/10
-                        transition
+                        absolute
+                        inset-y-0
+                        right-0
+                        pr-4
+                        flex
+                        items-center
+                        text-slate-400
+                        hover:text-slate-700
                     "
-                />
+                >
+                    ✕
+                </button>
+            )}
 
-                {/* Tombol Clear */}
-                {searchQuery && (
-                    <button
-                        type="button"
-                        onClick={() => setSearchQuery('')}
-                        className="
-                            absolute
-                            inset-y-0
-                            right-0
-                            pr-4
-                            flex
-                            items-center
-                            text-slate-400
-                            hover:text-slate-700
-                        "
-                    >
-                        ✕
-                    </button>
-                )}
-
-            </div>
-
-            {/* Info hasil pencarian */}
-            <div className="mt-2 text-xs text-slate-400">
-                {searchQuery ? (
-                    <>
-                        Menampilkan{" "}
-                        <span className="font-bold text-slate-600">
-                            {filteredProducts.length}
-                        </span>{" "}
-                        produk untuk "{searchQuery}"
-                    </>
-                ) : (
-                    <>
-                        <span className="font-bold text-slate-600">
-                            {filteredProducts.length}
-                        </span>{" "}
-                        produk tersedia
-                    </>
-                )}
-            </div>
         </div>
+
+        {/* SCAN BARCODE */}
+        <button
+    type="button"
+    onClick={() => {
+        console.log('SCAN BUTTON DIKLIK');
+        setIsBarcodeScannerOpen(true);
+    }}
+    className="
+        flex
+        items-center
+        justify-center
+        gap-2
+        h-[48px]
+        px-5
+        bg-white
+        border
+        border-slate-200
+        rounded-xl
+        text-slate-600
+        hover:border-[#009664]
+        hover:text-[#009664]
+        hover:bg-emerald-50
+        transition
+        flex-shrink-0
+    "
+    title="Scan Barcode"
+>
+    <Barcode className="w-5 h-5" />
+
+    <span className="text-sm font-semibold">
+        Scan
+    </span>
+</button>
+
+        {/* FILTER KATEGORI */}
+        <div className="w-48 flex-shrink-0">
+
+            <select
+                value={selectedCategory}
+                onChange={(e) => setSelectedCategory(e.target.value)}
+                className="
+                    w-full
+                    h-[48px]
+                    px-3
+                    bg-white
+                    border
+                    border-slate-200
+                    rounded-xl
+                    text-sm
+                    text-slate-700
+                    outline-none
+                    focus:border-[#009664]
+                    focus:ring-2
+                    focus:ring-[#009664]/10
+                    cursor-pointer
+                "
+            >
+                {categoryOptions.map((category) => (
+                    <option
+                        key={category}
+                        value={category}
+                    >
+                        {category === 'all'
+                            ? 'Semua Kategori'
+                            : category.charAt(0).toUpperCase() +
+                              category.slice(1)}
+                    </option>
+                ))}
+            </select>
+
+        </div>
+
+    </div>
+
+    {/* INFO HASIL */}
+    <div className="mt-2 text-xs text-slate-400">
+        {searchQuery ? (
+            <>
+                Menampilkan{" "}
+                <span className="font-bold text-slate-600">
+                    {categoryFilteredProducts.length}
+                </span>{" "}
+                produk untuk "{searchQuery}"
+            </>
+        ) : (
+            <>
+                <span className="font-bold text-slate-600">
+                    {categoryFilteredProducts.length}
+                </span>{" "}
+                produk tersedia
+            </>
+        )}
+    </div>
+
+</div>
 
         <div
     className={`grid gap-4 ${
@@ -333,7 +552,7 @@ const handleRemoveCartItem = (cartId) => {
             : 'grid-cols-3'
     }`}
 >
-            {filteredProducts.map((product) => {
+            {categoryFilteredProducts.map((product) => {
 
                 const totalStock =
                     product.variants?.reduce(
@@ -1008,11 +1227,20 @@ const handleRemoveCartItem = (cartId) => {
                 )}
 
             </div>
-
         </div>
     </div>
+    
 )}
+<BarcodeScannerModal
+            open={isBarcodeScannerOpen}
+            onClose={() => setIsBarcodeScannerOpen(false)}
+            onScan={(barcode) => {
+                setIsBarcodeScannerOpen(false);
+                processScan(barcode);
+            }}
+        />
         </div>
+        
     );
 
 }
