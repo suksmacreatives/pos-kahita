@@ -23,6 +23,22 @@ use Throwable;
 
 class ProductController extends Controller
 {
+    private const PRODUCT_CODE_PREFIX = 'KHT-';
+
+    /** Lebar nomor pada kode produk baru: KHT-00001 (5 digit). */
+    private const PRODUCT_CODE_PAD = 5;
+
+    /**
+     * Kode produk berikutnya, dipakai form admin supaya kode yang tampil
+     * sama dengan yang akan disimpan server.
+     */
+    public function nextCode()
+    {
+        return response()->json([
+            'kode_produk' => $this->generateProductSku(),
+        ]);
+    }
+
     public function export(Request $request)
     {
         $format = $request->input('format', 'pdf');
@@ -129,7 +145,7 @@ class ProductController extends Controller
     {
         $validated = $request->validate([
             'product_ids' => 'required|array',
-            'product_ids.*' => 'integer|exists:products,id,deleted_at',
+            'product_ids.*' => 'integer|exists:products,id',
             'qty' => 'nullable|integer|min:1|max:100',
             'mode' => 'nullable|in:per_produk,per_varian',
             'include_price' => 'nullable|in:0,1,true,false',
@@ -289,14 +305,65 @@ class ProductController extends Controller
         ]);
     }
 
+    /**
+     * Bersihkan input sebelum divalidasi.
+     *
+     * Kode produk dan SKU sering di-paste atau hasil ketik scanner yang
+     * menyisipkan spasi/enter di akhir. Kalau tidak dibersihkan dulu, regex
+     * akan menolak meski isinya valid. Memangkas di sini membuat pengguna
+     * tidak perlu memperbaiki input manual.
+     */
+    private function bersihkanInputProduk(Request $request): Request
+    {
+        $bersih = function ($nilai) {
+            if (! is_string($nilai)) {
+                return $nilai;
+            }
+
+            return trim(preg_replace('/\s+/', ' ', $nilai));
+        };
+
+        $data = $request->all();
+        foreach (['nama_produk', 'kode_produk', 'sub_kategori', 'deskripsi'] as $field) {
+            if (array_key_exists($field, $data)) {
+                $data[$field] = $bersih($data[$field]);
+            }
+        }
+        if (($data['kode_produk'] ?? null) === '') {
+            $data['kode_produk'] = null;
+        }
+
+        if (isset($data['variants']) && is_array($data['variants'])) {
+            foreach ($data['variants'] as $i => $varian) {
+                if (! is_array($varian)) {
+                    continue;
+                }
+                foreach (['sku', 'color_name', 'size_label'] as $field) {
+                    if (array_key_exists($field, $varian)) {
+                        $data['variants'][$i][$field] = $bersih($varian[$field]);
+                    }
+                }
+                if (($data['variants'][$i]['sku'] ?? null) === '') {
+                    $data['variants'][$i]['sku'] = null;
+                }
+            }
+        }
+
+        $request->merge($data);
+
+        return $request;
+    }
+
     public function store(Request $request)
     {
+        $request = $this->bersihkanInputProduk($request);
+
         $validated = $request->validate([
             'nama_produk' => 'required|string|max:255',
             // Boleh dikosongkan: sistem yang membuat kode produknya (lihat
             // generateProductSku()). Barcode tidak dibentuk dari SKU, jadi
             // panjang kode tidak lagi dibatasi demi "keterbacaan barcode".
-            'kode_produk' => 'nullable|string|max:64|regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/',
+            'kode_produk' => 'nullable|string|max:255|regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/',
             'harga_jual' => 'required|numeric|min:0',
             'harga_beli' => 'required|numeric|min:0',
             'deskripsi' => 'nullable|string',
@@ -310,9 +377,8 @@ class ProductController extends Controller
             'variants.*.harga_jual' => 'nullable|integer|min:0',
             'variants.*.harga_beli' => 'nullable|integer|min:0',
             'variants.*.sku' => [
-                'required', 'string', 'max:32',
+                'nullable', 'string', 'max:255',
                 'regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/',
-                Rule::unique('product_variants', 'sku'),
             ],
             'outlet_tersedia' => 'nullable',
             'distribusi_ke_gudang' => 'nullable|in:0,1,true,false',
@@ -321,90 +387,67 @@ class ProductController extends Controller
             'variants.required' => 'Produk harus memiliki minimal 1 varian',
             'variants.min' => 'Produk harus memiliki minimal 1 varian',
             'variants.array' => 'Data varian tidak valid',
-            'kode_produk.max' => 'Kode produk maksimal 64 karakter',
+            'kode_produk.max' => 'Kode produk maksimal 255 karakter (sesuai kolom database)',
             'kode_produk.regex' => 'Kode produk hanya boleh huruf, angka, titik, strip, garis miring, atau spasi',
             'variants.*.sku.required' => 'SKU varian wajib diisi',
-            'variants.*.sku.max' => 'SKU varian maksimal 32 karakter',
+            'variants.*.sku.max' => 'SKU varian maksimal 255 karakter (sesuai kolom database)',
             'variants.*.sku.regex' => 'SKU varian hanya boleh huruf, angka, titik, strip, garis miring, atau spasi',
             'variants.*.sku.unique' => 'SKU varian sudah dipakai',
         ]);
 
         $this->assertHasDimensionVariant($validated);
 
+        $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
+        $distribusiKeGudang = filter_var($validated['distribusi_ke_gudang'] ?? true, FILTER_VALIDATE_BOOLEAN);
+
+        // Kode produk: pakai yang diinput, atau buat otomatis, ataurians suffix
+        // kalau sudah dipakai. Admin tidak perlu mengoreksi manual.
+        [$kodeProduk, $catatanKode] = $this->resolveProductSku($validated['kode_produk'] ?? null);
+
         $imagePath = null;
         if ($request->hasFile('image')) {
             $imagePath = $request->file('image')->store('products', 'public');
         }
 
-        $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
-        $distribusiKeGudang = filter_var($validated['distribusi_ke_gudang'] ?? true, FILTER_VALIDATE_BOOLEAN);
+        try {
+            $product = DB::transaction(function () use ($validated, $kodeProduk, $outletTersedia, $distribusiKeGudang, $imagePath) {
+                $product = Product::create([
+                    'name' => $validated['nama_produk'],
+                    'sku' => $kodeProduk,
+                    'price' => $validated['harga_jual'],
+                    'cost_price' => $validated['harga_beli'],
+                    'description' => $validated['deskripsi'] ?? null,
+                    'category_id' => $validated['category_id'] ?? null,
+                    'sub_kategori' => $validated['sub_kategori'] ?? null,
+                    'status' => $validated['status'] ?? 'aktif',
+                    'outlet_id' => ! empty($outletTersedia) ? (int) $outletTersedia[0] : null,
+                    'outlet_ids' => ! empty($outletTersedia) ? $outletTersedia : null,
+                    'image' => $imagePath,
+                ]);
 
-        $product = Product::create([
-            'name' => $validated['nama_produk'],
-            'sku' => $validated['kode_produk'],
-            'price' => $validated['harga_jual'],
-            'cost_price' => $validated['harga_beli'],
-            'description' => $validated['deskripsi'] ?? null,
-            'category_id' => $validated['category_id'] ?? null,
-            'sub_kategori' => $validated['sub_kategori'] ?? null,
-            'status' => $validated['status'] ?? 'aktif',
-            'outlet_id' => ! empty($outletTersedia) ? (int) $outletTersedia[0] : null,
-            'outlet_ids' => ! empty($outletTersedia) ? $outletTersedia : null,
-            'image' => $imagePath,
-        ]);
+                $product->outlets()->sync($outletTersedia);
 
-        $product->outlets()->sync($outletTersedia);
+                $this->createVariants($product, $validated, $outletTersedia, $distribusiKeGudang);
 
-        $usedSkus = [];
-        if (! empty($validated['variants'])) {
-            foreach ($validated['variants'] as $v) {
-                $sku = $v['sku'] ?? $validated['kode_produk'].'-ALL';
-
-                if (in_array($sku, $usedSkus)) {
-                    throw ValidationException::withMessages([
-                        'variants.*.sku' => 'SKU varian "'.$sku.'" sudah dipakai di produk ini',
-                    ]);
-                }
-                $usedSkus[] = $sku;
-
-                $stokGudang = $distribusiKeGudang ? ($v['stok'] ?? 0) : 0;
-
-                try {
-                    $variant = $product->variants()->create([
-                        'color' => $v['color_name'] ?? null,
-                        'size' => $v['size_label'] ?? null,
-                        'stock' => $stokGudang,
-                        'price' => $v['harga_jual'] ?? $validated['harga_jual'],
-                        'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
-                        'sku' => $sku,
-                    ]);
-                } catch (QueryException $e) {
-                    if ($e->getCode() == 23000) {
-                        throw ValidationException::withMessages([
-                            'variants.*.sku' => 'SKU varian "'.$sku.'" sudah dipakai produk lain',
-                        ]);
-                    }
-                    throw $e;
-                }
-
-                foreach ($outletTersedia as $outletId) {
-                    OutletStock::create([
-                        'outlet_id' => $outletId,
-                        'product_variant_id' => $variant->id,
-                        'stock' => $v['stok'] ?? 0,
-                    ]);
-                }
+                return $product;
+            });
+        } catch (Throwable $e) {
+            if ($imagePath) {
+                Storage::disk('public')->delete($imagePath);
             }
+
+            throw $e;
         }
 
-        return redirect()->back()->with('success', 'Produk berhasil ditambahkan!');
+        return redirect()->back()->with('success', 'Produk berhasil ditambahkan!'.$catatanKode);
     }
 
     public function update(Request $request, Product $product)
     {
+        $request = $this->bersihkanInputProduk($request);
         $validated = $request->validate([
             'nama_produk' => 'required|string|max:255',
-            'kode_produk' => 'nullable|string|max:64|regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/',
+            'kode_produk' => 'nullable|string|max:255|regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/',
             'harga_jual' => 'required|numeric|min:0',
             'harga_beli' => 'required|numeric|min:0',
             'deskripsi' => 'nullable|string',
@@ -423,10 +466,8 @@ class ProductController extends Controller
             'variants.*.harga_jual' => 'nullable|integer|min:0',
             'variants.*.harga_beli' => 'nullable|integer|min:0',
             'variants.*.sku' => [
-                'nullable', 'string', 'max:32',
+                'nullable', 'string', 'max:255',
                 'regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/',
-                Rule::unique('product_variants', 'sku')
-                    ->ignore($product->id, 'product_id'),
             ],
             'outlet_tersedia' => 'nullable',
             'distribusi_ke_gudang' => 'nullable|in:0,1,true,false',
@@ -436,10 +477,10 @@ class ProductController extends Controller
             'variants.min' => 'Produk harus memiliki minimal 1 varian',
             'variants.array' => 'Data varian tidak valid',
             'variants.*.id.exists' => 'Varian yang dikirim tidak lagi ada di produk ini, silakan muat ulang halaman',
-            'kode_produk.max' => 'Kode produk maksimal 64 karakter',
+            'kode_produk.max' => 'Kode produk maksimal 255 karakter (sesuai kolom database)',
             'kode_produk.regex' => 'Kode produk hanya boleh huruf, angka, titik, strip, garis miring, atau spasi',
             'variants.*.sku.required' => 'SKU varian wajib diisi',
-            'variants.*.sku.max' => 'SKU varian maksimal 32 karakter',
+            'variants.*.sku.max' => 'SKU varian maksimal 255 karakter (sesuai kolom database)',
             'variants.*.sku.regex' => 'SKU varian hanya boleh huruf, angka, titik, strip, garis miring, atau spasi',
             'variants.*.sku.unique' => 'SKU varian sudah dipakai',
         ]);
@@ -449,9 +490,12 @@ class ProductController extends Controller
         $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
         $distribusiKeGudang = filter_var($validated['distribusi_ke_gudang'] ?? true, FILTER_VALIDATE_BOOLEAN);
 
+        // Sama seperti store(): kode kosong/double diresolve otomatis.
+        [$kodeProduk, $catatanKode] = $this->resolveProductSkuFor($validated['kode_produk'] ?? null, $product->id);
+
         $updateData = [
             'name' => $validated['nama_produk'],
-            'sku' => $validated['kode_produk'],
+            'sku' => $kodeProduk,
             'price' => $validated['harga_jual'],
             'cost_price' => $validated['harga_beli'],
             'description' => $validated['deskripsi'] ?? null,
@@ -494,7 +538,7 @@ class ProductController extends Controller
             throw $e;
         }
 
-        return redirect()->back()->with('success', 'Produk berhasil diperbarui!');
+        return redirect()->back()->with('success', 'Produk berhasil diperbarui!'.$catatanKode);
     }
 
     public function destroy(Product $product)
@@ -605,16 +649,14 @@ class ProductController extends Controller
             $variant->delete();
         }
 
-        $usedSkus = [];
+        $dipakai = [];
         foreach ($validated['variants'] as $v) {
-            $sku = $v['sku'] ?? $validated['kode_produk'].'-ALL';
+            $variant = isset($v['id']) ? $existingVariants->get($v['id']) : null;
 
-            if (in_array($sku, $usedSkus, true)) {
-                throw ValidationException::withMessages([
-                    'variants.*.sku' => 'SKU varian "'.$sku.'" sudah dipakai di produk ini',
-                ]);
-            }
-            $usedSkus[] = $sku;
+            // SKU milik varian itu sendiri tidak dihitung sebagai bentrok,
+            // jadi admin boleh menyimpan tanpa mengubah SKU.
+            $sku = $this->resolveVariantSku($v['sku'] ?? null, $product->sku, $v, $dipakai, $variant?->id);
+            $dipakai[$sku] = true;
 
             $attributes = [
                 'color' => $v['color_name'] ?? null,
@@ -624,27 +666,175 @@ class ProductController extends Controller
                 'sku' => $sku,
             ];
 
-            $variant = isset($v['id']) ? $existingVariants->get($v['id']) : null;
-
             if ($variant) {
                 $variant->update($attributes);
             } else {
                 $stokGudang = $distribusiKeGudang ? ($v['stok'] ?? 0) : 0;
 
-                try {
-                    $variant = $product->variants()->create($attributes + ['stock' => $stokGudang]);
-                } catch (QueryException $e) {
-                    if ($e->getCode() == 23000) {
-                        throw ValidationException::withMessages([
-                            'variants.*.sku' => 'SKU varian "'.$sku.'" sudah dipakai produk lain',
-                        ]);
-                    }
-                    throw $e;
-                }
+                $variant = $product->variants()->create($attributes + ['stock' => $stokGudang]);
             }
 
             $this->reconcileOutletStock($variant, $outletTersedia, $v['stok'] ?? 0);
         }
+    }
+
+    /**
+     * Kode produk dibuat berurutan (KHT-00001, KHT-00002, ...) supaya pendek,
+     * mudah dibaca, dan aman dipakai pada label barcode.
+     *
+     * Penomoranstarted dari 1 dan tidak mewarisi kode lama yang tidak berurutan
+     * (mis. KHT-39936216), serta tidak pernah memakai ulang nomor yang sudah
+     * pernah dipakai produk lain.
+     */
+    private function generateProductSku(): string
+    {
+        $suffixPola = str_repeat('_', self::PRODUCT_CODE_PAD);
+        $terbesar = Product::withTrashed()
+            ->where('sku', 'like', self::PRODUCT_CODE_PREFIX.$suffixPola)
+            ->pluck('sku')
+            ->map(fn ($sku) => substr((string) $sku, strlen(self::PRODUCT_CODE_PREFIX)))
+            ->filter(fn ($suffix) => ctype_digit($suffix))
+            ->map(fn ($suffix) => (int) $suffix)
+            ->max() ?? 0;
+
+        $nomor = $terbesar + 1;
+
+        for ($i = 0; $i < 1000; $i++) {
+            $kandidat = self::PRODUCT_CODE_PREFIX.str_pad((string) ($nomor + $i), self::PRODUCT_CODE_PAD, '0', STR_PAD_LEFT);
+
+            if (! $this->productSkuTaken($kandidat)) {
+                return $kandidat;
+            }
+        }
+
+        // Very unlikely: fallback acak agar tetap unik.
+        return self::PRODUCT_CODE_PREFIX.str_pad((string) random_int(0, 99999), self::PRODUCT_CODE_PAD, '0', STR_PAD_LEFT).'-'.strtoupper(substr(bin2hex(random_bytes(2)), 0, 4));
+    }
+
+    /**
+     * Tentukan kode produk final dari input admin.
+     *
+     * @return array{0: string, 1: string} [kode, catatan untuk flash message]
+     */
+    private function resolveProductSku(?string $input): array
+    {
+        return $this->resolveProductSkuFor($input, null);
+    }
+
+    /**
+     * @return array{0: string, 1: string} [kode, catatan untuk flash message]
+     */
+    private function resolveProductSkuFor(?string $input, ?int $ignoreProductId): array
+    {
+        $kode = $this->normalizeSku($input);
+
+        if ($kode === null) {
+            $kodeBaru = $this->generateProductSku();
+
+            return [$kodeBaru, ' Kode produk dibuat otomatis: '.$kodeBaru];
+        }
+
+        if ($this->productSkuTaken($kode, $ignoreProductId)) {
+            $kodeBaru = $this->suffixSkuUntilFree($kode, fn ($k) => $this->productSkuTaken($k, $ignoreProductId));
+            $catatan = ' Kode produk "'.$kode.'" sudah dipakai, sistem memakai "'.$kodeBaru.'".';
+
+            return [$kodeBaru, $catatan];
+        }
+
+        return [$kode, ''];
+    }
+
+    private function productSkuTaken(string $sku, ?int $ignoreProductId = null): bool
+    {
+        return Product::withTrashed()
+            ->where('sku', $sku)
+            ->when($ignoreProductId, fn ($q) => $q->where('id', '!=', $ignoreProductId))
+            ->exists();
+    }
+
+    private function variantSkuTaken(string $sku, ?int $ignoreVariantId = null): bool
+    {
+        return ProductVariant::withTrashed()
+            ->where('sku', $sku)
+            ->when($ignoreVariantId, fn ($q) => $q->where('id', '!=', $ignoreVariantId))
+            ->exists();
+    }
+
+    /**
+     * Tambahkan suffix -2, -3, ... sampai slug-nya bebas dipakai.
+     * Angka yang sudah ada di akhir SKU dipertahankan sebagai basis, jadi
+     * "KHT-3887" -> "KHT-3887-2" (bukan "KHT-3888").
+     */
+    private function suffixSkuUntilFree(string $sku, callable $isTaken): string
+    {
+        for ($i = 2; $i < 1000; $i++) {
+            $kandidat = $sku.'-'.$i;
+
+            if (! $isTaken($kandidat)) {
+                return $kandidat;
+            }
+        }
+
+        return $sku.'-'.strtoupper(substr(bin2hex(random_bytes(3)), 0, 6));
+    }
+
+    private function normalizeSku(?string $value): ?string
+    {
+        $value = trim((string) $value);
+        $value = (string) preg_replace('/\s+/', ' ', $value);
+
+        return $value === '' ? null : $value;
+    }
+
+    private function createVariants(Product $product, array $validated, array $outletTersedia, bool $distribusiKeGudang): void
+    {
+        $dipakai = [];
+
+        foreach ($validated['variants'] ?? [] as $v) {
+            $sku = $this->resolveVariantSku($v['sku'] ?? null, $product->sku, $v, $dipakai);
+            $dipakai[$sku] = true;
+
+            $variant = $product->variants()->create([
+                'color' => $v['color_name'] ?? null,
+                'size' => $v['size_label'] ?? null,
+                'stock' => $distribusiKeGudang ? ($v['stok'] ?? 0) : 0,
+                'price' => $v['harga_jual'] ?? $validated['harga_jual'],
+                'cost_price' => $v['harga_beli'] ?? $validated['harga_beli'],
+                'sku' => $sku,
+            ]);
+
+            $this->reconcileOutletStock($variant, $outletTersedia, $v['stok'] ?? 0);
+        }
+    }
+
+    /**
+     * SKU varian: pakai input admin, atau turunkan dari kode produk + warna/ukuran.
+     * Duplikat (di DB atau di request yang sama) otomatis diberi suffix.
+     *
+     * @param  array<int|string, bool>  $dipakai  SKU yang sudah dipakai varian lain di request ini
+     * @param  int|null  $ignoreVariantId  varian yang sedang di-update, agar SKU-nya sendiri
+     *                                     tidak dianggap bentrok dan tidak jadi ber-suffix
+     */
+    private function resolveVariantSku(?string $input, string $kodeProduk, array $v, array $dipakai, ?int $ignoreVariantId = null): string
+    {
+        $sku = $this->normalizeSku($input);
+
+        if ($sku === null) {
+            $warna = strtoupper(substr(preg_replace('/[^A-Za-z0-9]/', '', (string) ($v['color_name'] ?? '')) ?: '', 0, 3));
+            $ukuran = trim((string) ($v['size_label'] ?? ''));
+            $bagian = array_filter([$kodeProduk, $warna ?: null, $ukuran ?: null], fn ($b) => $b !== '');
+            $sku = $bagian ? implode('-', $bagian) : $kodeProduk;
+        }
+
+        $bentrok = function (string $kandidat) use ($dipakai, $ignoreVariantId) {
+            return isset($dipakai[$kandidat]) || $this->variantSkuTaken($kandidat, $ignoreVariantId);
+        };
+
+        if ($bentrok($sku)) {
+            $sku = $this->suffixSkuUntilFree($sku, $bentrok);
+        }
+
+        return $sku;
     }
 
     private function reconcileOutletStock(ProductVariant $variant, array $outletIds, int $stock): void

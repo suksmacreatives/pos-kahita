@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useForm, usePage } from "@inertiajs/react";
 import toast from "react-hot-toast";
 import { X, Upload, ChevronDown, Search, Printer } from "lucide-react";
-import VariantManager from "./VariantManager";
+import VariantManager, { generateSku } from "./VariantManager";
 import Barcode from "./Barcode";
 import { printBarcodeLabels } from "@/lib/barcode";
 
@@ -106,13 +106,24 @@ export default function ProductFormModal({
       initialVariantData.current = converted;
       setVariantData(converted);
     } else {
-      const autoKode = "KHT-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
+      // Kode produk dibuat server (route admin.products.next-code) supaya
+      // yang tampil di form = yang benar-benar tersimpan, dan tidak pernah
+      // bentrok. Fallback lokal hanya kalau request gagal.
+      const fallbackKode = "KHT-" + Math.random().toString(36).slice(2, 7).toUpperCase();
       reset();
-      setData("kode_produk", autoKode);
+      setData("kode_produk", fallbackKode);
       setImagePreview(null);
       const empty = { hasColor: false, hasSize: false, colors: [], sizes: [], variants: [] };
       initialVariantData.current = empty;
       setVariantData(empty);
+
+      fetch("/admin/products/next-code", { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((json) => {
+          const next = json?.kode_produk;
+          if (next) setData("kode_produk", next);
+        })
+        .catch(() => {});
     }
   }, [product, isOpen]);
 
@@ -270,15 +281,18 @@ export default function ProductFormModal({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Kode Produk *</label>
-                <input type="text" value={data.kode_produk} onChange={(e) => {
+                <div className="flex items-baseline justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-gray-700">Kode Produk</label>
+                  <span className="text-[10px] text-gray-400">Kosongkan untuk dibuat otomatis</span>
+                </div>
+                <input type="text" value={data.kode_produk} maxLength={255} onChange={(e) => {
                   setData("kode_produk", e.target.value);
                   const updated = variantData.variants.map(v => ({
                     ...v,
                     sku: generateSku(e.target.value, v.color_nama, v.size_label),
                   }));
                   setVariantData(prev => ({ ...prev, variants: updated }));
-                }} placeholder="KHT-XXXX"
+                }} placeholder="KHT-00001"
                   className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2 bg-slate-50" />
                 {fieldError("kode_produk")}
 
@@ -562,13 +576,4 @@ export default function ProductFormModal({
     </div>,
     document.body
   );
-}
-
-function generateSku(productCode, colorName, sizeLabel) {
-  if (!productCode) return "";
-  const abbr = (s) => (s || "").slice(0, 2).toUpperCase();
-  const parts = [productCode];
-  if (colorName) parts.push(abbr(colorName));
-  if (sizeLabel) parts.push(sizeLabel);
-  return parts.join("-");
 }

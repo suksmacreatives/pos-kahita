@@ -125,6 +125,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::delete('/admin/products/{product}', [ProductController::class, 'destroy'])->name('admin.products.destroy');
     Route::post('/admin/products/{product}/restore', [ProductController::class, 'restore'])->name('admin.products.restore');
         Route::post('/admin/products/export', [ProductController::class, 'export'])->name('admin.products.export');
+    Route::get('/admin/products/next-code', [ProductController::class, 'nextCode'])->name('admin.products.next-code');
         Route::get('/admin/products/barcode-label', [ProductController::class, 'barcodeLabel'])->name('admin.products.barcode-label');
         Route::get('/admin/products/{product}/barcode-png', [ProductController::class, 'barcodeImage'])->name('admin.products.barcode-png');
         Route::get('/admin/products/{product}/varian/{variant}/barcode-png', [ProductController::class, 'barcodeVariantImage'])->name('admin.products.barcode-png-variant');

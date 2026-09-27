@@ -8,14 +8,30 @@ import VariantSummary from "./VariantSummary";
 
 const genId = () => Math.random().toString(36).slice(2, 8);
 
-const abbr = (s) => (s || "").slice(0, 2).toUpperCase();
+// Ringkas: huruf/angka saja, maksimal 3 karakter untuk warna.
+const sanitize = (s, max = 3) =>
+  (s || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, max);
 
-const generateSku = (productCode, colorName, sizeLabel) => {
-  if (!productCode) return "";
-  const parts = [productCode];
-  if (colorName) parts.push(abbr(colorName));
-  if (sizeLabel) parts.push(sizeLabel);
-  return parts.join("-");
+/**
+ * SKU varian diturunkan dari kode produk + singkatan warna + ukuran.
+ * Panjannya dibatasi 64 karakter supaya tetap ringkas di label,
+ * dan tidak pernah kosong selama kode produk ada.
+ */
+export const generateSku = (productCode, colorName, sizeLabel) => {
+  const code = (productCode || "").trim();
+  if (!code) return "";
+
+  const parts = [code.slice(0, 64)];
+  const warna = sanitize(colorName);
+  const ukuran = sanitize(sizeLabel, 8);
+
+  if (warna) parts.push(warna);
+  if (ukuran) parts.push(ukuran);
+
+  return parts.join("-").slice(0, 64);
 };
 
 function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { productCode, hargaJualDefault, hargaBeliDefault }) {
