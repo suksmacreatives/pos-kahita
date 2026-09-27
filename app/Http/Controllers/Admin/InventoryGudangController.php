@@ -2,9 +2,13 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exceptions\InsufficientStockException;
 use App\Http\Controllers\Controller;
 use App\Models\DistributionOrder;
 use App\Models\DistributionOrderItem;
+use App\Models\OnlineShop;
+use App\Models\Outlet;
+use App\Models\OutletReturn;
 use App\Models\Product;
 use App\Models\ProductVariant;
 use App\Models\PurchaseOrder;
@@ -15,8 +19,6 @@ use App\Models\StockOpnameItem;
 use App\Models\Supplier;
 use App\Models\SupplierReturn;
 use App\Models\SupplierReturnItem;
-use App\Models\Outlet;
-use App\Models\OutletReturn;
 use App\Services\Inventory\ReturGudangService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -29,6 +31,7 @@ class InventoryGudangController extends Controller
     {
         $this->middleware(function ($request, $next) {
             abort_if($request->user()?->outlet_id, 403);
+
             return $next($request);
         });
     }
@@ -74,7 +77,10 @@ class InventoryGudangController extends Controller
             'habis' => $habis,
         ];
 
-        $mutasiLog = StockMovement::with('productVariant.product')
+        $mutasiLog = StockMovement::with([
+            'productVariant' => fn ($q) => $q->withTrashed(),
+            'productVariant.product' => fn ($q) => $q->withTrashed(),
+        ])
             ->latest()
             ->take(50)
             ->get()
@@ -90,7 +96,11 @@ class InventoryGudangController extends Controller
 
         $mutasiChart = $this->buildMutasiChartData();
 
-        $penerimaanBarang = PurchaseOrder::with(['supplier', 'items.product'])
+        $penerimaanBarang = PurchaseOrder::with([
+            'supplier',
+            'items.product' => fn ($q) => $q->withTrashed(),
+            'items.productVariant' => fn ($q) => $q->withTrashed(),
+        ])
             ->latest()
             ->get()
             ->map(fn ($po) => [
@@ -115,7 +125,12 @@ class InventoryGudangController extends Controller
                 ])->toArray(),
             ]);
 
-        $distribusiOutlet = DistributionOrder::with(['outlet', 'onlineShop', 'items.product'])
+        $distribusiOutlet = DistributionOrder::with([
+            'outlet',
+            'onlineShop',
+            'items.product' => fn ($q) => $q->withTrashed(),
+            'items.productVariant' => fn ($q) => $q->withTrashed(),
+        ])
             ->latest()
             ->get()
             ->map(fn ($do) => [
@@ -149,7 +164,11 @@ class InventoryGudangController extends Controller
 
         $distribusiOnline = $distribusiOutlet->where('tipe_tujuan', 'online')->values();
 
-        $returSupplier = SupplierReturn::with(['supplier', 'items.product'])
+        $returSupplier = SupplierReturn::with([
+            'supplier',
+            'items.product' => fn ($q) => $q->withTrashed(),
+            'items.productVariant' => fn ($q) => $q->withTrashed(),
+        ])
             ->latest()
             ->get()
             ->map(fn ($r) => [
@@ -235,7 +254,7 @@ class InventoryGudangController extends Controller
             'kota' => $s->kota,
         ]);
 
-        $onlineShopList = \App\Models\OnlineShop::all()->map(fn ($s) => [
+        $onlineShopList = OnlineShop::all()->map(fn ($s) => [
             'id' => $s->id,
             'nama' => $s->nama,
         ]);
@@ -285,7 +304,12 @@ class InventoryGudangController extends Controller
             ];
         });
 
-        $distribusiOnline = DistributionOrder::with(['outlet', 'onlineShop', 'items.product'])
+        $distribusiOnline = DistributionOrder::with([
+            'outlet',
+            'onlineShop',
+            'items.product' => fn ($q) => $q->withTrashed(),
+            'items.productVariant' => fn ($q) => $q->withTrashed(),
+        ])
             ->where('tipe_tujuan', 'online')
             ->latest()
             ->get()
@@ -312,7 +336,7 @@ class InventoryGudangController extends Controller
                 ])->toArray(),
             ]);
 
-        $onlineShopList = \App\Models\OnlineShop::all()->map(fn ($s) => [
+        $onlineShopList = OnlineShop::all()->map(fn ($s) => [
             'id' => $s->id,
             'nama' => $s->nama,
         ]);
@@ -357,7 +381,7 @@ class InventoryGudangController extends Controller
 
             $totalQty = collect($validated['items'])->sum('qty_pesan');
             $totalNilai = collect($validated['items'])->sum(fn ($i) => $i['qty_pesan'] * $i['harga_beli']);
-            $nomorPo = 'PO-' . now()->format('Ymd') . '-' . str_pad(PurchaseOrder::max('id') + 1, 3, '0', STR_PAD_LEFT);
+            $nomorPo = 'PO-'.now()->format('Ymd').'-'.str_pad(PurchaseOrder::max('id') + 1, 3, '0', STR_PAD_LEFT);
 
             $po = PurchaseOrder::create([
                 'nomor_po' => $nomorPo,
@@ -392,15 +416,17 @@ class InventoryGudangController extends Controller
                 'product_variant_id' => $variantPertama?->id,
                 'type' => 'penerimaan',
                 'qty' => $totalQty,
-                'note' => 'Penerimaan dari: ' . ($validated['supplier_nama'] ?? ''),
+                'note' => 'Penerimaan dari: '.($validated['supplier_nama'] ?? ''),
                 'user_id' => Auth::id(),
             ]);
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Penerimaan barang berhasil disimpan');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal: '.$e->getMessage());
         }
     }
 
@@ -429,15 +455,17 @@ class InventoryGudangController extends Controller
                 'product_variant_id' => null,
                 'type' => 'penerimaan',
                 'qty' => $purchaseOrder->total_qty,
-                'note' => 'Penerimaan PO: ' . $purchaseOrder->nomor_po,
+                'note' => 'Penerimaan PO: '.$purchaseOrder->nomor_po,
                 'user_id' => Auth::id(),
             ]);
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Barang berhasil diterima');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal: '.$e->getMessage());
         }
     }
 
@@ -448,6 +476,7 @@ class InventoryGudangController extends Controller
         }
 
         $purchaseOrder->update(['status' => 'menunggu']);
+
         return redirect()->back()->with('success', 'PO berhasil diproses, menunggu penerimaan');
     }
 
@@ -479,13 +508,13 @@ class InventoryGudangController extends Controller
         }
 
         $tujuanNama = $validated['outlet_tujuan'] ?? ($validated['tipe_tujuan'] === 'online'
-            ? (\App\Models\OnlineShop::find($validated['online_shop_id'])?->nama ?? 'Online Shop')
+            ? (OnlineShop::find($validated['online_shop_id'])?->nama ?? 'Online Shop')
             : '');
 
         DB::beginTransaction();
         try {
             $totalQty = collect($validated['items'])->sum('qty');
-            $nomorDo = 'DO-' . now()->format('Ymd') . '-' . str_pad(DistributionOrder::max('id') + 1, 3, '0', STR_PAD_LEFT);
+            $nomorDo = 'DO-'.now()->format('Ymd').'-'.str_pad(DistributionOrder::max('id') + 1, 3, '0', STR_PAD_LEFT);
 
             $do = DistributionOrder::create([
                 'nomor_do' => $nomorDo,
@@ -504,9 +533,11 @@ class InventoryGudangController extends Controller
                     if ($variant->stock < $item['qty']) {
                         DB::rollBack();
                         $label = $item['ukuran'];
-                        if (!empty($item['warna'])) $label = $item['warna'] . ' / ' . $label;
-                        return back()->withErrors(['error' =>
-                            'Stok ' . $item['nama'] . ' (' . $label . ') tidak mencukupi! Tersedia: ' . $variant->stock]);
+                        if (! empty($item['warna'])) {
+                            $label = $item['warna'].' / '.$label;
+                        }
+
+                        return back()->withErrors(['error' => 'Stok '.$item['nama'].' ('.$label.') tidak mencukupi! Tersedia: '.$variant->stock]);
                     }
                     $variant->decrement('stock', $item['qty']);
                 }
@@ -527,16 +558,18 @@ class InventoryGudangController extends Controller
                     'product_variant_id' => null,
                     'type' => 'distribusi',
                     'qty' => -$totalQty,
-                    'note' => 'Distribusi ke: ' . ($tujuanNama ?: ($validated['outlet_tujuan'] ?? '')),
+                    'note' => 'Distribusi ke: '.($tujuanNama ?: ($validated['outlet_tujuan'] ?? '')),
                     'user_id' => Auth::id(),
                 ]);
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Distribusi berhasil disimpan');
         } catch (\Exception $e) {
             DB::rollBack();
-            return back()->withErrors(['error' => 'Gagal: ' . $e->getMessage()]);
+
+            return back()->withErrors(['error' => 'Gagal: '.$e->getMessage()]);
         }
     }
 
@@ -558,9 +591,12 @@ class InventoryGudangController extends Controller
                     if ($item->productVariant->stock < $item->qty) {
                         DB::rollBack();
                         $label = $item->ukuran;
-                        if (!empty($item->warna)) $label = $item->warna . ' / ' . $label;
+                        if (! empty($item->warna)) {
+                            $label = $item->warna.' / '.$label;
+                        }
+
                         return redirect()->back()->with('error',
-                            'Stok ' . $item->nama . ' (' . $label . ') tidak mencukupi!');
+                            'Stok '.$item->nama.' ('.$label.') tidak mencukupi!');
                     }
                     $item->productVariant->decrement('stock', $item->qty);
                 }
@@ -570,15 +606,17 @@ class InventoryGudangController extends Controller
                 'product_variant_id' => null,
                 'type' => 'distribusi',
                 'qty' => -$distributionOrder->total_qty,
-                'note' => 'Distribusi DO: ' . $distributionOrder->nomor_do,
+                'note' => 'Distribusi DO: '.$distributionOrder->nomor_do,
                 'user_id' => Auth::id(),
             ]);
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Distribusi berhasil diproses');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal: '.$e->getMessage());
         }
     }
 
@@ -615,7 +653,7 @@ class InventoryGudangController extends Controller
         try {
             $totalQty = collect($validated['items'])->sum('qty');
             $totalItem = count($validated['items']);
-            $nomorRetur = 'RS-' . now()->format('Ymd') . '-' . str_pad(SupplierReturn::max('id') + 1, 3, '0', STR_PAD_LEFT);
+            $nomorRetur = 'RS-'.now()->format('Ymd').'-'.str_pad(SupplierReturn::max('id') + 1, 3, '0', STR_PAD_LEFT);
 
             $retur = SupplierReturn::create([
                 'nomor_retur' => $nomorRetur,
@@ -657,10 +695,12 @@ class InventoryGudangController extends Controller
             }
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Retur supplier berhasil disimpan');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal: '.$e->getMessage());
         }
     }
 
@@ -692,20 +732,23 @@ class InventoryGudangController extends Controller
             $outletReturn->update(['status' => 'diterima_gudang']);
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Retur dari outlet berhasil diterima, stok gudang bertambah');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal menerima retur: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal menerima retur: '.$e->getMessage());
         }
     }
 
     public function cancelPurchaseOrder(PurchaseOrder $purchaseOrder)
     {
-        if (!in_array($purchaseOrder->status, ['draft', 'menunggu'])) {
+        if (! in_array($purchaseOrder->status, ['draft', 'menunggu'])) {
             return redirect()->back()->with('error', 'Hanya PO dengan status draft/menunggu yang bisa dibatalkan');
         }
 
         $purchaseOrder->update(['status' => 'dibatalkan']);
+
         return redirect()->back()->with('success', 'Purchase Order berhasil dibatalkan');
     }
 
@@ -733,7 +776,7 @@ class InventoryGudangController extends Controller
                             'reference_type' => 'distribution_order',
                             'reference_id' => $distributionOrder->id,
                             'qty' => (int) $item->qty,
-                            'note' => 'Pembatalan distribusi online shop: ' . $item->nama,
+                            'note' => 'Pembatalan distribusi online shop: '.$item->nama,
                             'user_id' => Auth::id(),
                         ]);
                     }
@@ -741,24 +784,27 @@ class InventoryGudangController extends Controller
 
                 $distributionOrder->update(['status' => 'dibatalkan']);
                 DB::commit();
+
                 return redirect()->back()->with('success', 'Distribution Order online shop dibatalkan, stok gudang dikembalikan');
             } catch (\Exception $e) {
                 DB::rollBack();
-                return back()->withErrors(['error' => 'Gagal membatalkan DO: ' . $e->getMessage()]);
+
+                return back()->withErrors(['error' => 'Gagal membatalkan DO: '.$e->getMessage()]);
             }
         }
 
-        if (!in_array($distributionOrder->status, ['draft'])) {
+        if (! in_array($distributionOrder->status, ['draft'])) {
             return back()->withErrors(['error' => 'Hanya DO dengan status draft yang bisa dibatalkan']);
         }
 
         $distributionOrder->update(['status' => 'dibatalkan']);
+
         return redirect()->back()->with('success', 'Distribution Order berhasil dibatalkan');
     }
 
     public function cancelReturSupplier(SupplierReturn $supplierReturn)
     {
-        if (!in_array($supplierReturn->status, ['selesai'])) {
+        if (! in_array($supplierReturn->status, ['selesai'])) {
             return redirect()->back()->with('error', 'Hanya retur supplier dengan status selesai yang bisa dibatalkan');
         }
 
@@ -782,10 +828,12 @@ class InventoryGudangController extends Controller
 
             $supplierReturn->update(['status' => 'dibatalkan']);
             DB::commit();
+
             return redirect()->back()->with('success', 'Retur supplier dibatalkan, stok gudang dikembalikan');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal membatalkan retur: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal membatalkan retur: '.$e->getMessage());
         }
     }
 
@@ -793,11 +841,12 @@ class InventoryGudangController extends Controller
     {
         try {
             $returService->cancelRetur($id);
+
             return redirect()->back()->with('success', 'Retur outlet berhasil dibatalkan');
-        } catch (\App\Exceptions\InsufficientStockException $e) {
+        } catch (InsufficientStockException $e) {
             return redirect()->back()->withErrors(['stok' => $e->getMessage()]);
         } catch (\Exception $e) {
-            return redirect()->back()->with('error', 'Gagal membatalkan retur: ' . $e->getMessage());
+            return redirect()->back()->with('error', 'Gagal membatalkan retur: '.$e->getMessage());
         }
     }
 
@@ -820,7 +869,7 @@ class InventoryGudangController extends Controller
             $totalItem = count($validated['items']);
             $totalSelisihPlus = collect($validated['items'])->where('selisih', '>', 0)->sum('selisih');
             $totalSelisihMinus = abs(collect($validated['items'])->where('selisih', '<', 0)->sum('selisih'));
-            $nomorOpname = 'OPG-' . now()->format('Ymd') . '-' . str_pad(StockOpname::max('id') + 1, 3, '0', STR_PAD_LEFT);
+            $nomorOpname = 'OPG-'.now()->format('Ymd').'-'.str_pad(StockOpname::max('id') + 1, 3, '0', STR_PAD_LEFT);
 
             $opname = StockOpname::create([
                 'nomor_opname' => $nomorOpname,
@@ -858,15 +907,17 @@ class InventoryGudangController extends Controller
                 'product_variant_id' => null,
                 'type' => 'opname',
                 'qty' => $totalSelisihPlus - $totalSelisihMinus,
-                'note' => 'Stock opname: ' . $nomorOpname,
+                'note' => 'Stock opname: '.$nomorOpname,
                 'user_id' => Auth::id(),
             ]);
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Stock opname berhasil disimpan');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal: '.$e->getMessage());
         }
     }
 
@@ -885,7 +936,7 @@ class InventoryGudangController extends Controller
         try {
             $variant = $this->findVariant($validated['produk_id'], $validated['ukuran'] ?? '', $validated['warna'] ?? null);
 
-            if (!$variant) {
+            if (! $variant) {
                 return redirect()->back()->with('error', 'Varian produk tidak ditemukan');
             }
 
@@ -895,15 +946,17 @@ class InventoryGudangController extends Controller
                 'product_variant_id' => $variant->id,
                 'type' => 'tambah_stok',
                 'qty' => $validated['qty'],
-                'note' => $validated['catatan'] ?? 'Tambah stok: ' . $validated['nama'],
+                'note' => $validated['catatan'] ?? 'Tambah stok: '.$validated['nama'],
                 'user_id' => Auth::id(),
             ]);
 
             DB::commit();
+
             return redirect()->back()->with('success', 'Stok berhasil ditambahkan');
         } catch (\Exception $e) {
             DB::rollBack();
-            return redirect()->back()->with('error', 'Gagal: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal: '.$e->getMessage());
         }
     }
 
@@ -916,7 +969,7 @@ class InventoryGudangController extends Controller
     {
         $query = ProductVariant::where('product_id', $productId);
 
-        if (!empty($warna)) {
+        if (! empty($warna)) {
             $query->where('color', $warna);
         }
 
@@ -940,20 +993,29 @@ class InventoryGudangController extends Controller
             'olive' => '#556b2f', 'lavender' => '#e6e6fa', 'maroon' => '#800000',
             'sage' => '#9c9f84', 'tosca' => '#14b8a6', 'orange' => '#f97316',
         ];
+
         return $map[strtolower(trim($nama))] ?? '#6b7280';
     }
 
     private function getStokStatus($total, $min)
     {
-        if ($total <= 0) return 'habis';
-        if ($total < $min) return 'menipis';
+        if ($total <= 0) {
+            return 'habis';
+        }
+        if ($total < $min) {
+            return 'menipis';
+        }
+
         return 'normal';
     }
 
     private function getFirstVariantColor($variants)
     {
         $first = $variants->first();
-        if (!$first) return '#000000';
+        if (! $first) {
+            return '#000000';
+        }
+
         return is_array($first->color) ? ($first->color['hex'] ?? '#000000') : $this->mapNamaWarnaKeHex($first->color ?? '');
     }
 
@@ -969,7 +1031,7 @@ class InventoryGudangController extends Controller
 
     private function buildMutasiChartData()
     {
-        $movements = StockMovement::selectRaw("DATE(created_at) as date, type, SUM(qty) as total_qty")
+        $movements = StockMovement::selectRaw('DATE(created_at) as date, type, SUM(qty) as total_qty')
             ->whereDate('created_at', '>=', now()->subDays(30))
             ->groupBy('date', 'type')
             ->get();

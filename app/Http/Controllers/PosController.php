@@ -55,63 +55,23 @@ class PosController extends Controller
         $outlet = Outlet::find($outletId);
 
         // Ambil produk
-        $products = Product::with(['variants', 'category'])
-            ->where(function ($q) use ($outletId) {
-                $q->where('outlet_id', $outletId)
-                    ->orWhereJsonContains('outlet_ids', (string) $outletId);
-            })
+        $products = $this->scopeOutlet(
+            Product::with(['variants', 'category']),
+            $outletId
+        )
             ->get()
-            ->map(function ($p) use ($outletId) {
-                return [
-                    'id' => $p->id,
-                    'name' => $p->name,
-                    'sku' => $p->sku,
-                    'price' => $p->price,
-                    'category_id' => $p->category_id,
-                    'category' => [
-                        'id' => $p->category?->id,
-                        'name' => $p->category?->name,
-                    ],
-                    'image' => $p->image
-                        ? Storage::url($p->image)
-                        : null,
-                    'variants' => $p->variants->map(function ($v) use ($outletId) {
-
-                        $outletStock = OutletStock::where('outlet_id', $outletId)
-                            ->where('product_variant_id', $v->id)
-                            ->first();
-
-                        $stockOutlet = $outletStock?->stock ?? 0;
-
-                        return [
-                            'id' => $v->id,
-                            'size' => $v->size,
-                            'color' => $v->color,
-                            'sku' => $v->sku,
-
-                            'stock' => $stockOutlet,
-
-                            'stok_gudang' => (int) $v->stock,
-                            'stok_outlet' => (int) $stockOutlet,
-
-                            'price' => $v->price,
-                            'cost_price' => $v->cost_price,
-                        ];
-                    }),
-                ];
-            });
+            ->map(fn ($p) => $this->posProductPayload($p, $outletId));
         $promos = Promo::aktif()->berlakuUntukOutlet($outletId, $outlet?->slug)->get();
 
         $penerimaanList = $this->inventoriOutlet->getPenerimaanList($outletId);
 
-        $inventoryProducts = Product::with([
-            'category',
-            'variants'
-        ])
-            ->where(function ($q) use ($outletId) {
-                $q->where('outlet_id', $outletId)
-                    ->orWhereJsonContains('outlet_ids', (string) $outletId);
-            })
+        $inventoryProducts = $this->scopeOutlet(
+            Product::with([
+                'category',
+                'variants'
+            ]),
+            $outletId
+        )
             ->get()
             ->map(function ($product) use ($outletId) {
 
@@ -207,5 +167,200 @@ class PosController extends Controller
             \Illuminate\Support\Facades\Log::error('POS konfirmasi terima error: ' . $e->getMessage());
             return redirect()->back()->with('error', 'Gagal mengkonfirmasi penerimaan: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * Fallback pencarian barcode di server.
+     *
+     * Dipakai POS ketika pencocokan in-memory gagal, supaya barcode produk
+     * baru (atau produk di luar list awal halaman) tetap ketemu tanpa perlu
+     * refresh. Outlet kasir dipakai sebagai scope agar hasilnya konsisten
+     * dengan list produk yang tampil di POS.
+     */
+    public function scanLookup(Request $request)
+    {
+        $code = $this->normalizeScanCode((string) $request->query('q', ''));
+
+        if ($code === '') {
+            return response()->json(['found' => false, 'message' => 'Kode kosong.'], 422);
+        }
+
+        $outletId = $request->user()->outlet_id;
+
+        // Tanpa outlet, scope produk kosong dan semua barcode akan reported
+        // "tidak ditemukan". Lebih baik kasih error yang jelas.
+        if (blank($outletId)) {
+            return response()->json([
+                'found' => false,
+                'message' => 'Akun kasir belum ditugaskan ke outlet mana pun.',
+            ], 403);
+        }
+
+        $hit = $this->resolveScanCode($code, $outletId);
+
+        if (! $hit) {
+            return response()->json(['found' => false], 404);
+        }
+
+        [$product, $variant] = $hit;
+
+        return response()->json([
+            'found' => true,
+            ...$this->scanResultData($product, $variant, $outletId),
+        ]);
+    }
+
+    protected function normalizeScanCode(string $raw): string
+    {
+        return strtoupper(trim((string) preg_replace('/[^A-Za-z0-9 .\-\/]/', '', $raw)));
+    }
+
+    /**
+     * Batasi query produk ke outlet tertentu.
+     *
+     * PASTIKAN scope ini identik dengan filter di index(), karena seluruh
+     * label barcode dicetak tanpa filter outlet. Tanpa scope yang sama,
+     * barcode yang sah bisa jadi "tidak ditemukan" di kasir.
+     */
+    protected function scopeOutlet($query, $outletId)
+    {
+        return $query->where(function ($q) use ($outletId) {
+            $q->where('outlet_id', $outletId)
+                ->orWhereJsonContains('outlet_ids', (string) $outletId);
+        });
+    }
+
+    /**
+     * Bentuk payload produk untuk POS. Dipakai oleh index() sekaligus
+     * scanLookup() supaya frontend hanya perlu menangani satu bentuk data.
+     */
+    protected function posProductPayload(Product $product, $outletId): array
+    {
+        return [
+            'id' => $product->id,
+            'name' => $product->name,
+            'sku' => $product->sku,
+            'barcode_code' => $product->barcode_code,
+            'price' => $product->price,
+            'category_id' => $product->category_id,
+            'category' => [
+                'id' => $product->category?->id,
+                'name' => $product->category?->name,
+            ],
+            'image' => $product->image
+                ? Storage::url($product->image)
+                : null,
+            'variants' => $product->variants->map(function ($v) use ($outletId) {
+                $stockOutlet = OutletStock::where('outlet_id', $outletId)
+                    ->where('product_variant_id', $v->id)
+                    ->value('stock') ?? 0;
+
+                return [
+                    'id' => $v->id,
+                    'size' => $v->size,
+                    'color' => $v->color,
+                    'sku' => $v->sku,
+                    'barcode_code' => $v->barcode_code,
+
+                    'stock' => $stockOutlet,
+
+                    'stok_gudang' => (int) $v->stock,
+                    'stok_outlet' => (int) $stockOutlet,
+
+                    'price' => $v->price,
+                    'cost_price' => $v->cost_price,
+                ];
+            })->values(),
+        ];
+    }
+
+    protected function resolveScanCode(string $code, $outletId): ?array
+    {
+        $variant = $this->scannableVariants($outletId)
+            ->where('barcode_code', $code)
+            ->with('product')
+            ->first();
+        if ($variant) {
+            return [$variant->product, $variant];
+        }
+
+        $product = $this->scopeOutlet(
+            Product::where('barcode_code', $code),
+            $outletId
+        )->first();
+        if ($product) {
+            return [$product, null];
+        }
+
+        // barcode_code di DB masih kosong semua, jadi kode sintetis P###### /
+        // V###### dari accessor model harus dicoba lewat ID.
+        if (preg_match('/^V(\d{6,})$/', $code, $m)) {
+            $variant = $this->scannableVariants($outletId)
+                ->with('product')
+                ->find((int) $m[1]);
+            if ($variant) {
+                return [$variant->product, $variant];
+            }
+        }
+
+        if (preg_match('/^P(\d{6,})$/', $code, $m)) {
+            $product = $this->scopeOutlet(
+                Product::whereKey((int) $m[1]),
+                $outletId
+            )->first();
+            if ($product) {
+                return [$product, null];
+            }
+        }
+
+        $variant = $this->scannableVariants($outletId)
+            ->where('sku', $code)
+            ->with('product')
+            ->first();
+        if ($variant) {
+            return [$variant->product, $variant];
+        }
+
+        $product = $this->scopeOutlet(
+            Product::where('sku', $code),
+            $outletId
+        )->first();
+        if ($product) {
+            return [$product, null];
+        }
+
+        return null;
+    }
+
+    /**
+     * Varian hanya boleh discan bila produk induknya tersedia di outlet kasir.
+     */
+    protected function scannableVariants($outletId)
+    {
+        return ProductVariant::whereHas(
+            'product',
+            fn ($q) => $this->scopeOutlet($q, $outletId)
+        );
+    }
+
+    protected function scanResultData(Product $product, ?ProductVariant $variant, $outletId): array
+    {
+        $parent = $variant ? $variant->product : $product;
+
+        return [
+            'type' => $variant ? 'variant' : 'product',
+            'product_id' => $product->id,
+            'variant_id' => $variant?->id,
+            'name' => $product->name,
+            'sku' => $variant?->sku ?: $product->sku,
+            'variant_color' => $variant?->color,
+            'variant_size' => $variant?->size,
+            'price' => (int) ($variant?->price ?? $product->price ?? 0),
+            'barcode_code' => $variant?->barcode_code ?? $product->barcode_code,
+            'product' => $this->posProductPayload(
+                $parent->loadMissing(['variants', 'category']),
+                $outletId
+            ),
+        ];
     }
 }

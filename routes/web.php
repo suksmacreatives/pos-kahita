@@ -51,6 +51,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // AREA KASIR (Mengarah ke Halaman POS Baru Anda di Pages/Pos/Index.jsx)
     Route::middleware(['role:cashier'])->group(function () {
         Route::get('/pos', [PosController::class, 'index'])->name('cashier.pos');
+        Route::get('/pos/scan-lookup', [PosController::class, 'scanLookup'])->name('pos.scan-lookup');
         Route::get('/pos/sidebar-data', [DashboardPosController::class, 'dapatkanDataSidebar'])->name('pos.sidebar-data');
         Route::post('/pos/inventory/transfer', [OutletInventoryController::class, 'storeTransferKasir'])->name('pos.inventory.transfer');
         Route::patch('/pos/inventory/transfer/{id}/terima', [OutletInventoryController::class, 'konfirmasiTerimaTransferKasir'])->name('pos.inventory.transfer.terima');
@@ -122,8 +123,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::post('/admin/products', [ProductController::class, 'store'])->name('admin.products.store');
         Route::patch('/admin/products/{product}', [ProductController::class, 'update'])->name('admin.products.update');
         Route::delete('/admin/products/{product}', [ProductController::class, 'destroy'])->name('admin.products.destroy');
+    Route::post('/admin/products/{product}/restore', [ProductController::class, 'restore'])->name('admin.products.restore');
         Route::post('/admin/products/export', [ProductController::class, 'export'])->name('admin.products.export');
         Route::get('/admin/products/barcode-label', [ProductController::class, 'barcodeLabel'])->name('admin.products.barcode-label');
+        Route::get('/admin/products/{product}/barcode-png', [ProductController::class, 'barcodeImage'])->name('admin.products.barcode-png');
+        Route::get('/admin/products/{product}/varian/{variant}/barcode-png', [ProductController::class, 'barcodeVariantImage'])->name('admin.products.barcode-png-variant');
 
         // --- MENU 4: KATEGORI PRODUK ---
         Route::get('/admin/categories', [CategoryController::class, 'index'])->name('admin.categories.index');

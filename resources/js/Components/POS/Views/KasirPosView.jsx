@@ -79,6 +79,12 @@ export default function KasirPosView({
     const lastKeyTimeRef = useRef(0);
     const isScanSequenceRef = useRef(false);
     const scanHandlerRef = useRef(null);
+    const scannerModalOpenRef = useRef(isBarcodeScannerOpen);
+    scannerModalOpenRef.current = isBarcodeScannerOpen;
+    const scanInFlightRef = useRef(false);
+    const setSearchQueryRef = useRef(setSearchQuery);
+    setSearchQueryRef.current = setSearchQuery;
+    const [isResolvingScan, setIsResolvingScan] = useState(false);
 
     const buildCartItem = (product, v, qty = 1) => ({
         cart_id: `${product.id}-${normalizeVariantValue(v?.color)}-${normalizeVariantValue(v?.size)}-${Date.now()}-${Math.random()}`,
@@ -93,14 +99,42 @@ export default function KasirPosView({
         quantity: qty,
     });
 
-    const processScan = (code) => {
-        const c = String(code || '').trim().toUpperCase();
-        if (!c) return;
+    const normalizeScanCode = (raw) =>
+        String(raw || '')
+            .replace(/[^A-Za-z0-9 .\-\/]/g, '')
+            .trim()
+            .toUpperCase();
 
+    // Pencocokan cepat di list produk yang sudah ada di memory.
+    const matchInMemory = (c) => {
         const products = allProductsRef.current;
         let matched = null;
 
-        // 1. Cocokkan SKU varian (paling presisi)
+        // 1. Cocokkan barcode_code varian (paling presisi)
+        for (const p of products) {
+            for (const v of p.variants || []) {
+                if (v.barcode_code && String(v.barcode_code).toUpperCase() === c) {
+                    matched = { product: p, variant: v };
+                    break;
+                }
+            }
+            if (matched) break;
+        }
+
+        // 2. Cocokkan barcode_code produk
+        if (!matched) {
+            const p = products.find(
+                (pp) =>
+                    pp.barcode_code &&
+                    String(pp.barcode_code).toUpperCase() === c
+            );
+
+            matched = p
+                ? { product: p, variant: null }
+                : null;
+        }
+
+        // 3. Cocokkan SKU varian (kompatibilitas label lama berbasis SKU)
         for (const p of products) {
             for (const v of p.variants || []) {
                 if (v.sku && String(v.sku).toUpperCase() === c) {
@@ -111,62 +145,105 @@ export default function KasirPosView({
             if (matched) break;
         }
 
-        // 2. Cocokkan SKU produk
-        // 2. Cocokkan kode produk
-if (!matched) {
-    const p = products.find(
-        (pp) =>
-            pp.kode_produk &&
-            String(pp.kode_produk).toUpperCase() === c
-    );
-
-    matched = p
-        ? { product: p, variant: null }
-        : null;
-}
-
-// 3. Cocokkan SKU produk
-if (!matched) {
-    const p = products.find(
-        (pp) =>
-            pp.sku &&
-            String(pp.sku).toUpperCase() === c
-    );
-
-    matched = p
-        ? { product: p, variant: null }
-        : null;
-}
-
+        // 4. Cocokkan SKU produk (kompatibilitas label lama berbasis SKU)
         if (!matched) {
-            showAlert(`Barcode "${code}" tidak ditemukan. Pastikan produk sudah terdaftar.`);
-            return;
+            const p = products.find(
+                (pp) =>
+                    pp.sku &&
+                    String(pp.sku).toUpperCase() === c
+            );
+
+            matched = p
+                ? { product: p, variant: null }
+                : null;
         }
 
-        setSearchQuery('');
-        const { product, variant } = matched;
+        return matched;
+    };
 
-        // Tutup modal varian lama jika masih terbuka (hindari konflik)
-        if (isModalOpen) {
-            setIsModalOpen(false);
-            setVariantSelection({});
+    /*
+     * List produk POS adalah snapshot saat halaman dibuka, jadi produk /
+     * variant yang baru dibuat tidak akan pernah muncul di sana. Fallback
+     * ke server memastikan barcode yang sah tetap ketemu tanpa refresh.
+     * Outlet kasir dipakai sebagai scope di backend, hasilnya sama dengan
+     * list produk yang tampil.
+     */
+    const matchViaServer = async (rawCode) => {
+        const url = `${route('pos.scan-lookup')}?q=${encodeURIComponent(rawCode)}`;
+
+        const response = await fetch(url, {
+            headers: { Accept: 'application/json' },
+        });
+
+        if (!response.ok) return null;
+
+        const data = await response.json();
+
+        if (!data?.found || !data?.product) return null;
+
+        const product = data.product;
+        const variant = data.variant_id
+            ? (product.variants || []).find((v) => v.id === data.variant_id) || null
+            : null;
+
+        return { product, variant };
+    };
+
+    const processScan = async (code) => {
+        const c = normalizeScanCode(code);
+        if (!c) return;
+
+        if (scanInFlightRef.current) return;
+        scanInFlightRef.current = true;
+
+        try {
+            let matched = matchInMemory(c);
+
+            if (!matched) {
+                setIsResolvingScan(true);
+
+                try {
+                    matched = await matchViaServer(code);
+                } catch (err) {
+                    console.error('Gagal lookup barcode ke server:', err);
+                    matched = null;
+                } finally {
+                    setIsResolvingScan(false);
+                }
+            }
+
+            if (!matched) {
+                showAlert(`Barcode "${code}" tidak ditemukan. Pastikan produk sudah terdaftar di outlet ini.`);
+                return;
+            }
+
+            setSearchQuery('');
+            const { product, variant } = matched;
+
+            // Tutup modal varian lama jika masih terbuka (hindari konflik)
+            if (isModalOpen) {
+                setIsModalOpen(false);
+                setVariantSelection({});
+            }
+
+            // Scan barcode varian → langsung masuk keranjang ke varian tersebut
+            if (variant) {
+                addToCart(buildCartItem(product, variant));
+                return;
+            }
+
+            // Produk non-varian atau 1 varian → langsung tambah
+            const variants = product.variants || [];
+            if (variants.length <= 1) {
+                addToCart(buildCartItem(product, variants[0] || {}));
+                return;
+            }
+
+            // Produk multi-varian → buka modal pemilihan warna/ukuran
+            handleCardClick(product);
+        } finally {
+            scanInFlightRef.current = false;
         }
-
-        // Scan SKU varian → langsung masuk keranjang ke varian tersebut
-        if (variant) {
-            addToCart(buildCartItem(product, variant));
-            return;
-        }
-
-        // Produk non-varian atau 1 varian → langsung tambah
-        const variants = product.variants || [];
-        if (variants.length <= 1) {
-            addToCart(buildCartItem(product, variants[0] || {}));
-            return;
-        }
-
-        // Produk multi-varian → buka modal pemilihan warna/ukuran
-        handleCardClick(product);
     };
 
     useEffect(() => {
@@ -174,18 +251,38 @@ if (!matched) {
     });
 
     useEffect(() => {
+        const isEditableTarget = (target) =>
+            target instanceof HTMLElement &&
+            (target.tagName === 'INPUT' ||
+                target.tagName === 'TEXTAREA' ||
+                target.isContentEditable);
+
         const handleKeyDown = (e) => {
             if (e.key === 'Enter') {
                 const code = scanBufferRef.current.trim();
-                if (code.length >= 3 && isScanSequenceRef.current && scanHandlerRef.current) {
-                    e.preventDefault();
-                    scanBufferRef.current = '';
-                    isScanSequenceRef.current = false;
-                    scanHandlerRef.current(code);
-                } else {
-                    scanBufferRef.current = '';
-                    isScanSequenceRef.current = false;
+                const isScan =
+                    code.length >= 3 &&
+                    isScanSequenceRef.current &&
+                    !scannerModalOpenRef.current &&
+                    scanHandlerRef.current;
+
+                scanBufferRef.current = '';
+                isScanSequenceRef.current = false;
+
+                // Enter biasa (cari produk / submit form) tidak boleh dicegat.
+                if (!isScan) return;
+
+                e.preventDefault();
+
+                /*
+                 * Kode hasil scan tidak boleh bocor ke kotak pencarian yang
+                 * sedang fokus. Input-nya controlled, jadi harus lewat state.
+                 */
+                if (isEditableTarget(e.target)) {
+                    setSearchQueryRef.current?.('');
                 }
+
+                scanHandlerRef.current(code);
                 return;
             }
 
@@ -474,6 +571,7 @@ const categoryFilteredProducts = React.useMemo(() => {
         {/* SCAN BARCODE */}
         <button
     type="button"
+    disabled={isResolvingScan}
     onClick={() => {
         console.log('SCAN BUTTON DIKLIK');
         setIsBarcodeScannerOpen(true);
@@ -495,13 +593,15 @@ const categoryFilteredProducts = React.useMemo(() => {
         hover:bg-emerald-50
         transition
         flex-shrink-0
+        disabled:opacity-60
+        disabled:pointer-events-none
     "
     title="Scan Barcode"
 >
     <Barcode className="w-5 h-5" />
 
     <span className="text-sm font-semibold">
-        Scan
+        {isResolvingScan ? 'Mencari...' : 'Scan'}
     </span>
 </button>
 

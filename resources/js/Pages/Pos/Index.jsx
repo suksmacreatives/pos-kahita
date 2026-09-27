@@ -140,8 +140,12 @@ export default function Index({
     return displayProducts.filter((p) => {
         const nameHit = (p.name || '').toLowerCase().includes(q);
         const skuHit = (p.sku || '').toLowerCase().includes(q);
-        const variantHit = (p.variants || []).some((v) => (v.sku || '').toLowerCase().includes(q));
-        return nameHit || skuHit || variantHit;
+        const barcodeHit = (p.barcode_code || '').toLowerCase().includes(q);
+        const variantHit = (p.variants || []).some((v) =>
+            (v.sku || '').toLowerCase().includes(q) ||
+            (v.barcode_code || '').toLowerCase().includes(q)
+        );
+        return nameHit || skuHit || barcodeHit || variantHit;
     });
 }, [searchQuery, displayProducts]);
     

@@ -29,6 +29,7 @@ function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { produ
     const existing = prevVariants.find(v => !v.color_nama && !v.size_label);
     return [{
       id: "v_simple",
+      variant_db_id: existing?.variant_db_id ?? null,
       color_id: null,
       color_nama: null,
       size_id: null,
@@ -47,6 +48,7 @@ function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { produ
       const existing = prevVariants.find(v => v.color_nama === c.nama && !v.size_label);
       return {
         id: `v_${c.id}`,
+        variant_db_id: existing?.variant_db_id ?? null,
         color_id: c.id,
         color_nama: c.nama,
         size_id: null,
@@ -66,6 +68,7 @@ function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { produ
       const existing = prevVariants.find(v => !v.color_nama && v.size_label === s.label);
       return {
         id: `v_${s.id}`,
+        variant_db_id: existing?.variant_db_id ?? null,
         color_id: null,
         color_nama: null,
         size_id: s.id,
@@ -86,6 +89,7 @@ function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { produ
       const existing = prevVariants.find(v => v.color_nama === c.nama && v.size_label === s.label);
       result.push({
         id: `v_${c.id}_${s.id}`,
+        variant_db_id: existing?.variant_db_id ?? null,
         color_id: c.id,
         color_nama: c.nama,
         size_id: s.id,

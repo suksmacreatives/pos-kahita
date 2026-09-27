@@ -603,6 +603,7 @@ class DashboardExcelExport
             )
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->leftJoin('product_categories', 'products.category_id', '=', 'product_categories.id')
+            ->whereNull('products.deleted_at')
             ->groupBy('product_categories.id', 'product_categories.name')
             ->get();
 

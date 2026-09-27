@@ -258,12 +258,24 @@ export default function BarcodeScannerModal({
                         1.777778,
 
                     /*
-                     * Kita fokus pada barcode yang
-                     * digunakan Kahita.
+                     * Label Kahita sendiri CODE128, tapi produk
+                     * dari supplier sering EAN/UPC/ITF.
                      */
                     formatsToSupport: [
                         Html5QrcodeSupportedFormats
                             .CODE_128,
+                        Html5QrcodeSupportedFormats
+                            .CODE_39,
+                        Html5QrcodeSupportedFormats
+                            .EAN_13,
+                        Html5QrcodeSupportedFormats
+                            .EAN_8,
+                        Html5QrcodeSupportedFormats
+                            .UPC_A,
+                        Html5QrcodeSupportedFormats
+                            .UPC_E,
+                        Html5QrcodeSupportedFormats
+                            .ITF,
                     ],
                 },
                 (decodedText) => {
@@ -1236,7 +1248,7 @@ const decodeImage = async () => {
                                     'Pilih metode scan barcode'}
 
                                 {mode === 'camera' &&
-                                    'Arahkan kamera ke barcode'}
+                                    'Dekatkan ±10-15 cm, sejajarkan, dan hindari kilau'}
 
                                 {mode ===
                                     'upload-preview' &&

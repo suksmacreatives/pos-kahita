@@ -2,25 +2,25 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\DashboardExcelExport;
 use App\Http\Controllers\Controller;
+use App\Models\ActivityLog;
+use App\Models\DistributionOrder;
+use App\Models\Outlet;
+use App\Models\Product;
+use App\Models\ProductVariant;
+use App\Models\PurchaseOrder;
+use App\Models\StockMovement;
+use App\Models\StoreSetting;
+use App\Models\Transaction;
+use App\Models\TransactionItem;
+use App\Services\Export\DashboardExportDataService;
+use Barryvdh\DomPDF\Facade\Pdf;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Inertia\Inertia;
-use Carbon\Carbon;
-use App\Models\Transaction;
-use App\Models\TransactionItem;
-use App\Models\ProductVariant;
-use App\Models\Product;
-use App\Models\Outlet;
-use App\Models\OutletStock;
-use App\Models\StockMovement;
-use App\Models\PurchaseOrder;
-use App\Models\DistributionOrder;
-use App\Models\ActivityLog;
-use Barryvdh\DomPDF\Facade\Pdf;
-use App\Exports\DashboardExcelExport;
 use PhpOffice\PhpSpreadsheet\Writer\Xlsx;
-use App\Services\Export\DashboardExportDataService;
 
 class DashboardController extends Controller
 {
@@ -75,28 +75,28 @@ class DashboardController extends Controller
         $svc = app(DashboardExportDataService::class);
 
         $data = [
-            'stats'             => $this->stats($outlet, $start, $end, $start->copy()->subMonth(), $end->copy()->subMonth()),
-            'salesTrend'        => $this->salesTrend($outlet, $start, $end, $period),
-            'stockMovement'     => $this->stockMovement($outlet, $start, $end, $period),
-            'topProducts'       => $this->topProducts($outlet, $start, $end),
+            'stats' => $this->stats($outlet, $start, $end, $start->copy()->subMonth(), $end->copy()->subMonth()),
+            'salesTrend' => $this->salesTrend($outlet, $start, $end, $period),
+            'stockMovement' => $this->stockMovement($outlet, $start, $end, $period),
+            'topProducts' => $this->topProducts($outlet, $start, $end),
             'outletPerformance' => $this->outletPerformance($start, $end),
-            'incomingGoods'     => $this->incomingGoods(),
-            'outgoingGoods'     => $this->outgoingGoods($outlet),
-            'inventorySummary'  => $svc->getInventorySummary($outletId),
-            'distribution'      => $svc->getDistributionData($start, $end, $outletId),
-            'return'            => $svc->getReturnData($start, $end, $outletId),
-            'lowStock'          => $svc->getLowStockData($outletId),
-            'fastSlowMoving'    => $svc->getFastSlowMoving($start, $end, $outletId),
-            'restockRec'        => $svc->getRestockRecommendation(),
-            'inventoryValue'    => $svc->getInventoryValue(),
+            'incomingGoods' => $this->incomingGoods(),
+            'outgoingGoods' => $this->outgoingGoods($outlet),
+            'inventorySummary' => $svc->getInventorySummary($outletId),
+            'distribution' => $svc->getDistributionData($start, $end, $outletId),
+            'return' => $svc->getReturnData($start, $end, $outletId),
+            'lowStock' => $svc->getLowStockData($outletId),
+            'fastSlowMoving' => $svc->getFastSlowMoving($start, $end, $outletId),
+            'restockRec' => $svc->getRestockRecommendation(),
+            'inventoryValue' => $svc->getInventoryValue(),
         ];
 
         $dari = $start->format('Y-m-d');
         $sampai = $end->format('Y-m-d');
         $outletLabel = $outlet === 'all' ? 'Semua Outlet' : ucfirst($outlet);
-        $logoPath = \App\Models\StoreSetting::first()?->logo_path;
-        $logo = $logoPath && file_exists(public_path('storage/' . $logoPath))
-            ? public_path('storage/' . $logoPath)
+        $logoPath = StoreSetting::first()?->logo_path;
+        $logo = $logoPath && file_exists(public_path('storage/'.$logoPath))
+            ? public_path('storage/'.$logoPath)
             : public_path('images/suksma-creatives.png');
 
         if ($format === 'excel') {
@@ -113,12 +113,12 @@ class DashboardController extends Controller
         }
 
         $pdf = Pdf::loadView('exports.dashboard-pdf', [
-            'title'       => 'Laporan Dashboard - Kahita Busana',
-            'data'        => $data,
-            'dari'        => $dari,
-            'sampai'      => $sampai,
+            'title' => 'Laporan Dashboard - Kahita Busana',
+            'data' => $data,
+            'dari' => $dari,
+            'sampai' => $sampai,
             'outletLabel' => $outletLabel,
-            'logo'        => $logo,
+            'logo' => $logo,
         ]);
 
         return $pdf->download("dashboard-{$dari}-{$sampai}.pdf");
@@ -127,6 +127,7 @@ class DashboardController extends Controller
     protected function dateRange(string $period): array
     {
         $now = now();
+
         return match ($period) {
             'daily' => [$now->copy()->startOfDay(), $now->copy()->endOfDay()],
             'weekly' => [$now->copy()->startOfWeek(), $now->copy()->endOfWeek()],
@@ -137,6 +138,7 @@ class DashboardController extends Controller
     protected function prevDateRange(string $period): array
     {
         $then = now()->subDay();
+
         return match ($period) {
             'daily' => [$then->copy()->startOfDay(), $then->copy()->endOfDay()],
             'weekly' => [$then->copy()->subWeek()->startOfWeek(), $then->copy()->subWeek()->endOfWeek()],
@@ -146,9 +148,14 @@ class DashboardController extends Controller
 
     protected function resolveOutletId(string $outlet): ?int
     {
-        if ($outlet === 'all' || $outlet === '') return null;
-        if (is_numeric($outlet)) return (int) $outlet;
+        if ($outlet === 'all' || $outlet === '') {
+            return null;
+        }
+        if (is_numeric($outlet)) {
+            return (int) $outlet;
+        }
         $found = Outlet::where('slug', $outlet)->orWhere('name', 'like', "%$outlet%")->first();
+
         return $found?->id;
     }
 
@@ -217,8 +224,8 @@ class DashboardController extends Controller
             DB::raw(match ($period) {
                 'daily' => "DATE_FORMAT(created_at, '%H:00')",
                 'weekly' => 'DAYNAME(created_at)',
-                default => "CEIL(DAY(created_at) / 7)",
-            } . ' as label'),
+                default => 'CEIL(DAY(created_at) / 7)',
+            }.' as label'),
             DB::raw('SUM(grand_total) as sales'),
             DB::raw('COUNT(id) as transactions'),
         )->groupBy('label')->orderBy('label')->get();
@@ -261,8 +268,8 @@ class DashboardController extends Controller
             DB::raw(match ($period) {
                 'daily' => "DATE_FORMAT(created_at, '%H:00')",
                 'weekly' => 'DAYNAME(created_at)',
-                default => "CEIL(DAY(created_at) / 7)",
-            } . ' as label'),
+                default => 'CEIL(DAY(created_at) / 7)',
+            }.' as label'),
             DB::raw('SUM(qty) as qty'),
         )->groupBy('label')->orderBy('label')->pluck('qty', 'label');
 
@@ -270,8 +277,8 @@ class DashboardController extends Controller
             DB::raw(match ($period) {
                 'daily' => "DATE_FORMAT(created_at, '%H:00')",
                 'weekly' => 'DAYNAME(created_at)',
-                default => "CEIL(DAY(created_at) / 7)",
-            } . ' as label'),
+                default => 'CEIL(DAY(created_at) / 7)',
+            }.' as label'),
             DB::raw('SUM(ABS(qty)) as qty'),
         )->groupBy('label')->orderBy('label')->pluck('qty', 'label');
 
@@ -342,7 +349,7 @@ class DashboardController extends Controller
                 'id' => $log->id,
                 'time' => $log->created_at->format('H:i'),
                 'user' => $log->user?->name ?? 'Sistem',
-                'action' => $log->aksi . ' ' . $log->modul . ($log->target_label ? ': ' . $log->target_label : ''),
+                'action' => $log->aksi.' '.$log->modul.($log->target_label ? ': '.$log->target_label : ''),
                 'outlet' => is_array($log->detail) && isset($log->detail['outlet']) ? $log->detail['outlet'] : 'all',
                 'type' => $typeMap[$log->modul] ?? 'system',
             ])
@@ -360,7 +367,7 @@ class DashboardController extends Controller
         }
 
         return $query->get()->map(fn ($v) => [
-            'id' => 'VAR-' . $v->id,
+            'id' => 'VAR-'.$v->id,
             'name' => $v->product?->name ?? '-',
             'sku' => $v->sku ?? '-',
             'stock' => (int) $v->stock,
@@ -396,7 +403,7 @@ class DashboardController extends Controller
 
             return [
                 'id' => $row->outlet_id,
-                'name' => $outlets[$row->outlet_id] ?? 'Outlet #' . $row->outlet_id,
+                'name' => $outlets[$row->outlet_id] ?? 'Outlet #'.$row->outlet_id,
                 'revenue' => $curRev,
                 'transactions' => (int) $row->transactions,
                 'aov' => (int) round($row->aov ?? 0),
@@ -408,11 +415,11 @@ class DashboardController extends Controller
     protected function topProducts(string $outlet, Carbon $start, Carbon $end): array
     {
         $query = TransactionItem::select(
-                'product_name_snapshot',
-                'product_id',
-                DB::raw('SUM(quantity) as sold'),
-                DB::raw('SUM(total_price) as revenue'),
-            )
+            'product_name_snapshot',
+            'product_id',
+            DB::raw('SUM(quantity) as sold'),
+            DB::raw('SUM(total_price) as revenue'),
+        )
             ->whereHas('transaction', fn ($q) => $q->whereBetween('created_at', [$start, $end])->where('status', 'completed'))
             ->groupBy('product_name_snapshot', 'product_id')
             ->orderByDesc('sold')
@@ -424,9 +431,10 @@ class DashboardController extends Controller
         }
 
         return $query->get()->map(function ($item) {
-            $product = Product::with('category')->find($item->product_id);
+            $product = Product::withTrashed()->with('category')->find($item->product_id);
+
             return [
-                'id' => 'P-' . ($item->product_id ?? 0),
+                'id' => 'P-'.($item->product_id ?? 0),
                 'name' => $item->product_name_snapshot,
                 'sku' => $product?->sku ?? '-',
                 'category' => $product?->category?->name ?? '-',

@@ -3,13 +3,13 @@
 namespace App\Http\Controllers\POS;
 
 use App\Http\Controllers\Controller;
+use App\Models\CashRegisterShift;
 use App\Models\Transaction;
 use App\Models\TransactionItem;
-use App\Models\CashRegisterShift;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Carbon\Carbon;
 
 class TransactionController extends Controller
 {
@@ -30,6 +30,8 @@ class TransactionController extends Controller
             'cart_items.*.quantity' => 'required|integer|min:1',
             'cart_items.*.variant_color' => 'nullable|string',
             'cart_items.*.variant_size' => 'nullable|string',
+        ], [
+            'cart_items.*.product_id.exists' => 'Salah satu produk di keranjang sudah diarsipkan atau tidak ditemukan. Muat ulang halaman kasir.',
         ]);
 
         $user = Auth::user();
@@ -40,7 +42,7 @@ class TransactionController extends Controller
             ->where('status', 'open')
             ->first();
 
-        if (!$activeShift) {
+        if (! $activeShift) {
             return redirect()->back()->with('error', 'Transaksi gagal! Anda belum membuka sesi shift kasir.');
         }
 
@@ -49,8 +51,8 @@ class TransactionController extends Controller
 
         try {
             // Generate Invoice Number Otomatis (Contoh: INV-20260528-0001)
-            $todayCode = 'INV-' . Carbon::now()->format('Ymd');
-            $lastTransaction = Transaction::where('invoice_number', 'LIKE', $todayCode . '%')
+            $todayCode = 'INV-'.Carbon::now()->format('Ymd');
+            $lastTransaction = Transaction::where('invoice_number', 'LIKE', $todayCode.'%')
                 ->orderBy('id', 'desc')
                 ->first();
 
@@ -60,7 +62,7 @@ class TransactionController extends Controller
             } else {
                 $nextNumber = '0001';
             }
-            $invoiceNumber = $todayCode . '-' . $nextNumber;
+            $invoiceNumber = $todayCode.'-'.$nextNumber;
 
             // 1. Simpan ke Tabel Induk 'transactions'
             $transaction = Transaction::create([
@@ -101,12 +103,13 @@ class TransactionController extends Controller
             // Kembalikan response sukses bersama data transaksi lengkap untuk langsung di-print struk belanja di React
             return redirect()->back()->with([
                 'success' => 'Pembayaran Berhasil!',
-                'print_nota_belanja' => Transaction::with('transaction_items')->find($transaction->id)
+                'print_nota_belanja' => Transaction::with('transaction_items')->find($transaction->id),
             ]);
 
         } catch (\Exception $e) {
             DB::rollback();
-            return redirect()->back()->with('error', 'Terjadi kesalahan sistem: ' . $e->getMessage());
+
+            return redirect()->back()->with('error', 'Terjadi kesalahan sistem: '.$e->getMessage());
         }
     }
 }

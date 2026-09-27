@@ -3,14 +3,18 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'outlet_id',
         'category_id',
         'name',
         'sku',
+        'original_sku',
         'price',
         'cost_price',
         'description',
@@ -23,6 +27,12 @@ class Product extends Model
     protected $casts = [
         'outlet_ids' => 'array',
     ];
+
+    public function getBarcodeCodeAttribute(): string
+    {
+        return $this->attributes['barcode_code']
+            ?? 'P'.str_pad((string) $this->id, 6, '0', STR_PAD_LEFT);
+    }
 
     public function outlet()
     {

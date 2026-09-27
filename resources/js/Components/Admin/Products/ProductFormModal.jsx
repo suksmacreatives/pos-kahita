@@ -25,6 +25,7 @@ function convertProductVariants(varian) {
 
   const variants = varian.map(v => ({
     id: `v_${v.color_name ? colorMap[v.color_name] : "null"}_${v.size_label ? sizeMap[v.size_label] : "null"}`,
+    variant_db_id: v.variant_db_id ?? null,
     color_id: v.color_name ? colorMap[v.color_name] : null,
     color_nama: v.color_name || null,
     size_id: v.size_label ? sizeMap[v.size_label] : null,
@@ -171,6 +172,9 @@ export default function ProductFormModal({
     fd.append("status", data.status);
 
     variantData.variants.forEach((v, i) => {
+      if (isEditMode && v.variant_db_id) {
+        fd.append(`variants[${i}][id]`, String(v.variant_db_id));
+      }
       fd.append(`variants[${i}][color_name]`, v.color_nama ?? "");
       fd.append(`variants[${i}][size_label]`, v.size_label ?? "");
       fd.append(`variants[${i}][stok]`, String(v.stok));
@@ -280,20 +284,53 @@ export default function ProductFormModal({
 
                 {data.kode_produk && (
                   <div className="mt-2 flex items-center gap-3 p-2.5 bg-white border border-gray-150 rounded-xl">
-                    <Barcode value={data.kode_produk} className="h-10 w-32 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Preview Barcode</p>
-                      <p className="text-[10px] text-gray-400 truncate">{data.kode_produk}</p>
-                    </div>
+                    {/*
+                      Label cetak memakai barcode_code (P###### / V######),
+                      bukan SKU. Preview harus sama persis dengan yang keluar
+                      dari printer, kalau tidak kasir salah ketik.
+                    */}
+                    {isEditMode ? (
+                      <>
+                        <Barcode value={product.barcode_code || data.kode_produk} className="h-10 w-32 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Preview Barcode</p>
+                          <p className="text-[10px] text-gray-400 truncate">{product.barcode_code || data.kode_produk}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Preview Barcode</p>
+                        <p className="text-[10px] text-gray-400">
+                          Barcode dibuat otomatis setelah produk disimpan.
+                        </p>
+                      </div>
+                    )}
                     {isEditMode && (
-                      <button
-                        type="button"
-                        onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_produk' })}
-                        className="flex items-center gap-1.5 px-2.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        Cetak Label
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_produk' })}
+                          className="flex items-center gap-1.5 px-2.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          Cetak Label
+                        </button>
+                        {(() => {
+                          const totalVarian = (product.varian || []).length;
+                          if (totalVarian <= 1) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_varian' })}
+                              className="flex items-center gap-1.5 px-2.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                              title={`Cetak ${totalVarian} label, satu per varian`}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              Label per Varian
+                            </button>
+                          );
+                        })()}
+                      </>
                     )}
                   </div>
                 )}
