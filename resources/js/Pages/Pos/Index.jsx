@@ -187,6 +187,7 @@ export default function Index({
     const formatRupiah = (num) => 'Rp ' + Number(num).toLocaleString('id-ID');
 
     const addToCart = (productWithVarian) => {
+        
         setCart((prev) => {
             const exist = prev.find((item) => item.id === productWithVarian.id && item.varianWarna === productWithVarian.varianWarna && item.varianUkuran === productWithVarian.varianUkuran);
             if (exist) { return prev.map((i) => i.id === productWithVarian.id && i.varianWarna === productWithVarian.varianWarna && i.varianUkuran === productWithVarian.varianUkuran ? { ...i, quantity: i.quantity + 1 } : i); }

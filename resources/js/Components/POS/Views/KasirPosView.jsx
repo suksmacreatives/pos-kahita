@@ -362,17 +362,59 @@ export default function KasirPosView({
     
     const handleKonfirmasiMultiVarian = () => {
     const keys = Object.keys(variantSelection);
-    
+
     if (keys.length === 0) {
-        showAlert('Silakan tentukan jumlah pada variasi warna & ukuran terlebih dahulu!');
+        showAlert(
+            'Silakan tentukan jumlah pada variasi warna & ukuran terlebih dahulu!'
+        );
         return;
     }
 
-    // 1. Buat array item baru
-    const newItems = keys.map(key => {
+    // Buat item cart berdasarkan VARIANT yang benar
+    const newItems = keys.map((key) => {
         const [warna, ukuran] = key.split('-');
         const qty = variantSelection[key];
-        
+        const variant = selectedProduct?.variants?.find((v) => {
+        const colorName = getColorName(v.color);
+        const normalizedColor =
+            normalizeVariantValue(colorName);
+        const normalizedWarna =
+            normalizeVariantValue(warna);
+        const normalizedSize =
+            normalizeVariantValue(v.size);
+        const normalizedUkuran =
+            normalizeVariantValue(ukuran);
+
+    // Jika produk tidak menggunakan ukuran,
+    // cukup cocokkan warna.
+    if (
+        ukuran === null ||
+        ukuran === 'null' ||
+        ukuran === ''
+    ) {
+        return (
+            normalizedColor ===
+            normalizedWarna
+        );
+    }
+
+    // Jika menggunakan warna + ukuran,
+    // cocokkan keduanya.
+    return (
+        normalizedColor ===
+            normalizedWarna &&
+        normalizedSize ===
+            normalizedUkuran
+    );
+});
+        console.log('========== VARIANT CART ==========');
+        console.log('Warna:', warna);
+        console.log('Ukuran:', ukuran);
+        console.log('Variant ditemukan:', variant);
+        console.log('Harga variant:', variant?.price);
+        console.log('Harga product:', selectedProduct?.price);
+        console.log('==================================');
+
         return {
             cart_id: `${selectedProduct.id}-${warna}-${ukuran}-${Date.now()}-${Math.random()}`,
             product_id: selectedProduct.id,
@@ -380,25 +422,33 @@ export default function KasirPosView({
             variant_size: normalizeVariantValue(ukuran),
             id: selectedProduct.id,
             name: selectedProduct.name,
-            price: selectedProduct.price,
+            price: Number(variant?.price ?? selectedProduct.price ?? 0),
             varianWarna: normalizeVariantValue(warna),
             varianUkuran: normalizeVariantValue(ukuran),
             quantity: qty
         };
     });
 
-    // 2. Update state dengan fungsi updater (prev)
-    // Ini memastikan kita selalu menggunakan data terbaru dari Index.jsx
-    setCart(prevCart => {
+    setCart((prevCart) => {
         const updatedCart = [...prevCart, ...newItems];
-        console.log("DEBUG: Berhasil menambahkan ke cart, total item sekarang:", updatedCart.length);
+
+        console.log(
+            'DEBUG: Berhasil menambahkan ke cart, total item sekarang:',
+            updatedCart.length
+        );
+
+        console.log(
+            'DEBUG: ITEM BARU:',
+            newItems
+        );
+
         return updatedCart;
     });
 
-    // 3. PENTING: Reset state modal agar tidak "nyangkut" untuk produk berikutnya
     setVariantSelection({});
     setIsModalOpen(false);
 };
+
     // FUNGSI SIMPAN BILL (Dipicu dari tombol Simpan Bill kanan)
     const handleSimpanBillAction = () => {
         if (cart.length === 0) return;
