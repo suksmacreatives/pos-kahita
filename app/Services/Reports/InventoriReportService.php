@@ -2,21 +2,25 @@
 
 namespace App\Services\Reports;
 
-use App\Models\StockMovement;
+use App\Models\Outlet;
 use App\Models\Product;
 use App\Models\ProductVariant;
+use App\Models\StockMovement;
 use App\Models\StockOpname;
-use App\Models\Outlet;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Cache;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 
 class InventoriReportService
 {
     protected Carbon $dari;
+
     protected Carbon $sampai;
+
     protected Carbon $dariLalu;
+
     protected Carbon $sampaiLalu;
+
     protected string $outlet;
 
     public function __construct(Carbon $dari, Carbon $sampai, string $outlet = 'all', ?Carbon $dariLalu = null, ?Carbon $sampaiLalu = null)
@@ -33,7 +37,7 @@ class InventoriReportService
         return Cache::remember(
             "report_inventori_{$this->dari->format('Ymd')}_{$this->sampai->format('Ymd')}_{$this->outlet}",
             300,
-            fn() => [
+            fn () => [
                 'mutasi_log' => $this->getMutasiStok(),
                 'mutasi_summary' => $this->getMutasiSummary(),
                 'nilai_per_lokasi' => $this->getNilaiPerLokasi(),
@@ -50,14 +54,14 @@ class InventoriReportService
         $query = StockMovement::with([
             'productVariant.product:id,name,category_id',
             'productVariant.product.category:id,name',
-            'user:id,name'
+            'user:id,name',
         ])
             ->whereBetween('created_at', [$this->dari, $this->sampai->endOfDay()]);
 
         return $query->orderByDesc('created_at')
             ->limit(500)
             ->get()
-            ->map(fn($m) => [
+            ->map(fn ($m) => [
                 'id' => $m->id,
                 'tipe' => $this->normalizeTipeMutasi($m->type),
                 'type' => $this->normalizeTipeMutasi($m->type),
@@ -146,7 +150,11 @@ class InventoriReportService
     public function getNilaiPerKategori(): array
     {
         return Product::leftJoin('product_categories', 'products.category_id', '=', 'product_categories.id')
-            ->leftJoin('product_variants', 'products.id', '=', 'product_variants.product_id')
+            ->leftJoin('product_variants', function ($join) {
+                // Varian terarsip (dihapus via form edit) tidak boleh ikut dihitung.
+                $join->on('products.id', '=', 'product_variants.product_id')
+                    ->whereNull('product_variants.deleted_at');
+            })
             ->selectRaw('
                 COALESCE(product_categories.name, \'Umum\') as nama,
                 COALESCE(product_categories.name, \'Umum\') as kategori,
@@ -157,7 +165,7 @@ class InventoriReportService
             ->groupBy('product_categories.id', 'product_categories.name')
             ->orderByDesc('nilai')
             ->get()
-            ->map(fn($k) => [
+            ->map(fn ($k) => [
                 'nama' => $k->nama,
                 'kategori' => $k->kategori,
                 'qty' => (int) $k->qty,
@@ -176,6 +184,7 @@ class InventoriReportService
         return ProductVariant::join('products', 'product_variants.product_id', '=', 'products.id')
             ->leftJoin('product_categories', 'products.category_id', '=', 'product_categories.id')
             ->where('products.status', 'aktif')
+            ->whereNull('products.deleted_at')
             ->where('product_variants.stock', '>', 0)
             ->where('product_variants.stock', '<', 10)
             ->selectRaw('
@@ -200,6 +209,7 @@ class InventoriReportService
         return ProductVariant::join('products', 'product_variants.product_id', '=', 'products.id')
             ->leftJoin('product_categories', 'products.category_id', '=', 'product_categories.id')
             ->where('products.status', 'aktif')
+            ->whereNull('products.deleted_at')
             ->where('product_variants.stock', '<=', 0)
             ->selectRaw('
                 products.name as nama,
@@ -218,11 +228,15 @@ class InventoriReportService
 
     public function getHasilOpname(): array
     {
-        return StockOpname::with(['items.product:id,name', 'items.product.category:id,name'])
+        return StockOpname::with([
+            'items.product' => fn ($q) => $q->withTrashed(),
+            'items.product:id,name',
+            'items.product.category:id,name',
+        ])
             ->where('status', 'selesai')
             ->orderByDesc('created_at')
             ->get()
-            ->map(fn($so) => [
+            ->map(fn ($so) => [
                 'id' => $so->id,
                 'nama' => $so->nomor_opname,
                 'label' => $so->nomor_opname,
@@ -239,7 +253,7 @@ class InventoriReportService
                 'selisih_minus' => (int) $so->total_selisih_minus,
                 'kerugian' => (int) ($so->total_selisih_minus * 50000),
                 'total_kerugian' => (int) ($so->total_selisih_minus * 50000),
-                'detail' => $so->items->map(fn($i) => [
+                'detail' => $so->items->map(fn ($i) => [
                     'nama' => $i->product?->name ?? $i->nama,
                     'produk' => $i->product?->name ?? $i->nama,
                     'kategori' => $i->product?->category?->name ?? '-',
@@ -253,7 +267,7 @@ class InventoriReportService
                     'harga_beli' => (int) ($i->product?->cost_price ?? 0),
                     'hpp' => (int) ($i->product?->cost_price ?? 0),
                 ])->toArray(),
-                'items' => $so->items->map(fn($i) => [
+                'items' => $so->items->map(fn ($i) => [
                     'nama' => $i->product?->name ?? $i->nama,
                     'produk' => $i->product?->name ?? $i->nama,
                     'kategori' => $i->product?->category?->name ?? '-',
@@ -267,7 +281,7 @@ class InventoriReportService
                     'harga_beli' => (int) ($i->product?->cost_price ?? 0),
                     'hpp' => (int) ($i->product?->cost_price ?? 0),
                 ])->toArray(),
-                'selisih' => $so->items->map(fn($i) => [
+                'selisih' => $so->items->map(fn ($i) => [
                     'nama' => $i->product?->name ?? $i->nama,
                     'produk' => $i->product?->name ?? $i->nama,
                     'kategori' => $i->product?->category?->name ?? '-',
@@ -299,6 +313,7 @@ class InventoriReportService
     protected function getSourceLocation(StockMovement $m): string
     {
         $note = $m->note ?? '';
+
         // Try to extract location from note or default
         return str_contains($note, 'Gudang') ? 'Gudang Pusat' : (str_contains($note, 'Outlet') ? $note : 'Gudang');
     }
@@ -306,6 +321,7 @@ class InventoriReportService
     protected function getDestLocation(StockMovement $m): string
     {
         $note = $m->note ?? '';
+
         return str_contains($note, 'Outlet') ? $note : 'Gudang';
     }
 }

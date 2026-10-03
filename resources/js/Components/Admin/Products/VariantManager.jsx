@@ -8,14 +8,30 @@ import VariantSummary from "./VariantSummary";
 
 const genId = () => Math.random().toString(36).slice(2, 8);
 
-const abbr = (s) => (s || "").slice(0, 2).toUpperCase();
+// Ringkas: huruf/angka saja, maksimal 3 karakter untuk warna.
+const sanitize = (s, max = 3) =>
+  (s || "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "")
+    .slice(0, max);
 
-const generateSku = (productCode, colorName, sizeLabel) => {
-  if (!productCode) return "";
-  const parts = [productCode];
-  if (colorName) parts.push(abbr(colorName));
-  if (sizeLabel) parts.push(sizeLabel);
-  return parts.join("-");
+/**
+ * SKU varian diturunkan dari kode produk + singkatan warna + ukuran.
+ * Panjannya dibatasi 64 karakter supaya tetap ringkas di label,
+ * dan tidak pernah kosong selama kode produk ada.
+ */
+export const generateSku = (productCode, colorName, sizeLabel) => {
+  const code = (productCode || "").trim();
+  if (!code) return "";
+
+  const parts = [code.slice(0, 64)];
+  const warna = sanitize(colorName);
+  const ukuran = sanitize(sizeLabel, 8);
+
+  if (warna) parts.push(warna);
+  if (ukuran) parts.push(ukuran);
+
+  return parts.join("-").slice(0, 64);
 };
 
 function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { productCode, hargaJualDefault, hargaBeliDefault }) {
@@ -29,6 +45,7 @@ function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { produ
     const existing = prevVariants.find(v => !v.color_nama && !v.size_label);
     return [{
       id: "v_simple",
+      variant_db_id: existing?.variant_db_id ?? null,
       color_id: null,
       color_nama: null,
       size_id: null,
@@ -47,6 +64,7 @@ function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { produ
       const existing = prevVariants.find(v => v.color_nama === c.nama && !v.size_label);
       return {
         id: `v_${c.id}`,
+        variant_db_id: existing?.variant_db_id ?? null,
         color_id: c.id,
         color_nama: c.nama,
         size_id: null,
@@ -66,6 +84,7 @@ function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { produ
       const existing = prevVariants.find(v => !v.color_nama && v.size_label === s.label);
       return {
         id: `v_${s.id}`,
+        variant_db_id: existing?.variant_db_id ?? null,
         color_id: null,
         color_nama: null,
         size_id: s.id,
@@ -86,6 +105,7 @@ function rebuildVariants(colors, sizes, hasColor, hasSize, prevVariants, { produ
       const existing = prevVariants.find(v => v.color_nama === c.nama && v.size_label === s.label);
       result.push({
         id: `v_${c.id}_${s.id}`,
+        variant_db_id: existing?.variant_db_id ?? null,
         color_id: c.id,
         color_nama: c.nama,
         size_id: s.id,

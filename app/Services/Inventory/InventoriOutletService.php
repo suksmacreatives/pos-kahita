@@ -2,24 +2,22 @@
 
 namespace App\Services\Inventory;
 
+use App\Exceptions\InsufficientStockException;
 use App\Models\DistributionOrder;
 use App\Models\DistributionOrderItem;
 use App\Models\Outlet;
 use App\Models\OutletStock;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\StockMovement;
-use App\Models\StockOpname;
-use App\Models\StockOpnameItem;
-use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 class InventoriOutletService
 {
     public const STATUS_NORMAL = 'normal';
+
     public const STATUS_MENIPIS = 'menipis';
+
     public const STATUS_HABIS = 'habis';
 
     public function getStokPerOutlet(?int $outletId = null): array
@@ -36,9 +34,10 @@ class InventoriOutletService
                 ->get()
                 ->keyBy('product_variant_id');
 
-            $result[$outlet->slug] = $products->map(function ($p) use ($outlet, $stokPerVariant) {
+            $result[$outlet->slug] = $products->map(function ($p) use ($stokPerVariant) {
                 $variants = $p->variants->map(function ($v) use ($stokPerVariant) {
                     $stok = $stokPerVariant->get($v->id);
+
                     return [
                         'id' => $v->id,
                         'ukuran' => $v->size ?? '',
@@ -171,7 +170,7 @@ class InventoriOutletService
             $result[$slug][] = [
                 'id' => $do->id,
                 'nomor_do' => $do->nomor_do,
-                'nomor_terima' => $do->tanggal_terima ? ('TR-' . $do->nomor_do) : null,
+                'nomor_terima' => $do->tanggal_terima ? ('TR-'.$do->nomor_do) : null,
                 'tgl_kirim_gudang' => $do->tanggal_kirim?->format('Y-m-d'),
                 'tgl_terima_outlet' => $do->tanggal_terima?->format('Y-m-d'),
                 'items' => $do->items->map(fn ($item) => [
@@ -196,9 +195,12 @@ class InventoriOutletService
 
     public function konfirmasiTerima(int $doId, array $items, ?string $penerima = null): void
     {
-        $do = DistributionOrder::with('items.product', 'items.productVariant')->findOrFail($doId);
+        $do = DistributionOrder::with([
+            'items.product' => fn ($q) => $q->withTrashed(),
+            'items.productVariant' => fn ($q) => $q->withTrashed(),
+        ])->findOrFail($doId);
 
-        DB::transaction(function () use ($do, $items, $penerima) {
+        DB::transaction(function () use ($do, $items) {
             $totalTerima = 0;
             $totalSebagian = 0;
             $outletId = $do->outlet_id;
@@ -215,7 +217,7 @@ class InventoriOutletService
                 $catatan = $itemData['catatan'] ?? '';
 
                 if ($qtyTerima > $item->qty) {
-                    throw new \App\Exceptions\InsufficientStockException(
+                    throw new InsufficientStockException(
                         "Qty terima {$item->nama} melebihi qty kirim ({$item->qty})"
                     );
                 }
@@ -251,7 +253,7 @@ class InventoriOutletService
                     $product = $item->product;
                     if ($delta > 0 && $product) {
                         $ids = $product->outlet_ids ?? [];
-                        if (!in_array((string) $outletId, $ids, true)) {
+                        if (! in_array((string) $outletId, $ids, true)) {
                             $ids[] = (string) $outletId;
                             $product->update(['outlet_ids' => $ids]);
                         }
@@ -264,7 +266,7 @@ class InventoriOutletService
                         'reference_type' => 'distribution_order',
                         'reference_id' => $do->id,
                         'qty' => $delta,
-                        'note' => 'Penerimaan dari gudang: ' . ($item->nama ?? ''),
+                        'note' => 'Penerimaan dari gudang: '.($item->nama ?? ''),
                         'user_id' => Auth::id(),
                     ]);
                 }
@@ -297,15 +299,23 @@ class InventoriOutletService
 
     private function getStatusLabel(int $total, int $min): string
     {
-        if ($total <= 0) return self::STATUS_HABIS;
-        if ($total < $min) return self::STATUS_MENIPIS;
+        if ($total <= 0) {
+            return self::STATUS_HABIS;
+        }
+        if ($total < $min) {
+            return self::STATUS_MENIPIS;
+        }
+
         return self::STATUS_NORMAL;
     }
 
     private function getFirstVariantColor($variants): string
     {
         $first = $variants->first();
-        if (!$first) return '';
+        if (! $first) {
+            return '';
+        }
+
         return $first->color ?? '';
     }
 

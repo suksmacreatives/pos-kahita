@@ -2,23 +2,21 @@
 
 namespace App\Services\Export;
 
+use App\Models\DistributionOrderItem;
+use App\Models\OutletReturnItem;
+use App\Models\Product;
+use App\Models\ProductCategory;
+use App\Models\ProductVariant;
+use App\Models\TransactionItem;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\DB;
-use App\Models\Product;
-use App\Models\ProductVariant;
-use App\Models\ProductCategory;
-use App\Models\DistributionOrder;
-use App\Models\DistributionOrderItem;
-use App\Models\OutletReturn;
-use App\Models\OutletReturnItem;
-use App\Models\Outlet;
-use App\Models\TransactionItem;
-use App\Models\StockMovement;
 
 class DashboardExportDataService
 {
     protected int $lowStockThreshold = 10;
+
     protected int $deadStockDays = 90;
+
     protected int $fastMovingLimit = 10;
 
     public function getInventorySummary(?int $outletId = null): array
@@ -32,8 +30,11 @@ class DashboardExportDataService
             DB::raw('SUM(stock * cost_price) as total')
         )->whereNotNull('cost_price')->value('total') ?? 0;
 
+        // whereNull deleted_at: stok outlet produk/varian terarsip tidak boleh
+        // ikut dihitung sebagai nilai inventaris aktif.
         $stokOutletValue = DB::table('outlet_stocks')
             ->join('product_variants', 'outlet_stocks.product_variant_id', '=', 'product_variants.id')
+            ->whereNull('product_variants.deleted_at')
             ->select(DB::raw('SUM(outlet_stocks.stock * COALESCE(product_variants.cost_price, 0)) as total'))
             ->value('total') ?? 0;
 
@@ -50,7 +51,9 @@ class DashboardExportDataService
     {
         $cur = DistributionOrderItem::whereHas('distributionOrder', function ($q) use ($dari, $sampai, $outletId) {
             $q->whereBetween('tanggal_kirim', [$dari, $sampai]);
-            if ($outletId) $q->where('outlet_id', $outletId);
+            if ($outletId) {
+                $q->where('outlet_id', $outletId);
+            }
         });
 
         $totalQty = (int) $cur->sum('qty');
@@ -59,7 +62,9 @@ class DashboardExportDataService
         $prevSampai = (clone $sampai)->subMonth();
         $prevQty = (int) DistributionOrderItem::whereHas('distributionOrder', function ($q) use ($prevDari, $prevSampai, $outletId) {
             $q->whereBetween('tanggal_kirim', [$prevDari, $prevSampai]);
-            if ($outletId) $q->where('outlet_id', $outletId);
+            if ($outletId) {
+                $q->where('outlet_id', $outletId);
+            }
         })->sum('qty');
 
         $growth = $prevQty > 0 ? round((($totalQty - $prevQty) / $prevQty) * 100, 1) : 0;
@@ -73,9 +78,9 @@ class DashboardExportDataService
             ->toArray();
 
         $perOutlet = DistributionOrderItem::select(
-                DB::raw('SUM(distribution_order_items.qty) as total_qty'),
-                'outlets.name as outlet_name'
-            )
+            DB::raw('SUM(distribution_order_items.qty) as total_qty'),
+            'outlets.name as outlet_name'
+        )
             ->join('distribution_orders', 'distribution_order_items.distribution_order_id', '=', 'distribution_orders.id')
             ->join('outlets', 'distribution_orders.outlet_id', '=', 'outlets.id')
             ->whereBetween('distribution_orders.tanggal_kirim', [$dari, $sampai])
@@ -97,7 +102,9 @@ class DashboardExportDataService
     {
         $cur = OutletReturnItem::whereHas('outletReturn', function ($q) use ($dari, $sampai, $outletId) {
             $q->whereBetween('tgl_retur', [$dari, $sampai]);
-            if ($outletId) $q->where('outlet_id', $outletId);
+            if ($outletId) {
+                $q->where('outlet_id', $outletId);
+            }
         });
 
         $totalQty = (int) $cur->sum('qty');
@@ -106,7 +113,9 @@ class DashboardExportDataService
         $prevSampai = (clone $sampai)->subMonth();
         $prevQty = (int) OutletReturnItem::whereHas('outletReturn', function ($q) use ($prevDari, $prevSampai, $outletId) {
             $q->whereBetween('tgl_retur', [$prevDari, $prevSampai]);
-            if ($outletId) $q->where('outlet_id', $outletId);
+            if ($outletId) {
+                $q->where('outlet_id', $outletId);
+            }
         })->sum('qty');
 
         $growth = $prevQty > 0 ? round((($totalQty - $prevQty) / $prevQty) * 100, 1) : 0;
@@ -157,13 +166,15 @@ class DashboardExportDataService
     public function getFastSlowMoving(Carbon $dari, Carbon $sampai, ?int $outletId = null): array
     {
         $items = TransactionItem::select(
-                'product_name_snapshot',
-                'product_id',
-                DB::raw('SUM(quantity) as total_qty'),
-            )
+            'product_name_snapshot',
+            'product_id',
+            DB::raw('SUM(quantity) as total_qty'),
+        )
             ->whereHas('transaction', function ($q) use ($dari, $sampai, $outletId) {
                 $q->whereBetween('created_at', [$dari, $sampai])->where('status', 'completed');
-                if ($outletId) $q->where('outlet_id', $outletId);
+                if ($outletId) {
+                    $q->where('outlet_id', $outletId);
+                }
             })
             ->groupBy('product_name_snapshot', 'product_id')
             ->orderByDesc('total_qty')
@@ -171,6 +182,7 @@ class DashboardExportDataService
 
         $fastMoving = $items->take($this->fastMovingLimit)->map(function ($i) {
             $p = Product::with('category')->find($i->product_id);
+
             return [
                 'nama_produk' => $i->product_name_snapshot,
                 'kategori' => $p?->category?->name ?? '-',
@@ -180,7 +192,8 @@ class DashboardExportDataService
 
         $slowMoving = $items->filter(fn ($i) => (int) $i->total_qty <= 2)
             ->map(function ($i) {
-                $p = Product::with('category')->find($i->product_id);
+                $p = Product::withTrashed()->with('category')->find($i->product_id);
+
                 return [
                     'nama_produk' => $i->product_name_snapshot,
                     'kategori' => $p?->category?->name ?? '-',
@@ -195,7 +208,7 @@ class DashboardExportDataService
             ->get();
 
         $deadStock = $allVariants->filter(function ($v) use ($terjualIds) {
-            return !in_array($v->product_id, $terjualIds) && $v->stock > 0;
+            return ! in_array($v->product_id, $terjualIds) && $v->stock > 0;
         })->map(function ($v) {
             return [
                 'nama_produk' => $v->product?->name ?? '-',
@@ -217,10 +230,10 @@ class DashboardExportDataService
         $thirtyDaysAgo = now()->subDays(30);
 
         $avgMonthly = TransactionItem::select(
-                'product_name_snapshot',
-                'product_id',
-                DB::raw('SUM(quantity) as total_qty'),
-            )
+            'product_name_snapshot',
+            'product_id',
+            DB::raw('SUM(quantity) as total_qty'),
+        )
             ->whereHas('transaction', fn ($q) => $q->where('created_at', '>=', $thirtyDaysAgo)->where('status', 'completed'))
             ->groupBy('product_name_snapshot', 'product_id')
             ->get()
@@ -254,13 +267,14 @@ class DashboardExportDataService
     public function getInventoryValue(): array
     {
         $perProduk = ProductVariant::select(
-                'products.name as nama_produk',
-                'product_categories.name as kategori',
-                DB::raw('SUM(product_variants.stock * COALESCE(product_variants.cost_price, 0)) as nilai'),
-                DB::raw('SUM(product_variants.stock) as stok'),
-            )
+            'products.name as nama_produk',
+            'product_categories.name as kategori',
+            DB::raw('SUM(product_variants.stock * COALESCE(product_variants.cost_price, 0)) as nilai'),
+            DB::raw('SUM(product_variants.stock) as stok'),
+        )
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->leftJoin('product_categories', 'products.category_id', '=', 'product_categories.id')
+            ->whereNull('products.deleted_at')
             ->groupBy('products.id', 'products.name', 'product_categories.name')
             ->orderByDesc('nilai')
             ->get()
@@ -273,13 +287,14 @@ class DashboardExportDataService
             ->toArray();
 
         $perKategori = ProductVariant::select(
-                'product_categories.name as kategori',
-                DB::raw('COUNT(DISTINCT products.id) as total_produk'),
-                DB::raw('SUM(product_variants.stock) as total_stok'),
-                DB::raw('SUM(product_variants.stock * COALESCE(product_variants.cost_price, 0)) as total_nilai'),
-            )
+            'product_categories.name as kategori',
+            DB::raw('COUNT(DISTINCT products.id) as total_produk'),
+            DB::raw('SUM(product_variants.stock) as total_stok'),
+            DB::raw('SUM(product_variants.stock * COALESCE(product_variants.cost_price, 0)) as total_nilai'),
+        )
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->leftJoin('product_categories', 'products.category_id', '=', 'product_categories.id')
+            ->whereNull('products.deleted_at')
             ->groupBy('product_categories.id', 'product_categories.name')
             ->orderByDesc('total_nilai')
             ->get()
@@ -293,8 +308,11 @@ class DashboardExportDataService
 
         $total = array_sum(array_column($perProduk, 'nilai'));
 
+        // whereNull deleted_at: stok outlet produk/varian terarsip tidak boleh
+        // ikut dihitung sebagai nilai inventaris aktif.
         $stokOutletValue = DB::table('outlet_stocks')
             ->join('product_variants', 'outlet_stocks.product_variant_id', '=', 'product_variants.id')
+            ->whereNull('product_variants.deleted_at')
             ->select(DB::raw('SUM(outlet_stocks.stock * COALESCE(product_variants.cost_price, 0)) as total'))
             ->value('total') ?? 0;
 

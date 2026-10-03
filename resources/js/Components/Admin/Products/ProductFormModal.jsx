@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { useForm, usePage } from "@inertiajs/react";
 import toast from "react-hot-toast";
 import { X, Upload, ChevronDown, Search, Printer } from "lucide-react";
-import VariantManager from "./VariantManager";
+import VariantManager, { generateSku } from "./VariantManager";
 import Barcode from "./Barcode";
 import { printBarcodeLabels } from "@/lib/barcode";
 
@@ -25,6 +25,7 @@ function convertProductVariants(varian) {
 
   const variants = varian.map(v => ({
     id: `v_${v.color_name ? colorMap[v.color_name] : "null"}_${v.size_label ? sizeMap[v.size_label] : "null"}`,
+    variant_db_id: v.variant_db_id ?? null,
     color_id: v.color_name ? colorMap[v.color_name] : null,
     color_nama: v.color_name || null,
     size_id: v.size_label ? sizeMap[v.size_label] : null,
@@ -105,13 +106,24 @@ export default function ProductFormModal({
       initialVariantData.current = converted;
       setVariantData(converted);
     } else {
-      const autoKode = "KHT-" + Date.now().toString(36).toUpperCase() + Math.random().toString(36).substring(2, 6).toUpperCase();
+      // Kode produk dibuat server (route admin.products.next-code) supaya
+      // yang tampil di form = yang benar-benar tersimpan, dan tidak pernah
+      // bentrok. Fallback lokal hanya kalau request gagal.
+      const fallbackKode = "KHT-" + Math.random().toString(36).slice(2, 7).toUpperCase();
       reset();
-      setData("kode_produk", autoKode);
+      setData("kode_produk", fallbackKode);
       setImagePreview(null);
       const empty = { hasColor: false, hasSize: false, colors: [], sizes: [], variants: [] };
       initialVariantData.current = empty;
       setVariantData(empty);
+
+      fetch("/admin/products/next-code", { headers: { Accept: "application/json" } })
+        .then((r) => (r.ok ? r.json() : null))
+        .then((json) => {
+          const next = json?.kode_produk;
+          if (next) setData("kode_produk", next);
+        })
+        .catch(() => {});
     }
   }, [product, isOpen]);
 
@@ -171,6 +183,9 @@ export default function ProductFormModal({
     fd.append("status", data.status);
 
     variantData.variants.forEach((v, i) => {
+      if (isEditMode && v.variant_db_id) {
+        fd.append(`variants[${i}][id]`, String(v.variant_db_id));
+      }
       fd.append(`variants[${i}][color_name]`, v.color_nama ?? "");
       fd.append(`variants[${i}][size_label]`, v.size_label ?? "");
       fd.append(`variants[${i}][stok]`, String(v.stok));
@@ -266,34 +281,70 @@ export default function ProductFormModal({
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold text-gray-700 mb-1">Kode Produk *</label>
-                <input type="text" value={data.kode_produk} onChange={(e) => {
+                <div className="flex items-baseline justify-between mb-1">
+                  <label className="block text-[11px] font-bold text-gray-700">Kode Produk</label>
+                  <span className="text-[10px] text-gray-400">Kosongkan untuk dibuat otomatis</span>
+                </div>
+                <input type="text" value={data.kode_produk} maxLength={255} onChange={(e) => {
                   setData("kode_produk", e.target.value);
                   const updated = variantData.variants.map(v => ({
                     ...v,
                     sku: generateSku(e.target.value, v.color_nama, v.size_label),
                   }));
                   setVariantData(prev => ({ ...prev, variants: updated }));
-                }} placeholder="KHT-XXXX"
+                }} placeholder="KHT-00001"
                   className="block w-full px-3 py-2 border border-gray-200 rounded-xl text-xs font-mono focus:ring-emerald-500/20 focus:border-emerald-500 focus:outline-none focus:ring-2 bg-slate-50" />
                 {fieldError("kode_produk")}
 
                 {data.kode_produk && (
                   <div className="mt-2 flex items-center gap-3 p-2.5 bg-white border border-gray-150 rounded-xl">
-                    <Barcode value={data.kode_produk} className="h-10 w-32 shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Preview Barcode</p>
-                      <p className="text-[10px] text-gray-400 truncate">{data.kode_produk}</p>
-                    </div>
+                    {/*
+                      Label cetak memakai barcode_code (P###### / V######),
+                      bukan SKU. Preview harus sama persis dengan yang keluar
+                      dari printer, kalau tidak kasir salah ketik.
+                    */}
+                    {isEditMode ? (
+                      <>
+                        <Barcode value={product.barcode_code || data.kode_produk} className="h-10 w-32 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Preview Barcode</p>
+                          <p className="text-[10px] text-gray-400 truncate">{product.barcode_code || data.kode_produk}</p>
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Preview Barcode</p>
+                        <p className="text-[10px] text-gray-400">
+                          Barcode dibuat otomatis setelah produk disimpan.
+                        </p>
+                      </div>
+                    )}
                     {isEditMode && (
-                      <button
-                        type="button"
-                        onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_produk' })}
-                        className="flex items-center gap-1.5 px-2.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
-                      >
-                        <Printer className="w-3.5 h-3.5" />
-                        Cetak Label
-                      </button>
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_produk' })}
+                          className="flex items-center gap-1.5 px-2.5 py-2 bg-blue-50 hover:bg-blue-100 text-blue-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                          Cetak Label
+                        </button>
+                        {(() => {
+                          const totalVarian = (product.varian || []).length;
+                          if (totalVarian <= 1) return null;
+                          return (
+                            <button
+                              type="button"
+                              onClick={() => printBarcodeLabels({ productIds: [product.id], qty: 1, mode: 'per_varian' })}
+                              className="flex items-center gap-1.5 px-2.5 py-2 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-bold transition-colors cursor-pointer"
+                              title={`Cetak ${totalVarian} label, satu per varian`}
+                            >
+                              <Printer className="w-3.5 h-3.5" />
+                              Label per Varian
+                            </button>
+                          );
+                        })()}
+                      </>
                     )}
                   </div>
                 )}
@@ -525,13 +576,4 @@ export default function ProductFormModal({
     </div>,
     document.body
   );
-}
-
-function generateSku(productCode, colorName, sizeLabel) {
-  if (!productCode) return "";
-  const abbr = (s) => (s || "").slice(0, 2).toUpperCase();
-  const parts = [productCode];
-  if (colorName) parts.push(abbr(colorName));
-  if (sizeLabel) parts.push(sizeLabel);
-  return parts.join("-");
 }
