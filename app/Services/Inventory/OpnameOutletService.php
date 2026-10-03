@@ -2,9 +2,9 @@
 
 namespace App\Services\Inventory;
 
+use App\Exceptions\InsufficientStockException;
 use App\Models\OutletStock;
 use App\Models\Product;
-use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use App\Models\StockOpname;
 use App\Models\StockOpnameItem;
@@ -57,9 +57,10 @@ class OpnameOutletService
         $petugas = $data['petugas'];
         $scope = $data['scope'] ?? 'all';
 
-        $products = Product::whereJsonContains('outlet_ids', (string) $outletId)
-            ->orWhere('outlet_id', $outletId)
-            ->with('variants');
+        // Scope outlet memakai definisi bersama Product::scopeTersediaDiOutlet.
+        // OR di dalamnya sudah dikelompokkan dalam closure, jadi filter
+        // kategori di bawah tidak bocor ke cabang outlet_ids.
+        $products = Product::tersediaDiOutlet($outletId)->with('variants');
 
         if ($scope !== 'all') {
             $products->whereHas('category', fn ($q) => $q->where('name', $scope));
@@ -102,7 +103,7 @@ class OpnameOutletService
             $opname = StockOpname::findOrFail($opnameId);
 
             if ($opname->status !== 'berlangsung') {
-                throw new \App\Exceptions\InsufficientStockException(
+                throw new InsufficientStockException(
                     'Opname sudah selesai atau tidak dalam status berlangsung'
                 );
             }
@@ -172,7 +173,7 @@ class OpnameOutletService
 
     public function createOpnameSession(int $outletId, string $petugas, string $scope = 'all'): StockOpname
     {
-        $nomorOpname = 'OPO-' . now()->format('Ymd') . '-' . str_pad(
+        $nomorOpname = 'OPO-'.now()->format('Ymd').'-'.str_pad(
             StockOpname::where('outlet_id', $outletId)->count() + 1, 3, '0', STR_PAD_LEFT
         );
 

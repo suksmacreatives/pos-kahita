@@ -122,15 +122,17 @@ class InventoriReportService
         $outlets = Outlet::aktif()->get(['id', 'name']);
 
         return $outlets->map(function ($outlet) {
-            $variants = ProductVariant::whereHas('product', function ($q) use ($outlet) {
-                $q->where('outlet_id', $outlet->id)->orWhereJsonContains('outlet_ids', (string) $outlet->id);
-            })
+            $variants = ProductVariant::whereHas(
+                'product',
+                fn ($q) => $q->tersediaDiOutlet($outlet->id)
+            )
                 ->selectRaw('COUNT(*) as total_sku, SUM(stock) as total_qty')
                 ->first();
 
-            $nilai = ProductVariant::whereHas('product', function ($q) use ($outlet) {
-                $q->where('outlet_id', $outlet->id)->orWhereJsonContains('outlet_ids', (string) $outlet->id);
-            })
+            $nilai = ProductVariant::whereHas(
+                'product',
+                fn ($q) => $q->tersediaDiOutlet($outlet->id)
+            )
                 ->join('products', 'product_variants.product_id', '=', 'products.id')
                 ->sum(DB::raw('product_variants.stock * products.cost_price'));
 

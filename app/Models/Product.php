@@ -2,12 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
 
     protected $fillable = [
         'outlet_id',
@@ -52,5 +53,35 @@ class Product extends Model
     public function variants()
     {
         return $this->hasMany(ProductVariant::class);
+    }
+
+    /**
+     * Batasi produk ke satu outlet.
+     *
+     * Satu-satunya definisi "produk ini tersedia di outlet X" untuk seluruh
+     * aplikasi. Sebelumnya pola ini disalin ke banyak tempat dan tidak
+     * konsisten: sebagian hanya mengecek `outlet_ids`, sebagian menambah
+     * `outlet_id`, dan beberapa salah menulis OR tanpa closure sehingga filter
+     * lain (mis. kategori) bocor ke cabang yang tidak dikehendai.
+     *
+     * `outlet_ids` adalah sumber utama karena bertambah otomatis saat barang
+     * diterima outlet ( InventoriOutletService::konfirmasiTerima). `outlet_id`
+     * tetap dipertahankan sebagai fallback untuk produk lama yang JSON-nya null.
+     *
+     * Nilainya dibandingkan sebagai string karena `outlet_ids` disimpan sebagai
+     * JSON array of string dan MySQL membandingkan JSON secara ketat tipe.
+     *
+     * @param  int|string|null  $outletId
+     */
+    public function scopeTersediaDiOutlet($query, $outletId)
+    {
+        if (blank($outletId)) {
+            return $query;
+        }
+
+        return $query->where(function ($q) use ($outletId) {
+            $q->where('products.outlet_id', $outletId)
+                ->orWhereJsonContains('products.outlet_ids', (string) $outletId);
+        });
     }
 }

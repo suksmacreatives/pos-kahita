@@ -26,7 +26,7 @@ class InventoriOutletService
 
         $result = [];
         foreach ($outlets as $outlet) {
-            $products = Product::whereJsonContains('outlet_ids', (string) $outlet->id)
+            $products = Product::tersediaDiOutlet($outlet->id)
                 ->with(['variants', 'category'])
                 ->get();
 
@@ -77,7 +77,7 @@ class InventoriOutletService
 
         $result = [];
         foreach ($outlets as $outlet) {
-            $products = Product::whereJsonContains('outlet_ids', (string) $outlet->id)
+            $products = Product::tersediaDiOutlet($outlet->id)
                 ->with('variants')
                 ->get();
 
@@ -257,6 +257,13 @@ class InventoriOutletService
                             $ids[] = (string) $outletId;
                             $product->update(['outlet_ids' => $ids]);
                         }
+
+                        // Pivot outlet_product harus menyusul.
+                        // Halaman admin membaca pivot, sementara POS dan
+                        // inventory membaca outlet_ids. Kalau pivot tidak
+                        // di-sync, produk tetap bisa dijual di outlet ini
+                        // tetapi hilang dari daftar produk milik outlet tersebut.
+                        $product->outlets()->syncWithoutDetaching([$outletId]);
                     }
 
                     StockMovement::create([

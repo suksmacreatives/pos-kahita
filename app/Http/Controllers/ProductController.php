@@ -53,6 +53,13 @@ class ProductController extends Controller
             $products->whereHas('category', fn ($q) => $q->where('name', $kategori));
         }
 
+        // Filter outlet sebelumnya hanya dibaca lalu dibuang, sehingga ekspor
+        // "produk outlet X" tetap berisi seluruh outlet. Nilai 'all' (dan
+        // string kosong) berarti semua outlet.
+        if ($outlet !== 'all' && $outlet !== '' && $outlet !== null) {
+            $products->tersediaDiOutlet($outlet);
+        }
+
         $products = $products->orderBy('created_at', 'desc')->get();
 
         $salesData = TransactionItem::selectRaw('product_id, SUM(quantity) as total_terjual')
@@ -285,7 +292,12 @@ class ProductController extends Controller
                 'harga_beli' => (int) $p->cost_price,
                 'harga_jual' => (int) $p->price,
                 'status' => $p->status ?? 'aktif',
-                'outlet_tersedia' => $p->outlets ? $p->outlets->pluck('id')->toArray() : ($p->outlet_ids ?? []),
+                // Bacanya outlet_ids (JSON), bukan pivot outlet_product.
+                // outlet_ids adalah sumber yang sama dengan POS, inventory
+                // outlet, dan laporan, jadi daftar produk admin tidak lagi
+                // berbeda dengan yang dilihat kasir. Nilai dinormalisasi ke
+                // string supaya frontend tidak perlu menebak tipe.
+                'outlet_tersedia' => array_map('strval', $p->outlet_ids ?? []),
                 'varian' => $variants->toArray(),
                 'total_stok' => $total_stok,
                 'stok_gudang' => $stok_gudang,
@@ -360,9 +372,6 @@ class ProductController extends Controller
 
         $validated = $request->validate([
             'nama_produk' => 'required|string|max:255',
-            // Boleh dikosongkan: sistem yang membuat kode produknya (lihat
-            // generateProductSku()). Barcode tidak dibentuk dari SKU, jadi
-            // panjang kode tidak lagi dibatasi demi "keterbacaan barcode".
             'kode_produk' => 'nullable|string|max:255|regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/',
             'harga_jual' => 'required|numeric|min:0',
             'harga_beli' => 'required|numeric|min:0',
@@ -606,7 +615,6 @@ class ProductController extends Controller
             'original_sku' => null,
         ]);
     }
-
     /**
      * SKU diarsipkan diberi suffix supaya slot UNIQUE asli bebas dipakai ulang.
      * SKU asli disimpan di `original_sku` agar restore() bisa mengembalikannya.
@@ -867,18 +875,46 @@ class ProductController extends Controller
         }
     }
 
+    /**
+     * Baca daftar outlet dari form admin dan normalisasi ke string.
+     *
+     * Kolom `outlet_ids` disimpan sebagai JSON array of STRING karena seluruh
+     * pembacaannya memakai `whereJsonContains('outlet_ids', (string) $id)`.
+     * MySQL membandingkan JSON secara ketat tipe: JSON_CONTAINS('[1]', '1')
+     * bernilai 0, jadi kalau ada satu jalur tulis yang menyimpan angka, produk
+     * tersebut diam-diam hilang dari POS, inventory outlet, dan laporan.
+     *
+     * Karena itu bentuk apa pun dari request dinormalisasi ke string di sini,
+     * bukan mengandalkan frontend sudah mengirim string.
+     */
     private function parseOutletTersedia(mixed $value): array
     {
         if (is_array($value)) {
-            return $value;
+            return $this->normalisasiOutletIds($value);
         }
 
         if (is_string($value)) {
             $decoded = json_decode($value, true);
 
-            return is_array($decoded) ? $decoded : [];
+            return is_array($decoded) ? $this->normalisasiOutletIds($decoded) : [];
         }
 
         return [];
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function normalisasiOutletIds(array $values): array
+    {
+        $ids = [];
+
+        foreach ($values as $id) {
+            if (is_scalar($id) && (string) $id !== '') {
+                $ids[] = (string) $id;
+            }
+        }
+
+        return array_values(array_unique($ids));
     }
 }
