@@ -239,33 +239,26 @@ export default function BarcodeScannerModal({
              */
                 await scanner.start(
                     {
-                        facingMode: 'environment',
+                        facingMode: {
+                            ideal: 'environment',
+                        },
                     },
-                {
-                    fps: 10,
+                    {
+                        fps: 15,
 
-                    /*
-                     * Barcode CODE128 berbentuk
-                     * horizontal, jadi area scan
-                     * dibuat lebih lebar.
-                     */
-                    qrbox: {
-                        width: 320,
-                        height: 140,
+                        qrbox: {
+                            width: 350,
+                            height: 160,
+                        },
+
+                        aspectRatio: 1.777778,
+
+                        formatsToSupport: [
+                            Html5QrcodeSupportedFormats.CODE_128,
+                        ],
+
+                        disableFlip: false,
                     },
-
-                    aspectRatio:
-                        1.777778,
-
-                    /*
-                     * Kita fokus pada barcode yang
-                     * digunakan Kahita.
-                     */
-                    formatsToSupport: [
-                        Html5QrcodeSupportedFormats
-                            .CODE_128,
-                    ],
-                },
                 (decodedText) => {
                     handleBarcodeSuccess(
                         decodedText
