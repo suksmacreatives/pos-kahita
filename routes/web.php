@@ -124,6 +124,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         Route::patch('/admin/products/{product}', [ProductController::class, 'update'])->name('admin.products.update');
         Route::delete('/admin/products/{product}', [ProductController::class, 'destroy'])->name('admin.products.destroy');
         Route::post('/admin/products/{product}/restore', [ProductController::class, 'restore'])->name('admin.products.restore');
+        Route::patch('/admin/products/{product}/toggle-status', [ProductController::class, 'toggleStatus'])->name('admin.products.toggle-status');
         Route::post('/admin/products/export', [ProductController::class, 'export'])->name('admin.products.export');
         Route::get('/admin/products/next-code', [ProductController::class, 'nextCode'])->name('admin.products.next-code');
         Route::get('/admin/products/barcode-label', [ProductController::class, 'barcodeLabel'])->name('admin.products.barcode-label');

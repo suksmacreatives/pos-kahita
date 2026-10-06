@@ -125,16 +125,14 @@ export default function Products({ products: initialProducts, outlets, categorie
     const prod = products.find(p => p.id === productId);
     if (!prod) return;
     const nextStatus = prod.status === 'aktif' ? 'nonaktif' : 'aktif';
-    router.patch(`/admin/products/${productId}`, {
-      nama_produk: prod.nama_produk,
-      kode_produk: prod.kode_produk,
-      harga_jual: prod.harga_jual,
-      harga_beli: prod.harga_beli,
-      outlet_tersedia: prod.outlet_tersedia,
-      status: nextStatus,
-    }, {
+    // Endpoint khusus toggle — jangan PATCH ke update() yang mewajibkan
+    // payload `variants` lengkap (dulu selalu gagal validasi sehingga status
+    // tidak pernah berubah sampai halaman di-refresh). router.patch tetap
+    // me-refresh props Inertia, jadi tabel langsung mencerminkan status baru.
+    router.patch(`/admin/products/${productId}/toggle-status`, {}, {
       preserveScroll: true,
       onSuccess: () => showToast(`Status produk dirubah menjadi ${nextStatus}`),
+      onError: (errors) => showToast('Gagal mengubah status: ' + Object.values(errors).join(', '), 'warning'),
     });
   };
 

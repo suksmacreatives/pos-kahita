@@ -630,6 +630,22 @@ class ProductController extends Controller
         return redirect()->back()->with('success', 'Produk berhasil dipulihkan.');
     }
 
+    /**
+     * Toggle status produk (aktif ↔ nonaktif) tanpa payload edit lengkap.
+     *
+     * Endpoint khusus karena update() mewajibkan `variants` (min:1) — toggle
+     * yang dulu dikirim ke update() selalu gagal validasi, sehingga status di
+     * halaman admin tidak pernah berubah sampai user me-refresh. Toggle tidak
+     * boleh menyentuh kuantitas stok maupun outlet_ids.
+     */
+    public function toggleStatus(Product $product)
+    {
+        $next = $product->status === 'nonaktif' ? 'aktif' : 'nonaktif';
+        $product->update(['status' => $next]);
+
+        return redirect()->back()->with('success', 'Status produk dirubah menjadi '.$next.'.');
+    }
+
     private function restoreSku(Model $model): void
     {
         if (! $model->original_sku) {
