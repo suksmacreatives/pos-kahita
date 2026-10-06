@@ -7,6 +7,36 @@ import VariantManager, { generateSku } from "./VariantManager";
 import Barcode from "./Barcode";
 import { printBarcodeLabels } from "@/lib/barcode";
 
+/**
+ * SATU DEFINISI "outlet berstok" — identik dengan backend (RegistrasiOutlet,
+ * validasi edit, observer, migrasi backfill, scope baca):
+ *   outlet dengan ≥1 varian aktif berstok != 0 (per baris, bukan SUM).
+ *
+ * Mengembalikan { [outletId]: { total, ada } }:
+ * - ada: true bila ada SATU baris stok != 0 → outlet terkunci dari uncheck
+ *   (backend menolak payload yang melepasnya).
+ * - total: jumlah per outlet, hanya untuk label pesan.
+ */
+function ringkasStokOutlet(product) {
+  const perOutlet = {};
+  for (const v of product?.varian || []) {
+    const map = v.stok_outlet || {};
+    for (const [id, s] of Object.entries(map)) {
+      const n = Number(s) || 0;
+      if (!perOutlet[id]) perOutlet[id] = { total: 0, ada: false };
+      perOutlet[id].total += n;
+      if (n !== 0) perOutlet[id].ada = true;
+    }
+  }
+  return perOutlet;
+}
+
+function pesanOutletTerkunci(name, stok) {
+  return stok.total !== 0
+    ? `Outlet ${name} masih stok ${stok.total}, transfer atau retur dulu di Inventory`
+    : `Outlet ${name} masih memiliki stok varian yang saling meniadakan (total 0)`;
+}
+
 function convertProductVariants(varian) {
   if (!varian || varian.length === 0) {
     return { hasColor: false, hasSize: false, colors: [], sizes: [], variants: [] };
@@ -90,13 +120,29 @@ export default function ProductFormModal({
     if (!isOpen) return;
     setActiveTab("info");
     if (isEditMode && product) {
+      // Union: outlet_tersedia (outlet_ids) ∪ outlet yang masih berstok
+      // menurut data varian. Data lama yang outlet_ids-nya ketinggalan tetap
+      // tampil tercentang — checkbox tidak pernah menampilkan outlet berstok
+      // seolah tidak dipilih, dan backend menolak pelepasannya sebagai jaring
+      // pengaman terakhir.
+      const ringkas = ringkasStokOutlet(product);
+      const outletDenganStok = Object.entries(ringkas)
+        .filter(([, s]) => s.ada)
+        .map(([id]) => String(id));
+      const gabung = [
+        ...new Set([
+          ...(product.outlet_tersedia || []).map(String),
+          ...outletDenganStok,
+        ]),
+      ];
+
       setData({
         kode_produk: product.kode_produk || "",
         nama_produk: product.nama_produk || "",
         category_id: product.category_id || "",
         deskripsi: product.deskripsi || "",
         status: product.status || "aktif",
-        outlet_tersedia: product.outlet_tersedia ? product.outlet_tersedia.map(String) : [],
+        outlet_tersedia: gabung,
         distribusi_ke_gudang: product.stok_gudang > 0,
         image: null,
       });
@@ -143,6 +189,8 @@ export default function ProductFormModal({
 
   const hasLocation = data.distribusi_ke_gudang || data.outlet_tersedia.length > 0;
   const hasRealVariant = variantData.variants.some(v => v.color_nama || v.size_label);
+  // Dipakai tab distribusi saat edit: outlet berstok terkunci dari uncheck.
+  const stokPerOutlet = isEditMode && product ? ringkasStokOutlet(product) : {};
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -454,15 +502,15 @@ export default function ProductFormModal({
 
           {activeTab === "distribusi" && (
             <div className="space-y-4 max-w-2xl">
-              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800 leading-relaxed">
-                <p className="font-bold mb-1">Stok awal dari setiap varian akan disalin ke semua lokasi yang dipilih.</p>
-                <p>Contoh: varian stok 10 → Gudang: 10, Outlet A: 10. Perubahan stok setelah simpan hanya bisa dilakukan lewat menu Inventory.</p>
-              </div>
-
-              {isEditMode && (
-                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 text-[11px] text-amber-800 flex items-center gap-2">
-                  <span className="text-base">🔒</span>
-                  <span className="font-semibold">Ubah stok via menu Inventory — stok tidak bisa diubah dari sini.</span>
+              {isEditMode ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-xs text-amber-800 leading-relaxed">
+                  <p className="font-bold mb-1">Edit tidak menulis kuantitas stok — semua perubahan stok lewat menu Inventory.</p>
+                  <p>Outlet yang masih berstok terkunci dari di-uncheck (transfer atau retur dulu di Inventory). Outlet baru yang dipilih mulai dengan stok 0.</p>
+                </div>
+              ) : (
+                <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-xs text-blue-800 leading-relaxed">
+                  <p className="font-bold mb-1">Stok awal dari setiap varian akan disalin ke semua lokasi yang dipilih.</p>
+                  <p>Contoh: varian stok 10 → Gudang: 10, Outlet A: 10. Perubahan stok setelah simpan hanya bisa dilakukan lewat menu Inventory.</p>
                 </div>
               )}
 
@@ -479,18 +527,31 @@ export default function ProductFormModal({
                   {outlets.map((out) => {
                     const outletId = String(out.id);
                     const isChecked = data.outlet_tersedia.includes(outletId);
+                    const stok = stokPerOutlet[outletId];
+                    const terkunci = isEditMode && !!stok?.ada;
+                    const pesanKunci = terkunci ? pesanOutletTerkunci(out.name, stok) : null;
                     return (
-                      <label key={out.id} className={`flex items-center gap-2 px-3 py-2 border rounded-xl cursor-pointer text-xs font-medium transition-all ${
-                        isChecked ? "bg-emerald-50 border-emerald-300 text-emerald-800" : "bg-white border-gray-200 text-gray-600 hover:bg-slate-50"
+                      <label key={out.id} title={pesanKunci || undefined} className={`flex items-center gap-2 px-3 py-2 border rounded-xl text-xs font-medium transition-all ${
+                        terkunci
+                          ? "bg-amber-50 border-amber-300 text-amber-800 cursor-not-allowed"
+                          : isChecked
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-800"
+                            : "bg-white border-gray-200 text-gray-600 hover:bg-slate-50"
                       }`}>
-                        <input type="checkbox" checked={isChecked} onChange={() => {
+                        <input type="checkbox" checked={isChecked} disabled={terkunci} onChange={() => {
+                          if (terkunci) return;
                           const updated = data.outlet_tersedia.includes(outletId)
                             ? data.outlet_tersedia.filter((id) => id !== outletId)
                             : [...data.outlet_tersedia, outletId];
                           setData("outlet_tersedia", updated);
                         }}
-                          className="rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 w-3.5 h-3.5" />
-                        {out.name}
+                          className="rounded text-emerald-600 focus:ring-emerald-500 border-gray-300 w-3.5 h-3.5 disabled:cursor-not-allowed" />
+                        <span className="flex-1">{out.name}</span>
+                        {terkunci && (
+                          <span className="text-[9px] font-bold text-amber-600 shrink-0">
+                            {stok.total !== 0 ? `stok ${stok.total}` : "stok"}
+                          </span>
+                        )}
                       </label>
                     );
                   })}
