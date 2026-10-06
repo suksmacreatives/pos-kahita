@@ -547,7 +547,7 @@ class InventoryGudangController extends Controller
                     'product_id' => $item['produk_id'],
                     'product_variant_id' => $variant?->id,
                     'nama' => $item['nama'],
-                    'ukuran' => $item['ukuran'],
+                    'ukuran' => $item['ukuran'] ?? null,
                     'warna' => $item['warna'] ?? null,
                     'qty' => $item['qty'],
                 ]);

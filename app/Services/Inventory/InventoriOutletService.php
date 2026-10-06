@@ -234,9 +234,10 @@ class InventoriOutletService
                 if ($delta !== 0) {
                     $variant = $item->productVariant;
                     if ($variant) {
+                        $resolvedVid = $variant->id;
                         $outletStock = OutletStock::where([
                             'outlet_id' => $outletId,
-                            'product_variant_id' => $variant->id,
+                            'product_variant_id' => $resolvedVid,
                         ])->first();
 
                         if ($outletStock) {
@@ -244,7 +245,7 @@ class InventoriOutletService
                         } elseif ($delta > 0) {
                             OutletStock::create([
                                 'outlet_id' => $outletId,
-                                'product_variant_id' => $variant->id,
+                                'product_variant_id' => $resolvedVid,
                                 'stock' => $delta,
                             ]);
                         }
