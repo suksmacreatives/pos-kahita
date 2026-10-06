@@ -9,6 +9,7 @@ use App\Models\Product;
 use App\Models\ProductCategory;
 use App\Models\ProductVariant;
 use App\Models\TransactionItem;
+use App\Support\RegistrasiOutlet;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\QueryException;
@@ -471,7 +472,11 @@ class ProductController extends Controller
             ],
             'variants.*.color_name' => 'nullable|string',
             'variants.*.size_label' => 'nullable|string',
-            'variants.*.stok' => 'nullable|integer|min:0',
+            // `variants.*.stok` sengaja TIDAK ada di daftar rule saat edit:
+            // $request->validate() hanya mengembalikan kunci yang ada di rule,
+            // sehingga payload apa pun (termasuk tab browser lama atau kiriman
+            // manual yang membawa stok gudang) otomatis diabaikan. Edit produk
+            // tidak boleh menulis kuantitas stok — lihat reconcileVariants().
             'variants.*.harga_jual' => 'nullable|integer|min:0',
             'variants.*.harga_beli' => 'nullable|integer|min:0',
             'variants.*.sku' => [
@@ -497,7 +502,10 @@ class ProductController extends Controller
         $this->assertHasDimensionVariant($validated);
 
         $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
-        $distribusiKeGudang = filter_var($validated['distribusi_ke_gudang'] ?? true, FILTER_VALIDATE_BOOLEAN);
+
+        // `distribusi_ke_gudang` tetap divalidasi agar payload form lama valid,
+        // tapi tidak lagi dipakai: edit tidak menulis stok untuk varian apa pun
+        // (termasuk varian baru — stoknya dimulai dari 0 dan diisi lewat Inventory).
 
         // Sama seperti store(): kode kosong/double diresolve otomatis.
         [$kodeProduk, $catatanKode] = $this->resolveProductSkuFor($validated['kode_produk'] ?? null, $product->id);
@@ -523,7 +531,17 @@ class ProductController extends Controller
         $hasVariants = $request->has('variants') && ! empty($validated['variants']);
 
         try {
-            DB::transaction(function () use ($product, $updateData, $newImage, $hasVariants, $validated, $outletTersedia, $distribusiKeGudang) {
+            DB::transaction(function () use ($product, $updateData, $newImage, $hasVariants, $validated, $outletTersedia) {
+                /*
+                 * Lock + validasi dilakukan di sini, di dalam transaksi dan
+                 * sebelum tulisan apa pun: kunci baris outlet_stocks dulu,
+                 * baru products — urutan yang sama dengan observer
+                 * (RegistrasiOutlet), jadi tidak deadlock dengan transfer
+                 * yang sedang masuk. Tanpa lock ini, transfer bisa menaruh
+                 * stok di outlet yang baru saja dilepas dari payload ini.
+                 */
+                $this->assertOutletBerstokTidakDilepas($product, $outletTersedia);
+
                 if ($newImage) {
                     if ($product->image) {
                         Storage::disk('public')->delete($product->image);
@@ -535,7 +553,7 @@ class ProductController extends Controller
                 $product->outlets()->sync($outletTersedia);
 
                 if ($hasVariants) {
-                    $this->reconcileVariants($product, $validated, $outletTersedia, $distribusiKeGudang);
+                    $this->reconcileVariants($product, $validated, $outletTersedia);
                 }
             });
         } catch (Throwable $e) {
@@ -590,6 +608,14 @@ class ProductController extends Controller
                     $this->restoreSku($variant);
                     $variant->update(['archived_at' => null]);
                     $variant->restore();
+
+                    // Baris stok outlet varian ini ikut soft-delete bersamanya dan
+                    // kini hidup lagi. Pastikan outlet berstok-nya masih terdaftar
+                    // di outlet_ids — bisa saja sudah dilepas selama varian arsip
+                    // (RegistrasiOutlet men-skip outlet nonaktif/hilang sendiri).
+                    foreach ($variant->outletStocks()->where('stock', '!=', 0)->get() as $barisStok) {
+                        RegistrasiOutlet::dariVarian((int) $variant->id, (int) $barisStok->outlet_id);
+                    }
                 }
             } catch (QueryException $e) {
                 if ($e->getCode() == 23000) {
@@ -615,6 +641,7 @@ class ProductController extends Controller
             'original_sku' => null,
         ]);
     }
+
     /**
      * SKU diarsipkan diberi suffix supaya slot UNIQUE asli bebas dipakai ulang.
      * SKU asli disimpan di `original_sku` agar restore() bisa mengembalikannya.
@@ -640,8 +667,18 @@ class ProductController extends Controller
      * riwayat stok/varian tidak ikut berubah. Varian yang dibuang diarsipkan
      * (SKU-nya diberi suffix) sebelum di-soft delete, karena index UNIQUE tetap
      * menghitung baris soft delete — tanpa itu, SKU lama tidak bisa dipakai ulang.
+     *
+     * Kontrak stok saat edit:
+     * - Kuantitas TIDAK PERNAH ditulis dari sini — baik stok gudang varian
+     *   lama maupun stok outlet. Field `stok` bahkan tidak ada di validated
+     *   data update() (lihat whitelist di rule-nya), jadi payload basi tidak
+     *   bisa menimpa apa pun. Stok hanya berubah lewat menu Inventory.
+     * - Varian BARU dibuat dengan stok 0 di gudang, dan baris stok outletnya
+     *   dibuat dengan stok 0 untuk tiap outlet terpilih (ensureOutletStockRows).
+     * - Baris stok outlet tidak pernah dihapus: outlet yang dilepas dari form
+     *   hanya keluar dari daftar jual; stok fisiknya tetap tersimpan.
      */
-    private function reconcileVariants(Product $product, array $validated, array $outletTersedia, bool $distribusiKeGudang): void
+    private function reconcileVariants(Product $product, array $validated, array $outletTersedia): void
     {
         $existingVariants = $product->variants()->get()->keyBy('id');
         $submittedIds = collect($validated['variants'])
@@ -653,7 +690,9 @@ class ProductController extends Controller
         $removed = $existingVariants->except($submittedIds);
         foreach ($removed as $variant) {
             $this->archiveSku($variant);
-            $variant->outletStocks()->delete();
+            // Baris outlet_stocks TIDAK ikut dihapus: varian hanya
+            // soft-delete, stoknya harus kembali utuh saat restore() dan
+            // tidak boleh hilang hanya karena form edit.
             $variant->delete();
         }
 
@@ -675,14 +714,14 @@ class ProductController extends Controller
             ];
 
             if ($variant) {
+                // 'stock' sengaja tidak ada di $attributes: update varian
+                // lama tidak boleh menyentuh kuantitas gudang.
                 $variant->update($attributes);
             } else {
-                $stokGudang = $distribusiKeGudang ? ($v['stok'] ?? 0) : 0;
-
-                $variant = $product->variants()->create($attributes + ['stock' => $stokGudang]);
+                $variant = $product->variants()->create($attributes + ['stock' => 0]);
             }
 
-            $this->reconcileOutletStock($variant, $outletTersedia, $v['stok'] ?? 0);
+            $this->ensureOutletStockRows($variant, $outletTersedia);
         }
     }
 
@@ -845,6 +884,16 @@ class ProductController extends Controller
         return $sku;
     }
 
+    /**
+     * Salin stok varian ke semua outlet terpilih — DIPAKAI SAAT CREATE SAJA
+     * (createVariants). Jalur edit tidak menyentuh method ini.
+     *
+     * @TODO(utang teknis, di luar scope perbaikan stok edit): menyalin stok
+     * gudang ke tiap outlet menggandakan total stok tanpa mencatat
+     * stock_movement, sehingga laporan pergerakan tidak cocok dengan stok
+     * fisik. Perbaikannya: salinan awal ini harus tercatat sebagai movement
+     * distribusi, atau stok outlet mulai dari 0 dan diisi lewat Inventory.
+     */
     private function reconcileOutletStock(ProductVariant $variant, array $outletIds, int $stock): void
     {
         $outletIds = array_map('intval', $outletIds);
@@ -859,6 +908,108 @@ class ProductController extends Controller
                 ['stock' => $stock]
             );
         }
+    }
+
+    /**
+     * Jalur edit: pastikan baris stok per outlet ada untuk outlet terpilih,
+     * tanpa pernah menghapus atau menimpa kuantitas.
+     *
+     * - Outlet baru dicentang dan belum punya baris → dibuat dengan stok 0
+     *   (stok fisik diisi lewat Inventory, bukan disalin dari form).
+     * - Outlet yang sudah punya baris → dibiarkan persis apa adanya.
+     * - Outlet yang dilepas dari form → barisnya ikut disimpan; validasi
+     *   assertOutletBerstokTidakDilepas menolak pelepasan outlet berstok,
+     *   dan stok 0 tidak ada yang hilang.
+     *
+     * Baris dengan stok 0 memicu observer dengan `stock == 0` sehingga tidak
+     * mendaftarkan apa pun — pendaftaran outlet_ids ikut payload form.
+     */
+    private function ensureOutletStockRows(ProductVariant $variant, array $outletIds): void
+    {
+        foreach ($outletIds as $outletId) {
+            OutletStock::firstOrCreate(
+                ['product_variant_id' => $variant->id, 'outlet_id' => (int) $outletId],
+                ['stock' => 0],
+            );
+        }
+    }
+
+    /**
+     * Tolak simpan bila ada outlet aktif yang masih berstok tetapi hilang dari
+     * payload `outlet_tersedia` (checkbox di-uncheck lewat manipulasi payload
+     * atau halaman lama).
+     *
+     * SATU DEFINISI "outlet berstok" (lihat App\Support\RegistrasiOutlet,
+     * dipakai identik di observer, migrasi backfill, scope baca, dan form):
+     * outlet berstatus aktif dengan minimal satu varian AKTIF dengan stok != 0.
+     * Bukan SUM — varian +5 dan -5 tidak saling meniadakan.
+     *
+     * Harus dipanggil di dalam transaksi update() dengan lockForUpdate() pada
+     * baris outlet_stocks produk: urutan kuncinya baris stok dulu, baru
+     * products (sama dengan observer) supaya aman deadlock, dan transfer yang
+     * masuk di sela validasi-simpan akan menunggu atau kalah antre.
+     *
+     * @param  array<int, string>  $outletTersedia
+     */
+    private function assertOutletBerstokTidakDilepas(Product $product, array $outletTersedia): void
+    {
+        // Varian aktif saja: stok varian soft-delete tidak mengunci outlet
+        // (tidak ada yang melihatnya), dan ikut kembali saat restore().
+        $variantIds = $product->variants()->pluck('id');
+        if ($variantIds->isEmpty()) {
+            return;
+        }
+
+        // Kunci SEMUA baris stok varian ini (bukan hanya yang != 0) supaya
+        // INSERT stok baru untuk varian yang sama ikut menunggu transaksi ini.
+        $baris = OutletStock::whereIn('product_variant_id', $variantIds)
+            ->lockForUpdate()
+            ->get(['product_variant_id', 'outlet_id', 'stock']);
+
+        $berstokPerOutlet = $baris
+            ->filter(fn ($b) => (int) $b->stock !== 0)
+            ->groupBy('outlet_id');
+        // ^ EXISTENCE per baris, bukan SUM: +5 dan -5 = tetap terkunci.
+
+        if ($berstokPerOutlet->isEmpty()) {
+            return;
+        }
+
+        $outletInfo = Outlet::whereIn('id', $berstokPerOutlet->keys())
+            ->get(['id', 'name', 'status'])
+            ->keyBy(fn (Outlet $outlet) => (int) $outlet->id);
+
+        $dipilih = array_map('strval', $outletTersedia);
+
+        $terlepas = [];
+        foreach ($berstokPerOutlet as $outletId => $barisOutlet) {
+            $info = $outletInfo->get((int) $outletId);
+
+            if (! $info || $info->status !== 'aktif') {
+                continue; // definisi outlet berstok hanya untuk outlet aktif
+            }
+
+            if (in_array((string) $outletId, $dipilih, true)) {
+                continue;
+            }
+
+            $total = (int) $barisOutlet->sum('stock');
+            $terlepas[] = $total !== 0
+                ? "{$info->name} masih stok {$total}"
+                : "{$info->name} masih memiliki stok varian yang saling meniadakan (total 0)";
+        }
+
+        if ($terlepas === []) {
+            return;
+        }
+
+        throw ValidationException::withMessages([
+            // Semua outlet bermasalah digabung dalam satu pesan, bukan berhenti
+            // di yang pertama (checkbox di frontend sudah disabled; pesan ini
+            // pengaman terakhir untuk payload lama / manipulasi).
+            'outlet_tersedia' => implode('; ', $terlepas)
+                .' — transfer atau retur dulu di Inventory sebelum melepas lokasi.',
+        ]);
     }
 
     private function assertHasDimensionVariant(array $validated): void

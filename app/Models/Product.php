@@ -68,6 +68,13 @@ class Product extends Model
      * diterima outlet ( InventoriOutletService::konfirmasiTerima). `outlet_id`
      * tetap dipertahankan sebagai fallback untuk produk lama yang JSON-nya null.
      *
+     * Cabang ketiga adalah PENGAMAN BACA atas SATU DEFINISI outlet berstok
+     * (lihat App\Support\RegistrasiOutlet): outlet aktif dengan minimal satu
+     * varian aktif stok != 0. Tanpa cabang ini, data lama yang belum termigrasi
+     * atau jalur penulis yang lolos dari observer membuat produk berstok hilang
+     * dari POS — stok hantu yang tidak bisa dijual. Cabang ini hanya menyala
+     * saat outlet_ids tertinggal; setelah sinkron ia tidak mengubah perilaku.
+     *
      * Nilainya dibandingkan sebagai string karena `outlet_ids` disimpan sebagai
      * JSON array of string dan MySQL membandingkan JSON secara ketat tipe.
      *
@@ -81,7 +88,12 @@ class Product extends Model
 
         return $query->where(function ($q) use ($outletId) {
             $q->where('products.outlet_id', $outletId)
-                ->orWhereJsonContains('products.outlet_ids', (string) $outletId);
+                ->orWhereJsonContains('products.outlet_ids', (string) $outletId)
+                ->orWhereHas('variants.outletStocks', function ($stok) use ($outletId) {
+                    $stok->where('outlet_id', $outletId)
+                        ->where('stock', '!=', 0)
+                        ->whereHas('outlet', fn ($outlet) => $outlet->where('status', 'aktif'));
+                });
         });
     }
 }
