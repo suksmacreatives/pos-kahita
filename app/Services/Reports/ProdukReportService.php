@@ -133,22 +133,36 @@ class ProdukReportService
             ->selectRaw('
                 products.id,
                 products.name as nama,
-                products.cost_price,
                 COALESCE(product_categories.name, \'Umum\') as kategori
             ')
             ->limit(20)
             ->get();
 
-        return $products->map(function ($p) {
-            $stok = ProductVariant::where('product_id', $p->id)->sum('stock');
+        $stokPerProduk = ProductVariant::query()
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
+            ->whereIn('product_variants.product_id', $products->pluck('id'))
+            ->groupBy('product_variants.product_id')
+            ->selectRaw('
+                product_variants.product_id,
+                SUM(product_variants.stock) as total_stok,
+                SUM(product_variants.stock * '.ProductVariant::exprHppEfektif().') as nilai_stok
+            ')
+            ->get()
+            ->keyBy('product_id');
+
+        return $products->map(function ($p) use ($stokPerProduk) {
+            $agregat = $stokPerProduk->get($p->id);
+            $stok = (int) ($agregat->total_stok ?? 0);
+            $nilai = (int) ($agregat->nilai_stok ?? 0);
+
             return [
                 'nama' => $p->nama,
                 'produk' => $p->nama,
                 'kategori' => $p->kategori,
-                'stok' => (int) $stok,
-                'qty' => (int) $stok,
-                'nilai_stok' => (int) $stok * (int) $p->cost_price,
-                'nilai' => (int) $stok * (int) $p->cost_price,
+                'stok' => $stok,
+                'qty' => $stok,
+                'nilai_stok' => $nilai,
+                'nilai' => $nilai,
                 'tersedia_di' => 'Semua Outlet',
                 'outlet' => 'Semua Outlet',
             ];

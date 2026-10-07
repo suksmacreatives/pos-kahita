@@ -26,16 +26,18 @@ class DashboardExportDataService
         $totalStokGudang = (int) ProductVariant::sum('stock');
         $lowStockCount = (int) ProductVariant::where('stock', '<', $this->lowStockThreshold)->count();
 
-        $totalNilaiInventaris = (int) ProductVariant::select(
-            DB::raw('SUM(stock * cost_price) as total')
-        )->whereNotNull('cost_price')->value('total') ?? 0;
+        $totalNilaiInventaris = (int) ProductVariant::query()
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
+            ->select(DB::raw('SUM(product_variants.stock * '.ProductVariant::exprHppEfektif().') as total'))
+            ->value('total') ?? 0;
 
         // whereNull deleted_at: stok outlet produk/varian terarsip tidak boleh
         // ikut dihitung sebagai nilai inventaris aktif.
         $stokOutletValue = DB::table('outlet_stocks')
             ->join('product_variants', 'outlet_stocks.product_variant_id', '=', 'product_variants.id')
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->whereNull('product_variants.deleted_at')
-            ->select(DB::raw('SUM(outlet_stocks.stock * COALESCE(product_variants.cost_price, 0)) as total'))
+            ->select(DB::raw('SUM(outlet_stocks.stock * '.ProductVariant::exprHppEfektif().') as total'))
             ->value('total') ?? 0;
 
         return [
@@ -269,7 +271,7 @@ class DashboardExportDataService
         $perProduk = ProductVariant::select(
             'products.name as nama_produk',
             'product_categories.name as kategori',
-            DB::raw('SUM(product_variants.stock * COALESCE(product_variants.cost_price, 0)) as nilai'),
+            DB::raw('SUM(product_variants.stock * '.ProductVariant::exprHppEfektif().') as nilai'),
             DB::raw('SUM(product_variants.stock) as stok'),
         )
             ->join('products', 'product_variants.product_id', '=', 'products.id')
@@ -290,7 +292,7 @@ class DashboardExportDataService
             'product_categories.name as kategori',
             DB::raw('COUNT(DISTINCT products.id) as total_produk'),
             DB::raw('SUM(product_variants.stock) as total_stok'),
-            DB::raw('SUM(product_variants.stock * COALESCE(product_variants.cost_price, 0)) as total_nilai'),
+            DB::raw('SUM(product_variants.stock * '.ProductVariant::exprHppEfektif().') as total_nilai'),
         )
             ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->leftJoin('product_categories', 'products.category_id', '=', 'product_categories.id')
@@ -312,8 +314,9 @@ class DashboardExportDataService
         // ikut dihitung sebagai nilai inventaris aktif.
         $stokOutletValue = DB::table('outlet_stocks')
             ->join('product_variants', 'outlet_stocks.product_variant_id', '=', 'product_variants.id')
+            ->join('products', 'product_variants.product_id', '=', 'products.id')
             ->whereNull('product_variants.deleted_at')
-            ->select(DB::raw('SUM(outlet_stocks.stock * COALESCE(product_variants.cost_price, 0)) as total'))
+            ->select(DB::raw('SUM(outlet_stocks.stock * '.ProductVariant::exprHppEfektif().') as total'))
             ->value('total') ?? 0;
 
         return [

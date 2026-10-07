@@ -134,7 +134,7 @@ class InventoriReportService
                 fn ($q) => $q->tersediaDiOutlet($outlet->id)
             )
                 ->join('products', 'product_variants.product_id', '=', 'products.id')
-                ->sum(DB::raw('product_variants.stock * products.cost_price'));
+                ->sum(DB::raw('product_variants.stock * '.ProductVariant::exprHppEfektif()));
 
             return [
                 'nama' => $outlet->name,
@@ -162,7 +162,7 @@ class InventoriReportService
                 COALESCE(product_categories.name, \'Umum\') as kategori,
                 COUNT(DISTINCT products.id) as total_produk,
                 COALESCE(SUM(product_variants.stock), 0) as qty,
-                COALESCE(SUM(product_variants.stock * products.cost_price), 0) as nilai
+                COALESCE(SUM(product_variants.stock * '.ProductVariant::exprHppEfektif().'), 0) as nilai
             ')
             ->groupBy('product_categories.id', 'product_categories.name')
             ->orderByDesc('nilai')
@@ -234,6 +234,7 @@ class InventoriReportService
             'items.product' => fn ($q) => $q->withTrashed(),
             'items.product:id,name',
             'items.product.category:id,name',
+            'items.productVariant',
         ])
             ->where('status', 'selesai')
             ->orderByDesc('created_at')
@@ -264,10 +265,10 @@ class InventoriReportService
                     'stok_fisik' => (int) $i->stok_fisik,
                     'fisik' => (int) $i->stok_fisik,
                     'selisih' => (int) $i->selisih,
-                    'nilai' => (int) ($i->selisih * ($i->product?->cost_price ?? 50000)),
-                    'nilai_selisih' => (int) ($i->selisih * ($i->product?->cost_price ?? 50000)),
-                    'harga_beli' => (int) ($i->product?->cost_price ?? 0),
-                    'hpp' => (int) ($i->product?->cost_price ?? 0),
+                    'nilai' => (int) ($i->selisih * (ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price) ?: 50000)),
+                    'nilai_selisih' => (int) ($i->selisih * (ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price) ?: 50000)),
+                    'harga_beli' => ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price),
+                    'hpp' => ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price),
                 ])->toArray(),
                 'items' => $so->items->map(fn ($i) => [
                     'nama' => $i->product?->name ?? $i->nama,
@@ -278,10 +279,10 @@ class InventoriReportService
                     'stok_fisik' => (int) $i->stok_fisik,
                     'fisik' => (int) $i->stok_fisik,
                     'selisih' => (int) $i->selisih,
-                    'nilai' => (int) ($i->selisih * ($i->product?->cost_price ?? 50000)),
-                    'nilai_selisih' => (int) ($i->selisih * ($i->product?->cost_price ?? 50000)),
-                    'harga_beli' => (int) ($i->product?->cost_price ?? 0),
-                    'hpp' => (int) ($i->product?->cost_price ?? 0),
+                    'nilai' => (int) ($i->selisih * (ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price) ?: 50000)),
+                    'nilai_selisih' => (int) ($i->selisih * (ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price) ?: 50000)),
+                    'harga_beli' => ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price),
+                    'hpp' => ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price),
                 ])->toArray(),
                 'selisih' => $so->items->map(fn ($i) => [
                     'nama' => $i->product?->name ?? $i->nama,
@@ -292,10 +293,10 @@ class InventoriReportService
                     'stok_fisik' => (int) $i->stok_fisik,
                     'fisik' => (int) $i->stok_fisik,
                     'selisih' => (int) $i->selisih,
-                    'nilai' => (int) ($i->selisih * ($i->product?->cost_price ?? 50000)),
-                    'nilai_selisih' => (int) ($i->selisih * ($i->product?->cost_price ?? 50000)),
-                    'harga_beli' => (int) ($i->product?->cost_price ?? 0),
-                    'hpp' => (int) ($i->product?->cost_price ?? 0),
+                    'nilai' => (int) ($i->selisih * (ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price) ?: 50000)),
+                    'nilai_selisih' => (int) ($i->selisih * (ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price) ?: 50000)),
+                    'harga_beli' => ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price),
+                    'hpp' => ProductVariant::hppEfektif($i->productVariant?->cost_price, $i->product?->cost_price),
                 ])->toArray(),
             ])
             ->toArray();

@@ -8,6 +8,7 @@ use App\Models\DistributionOrderItem;
 use App\Models\Outlet;
 use App\Models\OutletStock;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -35,7 +36,7 @@ class InventoriOutletService
                 ->keyBy('product_variant_id');
 
             $result[$outlet->slug] = $products->map(function ($p) use ($stokPerVariant) {
-                $variants = $p->variants->map(function ($v) use ($stokPerVariant) {
+                $variants = $p->variants->map(function ($v) use ($stokPerVariant, $p) {
                     $stok = $stokPerVariant->get($v->id);
 
                     return [
@@ -44,10 +45,12 @@ class InventoriOutletService
                         'warna' => $v->color ?? '',
                         'stok' => (int) ($stok?->stock ?? 0),
                         'sku' => $v->sku,
+                        'harga_beli' => ProductVariant::hppEfektif($v->cost_price, $p->cost_price),
                     ];
                 });
 
                 $totalStok = $variants->sum('stok');
+                $nilaiStok = $variants->sum(fn ($v) => $v['stok'] * $v['harga_beli']);
                 $stokMinimum = 10;
 
                 return [
@@ -56,6 +59,7 @@ class InventoriOutletService
                     'nama_produk' => $p->name,
                     'kategori' => $p->category?->name ?? '',
                     'harga_beli' => (int) $p->cost_price,
+                    'nilai_stok' => $nilaiStok,
                     'warna_hex' => $this->getFirstVariantColor($p->variants),
                     'foto_color' => $this->getFirstVariantColor($p->variants),
                     'varian' => $variants->toArray(),
@@ -93,12 +97,15 @@ class InventoriOutletService
 
             foreach ($products as $p) {
                 $stok = 0;
+                $nilai = 0;
                 foreach ($p->variants as $v) {
                     $os = $stokPerVariant->get($v->id);
-                    $stok += (int) ($os?->stock ?? 0);
+                    $stokVarian = (int) ($os?->stock ?? 0);
+                    $stok += $stokVarian;
+                    $nilai += $stokVarian * ProductVariant::hppEfektif($v->cost_price, $p->cost_price);
                 }
                 $totalStok += $stok;
-                $nilaiStok += $stok * (int) $p->cost_price;
+                $nilaiStok += $nilai;
 
                 if ($stok <= 0) {
                     $habis++;
