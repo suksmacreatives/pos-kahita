@@ -477,6 +477,9 @@ class ProductController extends Controller
             // sehingga payload apa pun (termasuk tab browser lama atau kiriman
             // manual yang membawa stok gudang) otomatis diabaikan. Edit produk
             // tidak boleh menulis kuantitas stok — lihat reconcileVariants().
+            // `distribusi_ke_gudang` juga sengaja tidak dideklarasikan: field
+            // yang tidak ada di rule memang tidak divalidasi Laravel, jadi
+            // payload form lama tetap lolos tanpa perlu rule yang tak pernah dibaca.
             'variants.*.harga_jual' => 'nullable|integer|min:0',
             'variants.*.harga_beli' => 'nullable|integer|min:0',
             'variants.*.sku' => [
@@ -484,7 +487,6 @@ class ProductController extends Controller
                 'regex:/^[A-Za-z0-9][A-Za-z0-9.\-\/ ]*$/',
             ],
             'outlet_tersedia' => 'nullable',
-            'distribusi_ke_gudang' => 'nullable|in:0,1,true,false',
             'image' => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
         ], [
             'variants.required' => 'Produk harus memiliki minimal 1 varian',
@@ -502,10 +504,6 @@ class ProductController extends Controller
         $this->assertHasDimensionVariant($validated);
 
         $outletTersedia = $this->parseOutletTersedia($validated['outlet_tersedia'] ?? []);
-
-        // `distribusi_ke_gudang` tetap divalidasi agar payload form lama valid,
-        // tapi tidak lagi dipakai: edit tidak menulis stok untuk varian apa pun
-        // (termasuk varian baru — stoknya dimulai dari 0 dan diisi lewat Inventory).
 
         // Sama seperti store(): kode kosong/double diresolve otomatis.
         [$kodeProduk, $catatanKode] = $this->resolveProductSkuFor($validated['kode_produk'] ?? null, $product->id);
@@ -528,10 +526,8 @@ class ProductController extends Controller
             $newImage = $request->file('image')->store('products', 'public');
         }
 
-        $hasVariants = $request->has('variants') && ! empty($validated['variants']);
-
         try {
-            DB::transaction(function () use ($product, $updateData, $newImage, $hasVariants, $validated, $outletTersedia) {
+            DB::transaction(function () use ($product, $updateData, $newImage, $validated, $outletTersedia) {
                 /*
                  * Lock + validasi dilakukan di sini, di dalam transaksi dan
                  * sebelum tulisan apa pun: kunci baris outlet_stocks dulu,
@@ -552,9 +548,9 @@ class ProductController extends Controller
                 $product->update($updateData);
                 $product->outlets()->sync($outletTersedia);
 
-                if ($hasVariants) {
-                    $this->reconcileVariants($product, $validated, $outletTersedia);
-                }
+                // Validasi rules `variants|required|array|min:1` menjamin isi tidak
+                // kosong, jadi reconcile langsung dipanggil tanpa cek tambahan.
+                $this->reconcileVariants($product, $validated, $outletTersedia);
             });
         } catch (Throwable $e) {
             // Transaksi gagal: buang file baru supaya tidak jadi sampah di storage.

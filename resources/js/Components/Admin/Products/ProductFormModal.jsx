@@ -88,7 +88,6 @@ export default function ProductFormModal({
   const { errors } = usePage().props;
   const isEditMode = !!product;
   const fileInputRef = useRef(null);
-  const initialVariantData = useRef(null);
   const [activeTab, setActiveTab] = useState("info");
 
   const { data, setData, processing, reset } = useForm({
@@ -149,7 +148,6 @@ export default function ProductFormModal({
       setImagePreview(product.image || null);
 
       const converted = convertProductVariants(product.varian);
-      initialVariantData.current = converted;
       setVariantData(converted);
     } else {
       // Kode produk dibuat server (route admin.products.next-code) supaya
@@ -160,7 +158,6 @@ export default function ProductFormModal({
       setData("kode_produk", fallbackKode);
       setImagePreview(null);
       const empty = { hasColor: false, hasSize: false, colors: [], sizes: [], variants: [] };
-      initialVariantData.current = empty;
       setVariantData(empty);
 
       fetch("/admin/products/next-code", { headers: { Accept: "application/json" } })
@@ -236,14 +233,23 @@ export default function ProductFormModal({
       }
       fd.append(`variants[${i}][color_name]`, v.color_nama ?? "");
       fd.append(`variants[${i}][size_label]`, v.size_label ?? "");
-      fd.append(`variants[${i}][stok]`, String(v.stok));
+      // Stok tidak dikirim saat edit: backend sengaja tidak mendeklarasikan
+      // `variants.*.stok` di rules update() sehingga payload basi dari tab
+      // lama diabaikan. Mode create tetap mengirimnya untuk createVariants().
+      if (!isEditMode) {
+        fd.append(`variants[${i}][stok]`, String(v.stok));
+      }
       fd.append(`variants[${i}][harga_jual]`, String(v.harga_jual));
       fd.append(`variants[${i}][harga_beli]`, String(v.harga_beli));
       fd.append(`variants[${i}][sku]`, v.sku);
     });
 
     fd.append("outlet_tersedia", JSON.stringify(data.outlet_tersedia));
-    fd.append("distribusi_ke_gudang", data.distribusi_ke_gudang ? "1" : "0");
+    if (!isEditMode) {
+      // Hanya berguna di create (varian baru di gudang); update() tidak
+      // membacanya lagi, jadi tidak ikut dikirim saat edit.
+      fd.append("distribusi_ke_gudang", data.distribusi_ke_gudang ? "1" : "0");
+    }
 
     if (data.image) {
       fd.append("image", data.image);
