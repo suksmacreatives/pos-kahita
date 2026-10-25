@@ -6,6 +6,7 @@ use App\Models\Outlet;
 use App\Models\OutletStock;
 use App\Models\OutletTransfer;
 use App\Models\OutletTransferItem;
+use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -75,9 +76,28 @@ class TransferStokService
             $totalQty = 0;
             $errors = [];
 
+            $productIds = collect($items)
+                ->pluck('product_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            $produkTersediaIds = Product::whereIn('id', $productIds)
+                ->whereJsonContains('outlet_ids', (string) $tujuanId)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
             foreach ($items as $idx => $item) {
                 $variantId = $item['product_variant_id'];
                 $qty = (int) $item['qty'];
+                $productId = (int) ($item['product_id'] ?? 0);
+
+                if (! in_array($productId, $produkTersediaIds, true)) {
+                    $errors[] = "Barang {$item['nama']} belum tersedia di outlet tujuan {$tujuan->name}. "
+                        .'Centang outlet tersebut di menu Produk terlebih dahulu.';
+                }
 
                 if (empty($variantId)) {
                     $resolvedVariant = \App\Models\ProductVariant::where('product_id', $item['product_id'] ?? null)

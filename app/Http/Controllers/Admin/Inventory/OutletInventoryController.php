@@ -128,15 +128,7 @@ class OutletInventoryController extends Controller
     public function storeTransfer(StoreTransferRequest $request)
     {
         try {
-            $data = $request->validated();
-            $asal = Outlet::where('slug', $data['outlet_asal_id'])->first();
-            $tujuan = Outlet::where('slug', $data['outlet_tujuan_id'])->first();
-            if (!$asal || !$tujuan) {
-                return redirect()->back()->with('error', 'Outlet asal atau tujuan tidak ditemukan.');
-            }
-            $data['outlet_asal_id'] = $asal->id;
-            $data['outlet_tujuan_id'] = $tujuan->id;
-            $this->transferService->processTransfer($data);
+            $this->transferService->processTransfer($request->validated());
             return redirect()->back()->with('success', 'Transfer antar outlet berhasil dibuat.');
         } catch (\App\Exceptions\InsufficientStockException $e) {
             return redirect()->back()->withErrors(['stok' => $e->getMessage()]);
