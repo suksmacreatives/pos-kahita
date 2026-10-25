@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 @php
-    // Skala ukuran barcode cetak (persen dari 44mm × 9mm), bisa dioverride via ?barcode_pct=
+    // Skala ukuran barcode cetak (persen dari 40mm × 30mm), bisa dioverride via ?barcode_pct=
     $barcodePct = max(40, min(100, (int) request()->query('barcode_pct', 100)));
 
     $barcode = app('DNS1D');
@@ -9,10 +9,7 @@
     $barcodeQuiet = 10;
 
     /*
-     * Render barcode sebagai bar DIV murni (bukan SVG) dengan posisi PERSE?
-     * terhadap kontainer. Dengan begitu barcode selalu simetris terpusat dan
-     * muat persis di dalam label 50mm pada ukuran print (mm) maupun layar (px)
-     * tanpa risiko terpotong karena eksentrisitas rendering SVG browser.
+     * Render barcode sebagai bar DIV murni (bukan SVG)
      */
     $renderSvgWithMm = function ($code) use ($barcode, $barcodePrintablePx, $barcodeQuiet) {
         $len = strlen((string) $code);
@@ -48,7 +45,7 @@
     $sample = isset($labels[0]) ? $renderSvgWithMm((string) $labels[0]['code']) : [[], 0, 0];
     $pxW = $sample[1] ?: 290;
     $pxH = $sample[2] ?: 68;
-    $scale = min((44 * ($barcodePct / 100)) / ($pxW * $mmPerPx), (9 * ($barcodePct / 100)) / ($pxH * $mmPerPx));
+    $scale = min((38 * ($barcodePct / 100)) / ($pxW * $mmPerPx), (9 * ($barcodePct / 100)) / ($pxH * $mmPerPx));
     $readoutWmm = $pxW * $mmPerPx * $scale;
     $readoutHmm = $pxH * $mmPerPx * $scale;
 @endphp
@@ -56,7 +53,7 @@
     <meta charset="utf-8">
     <title>{{ $title ?? 'Label Barcode' }}</title>
     <style>
-        @page { size: 50mm {{ $label_size === '50x30' ? '30mm' : '25mm' }}; margin: 0; }
+        @page { size: 40mm 30mm; margin: 0; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
         body { font-family: Arial, Helvetica, sans-serif; color: #111; }
@@ -110,7 +107,7 @@
             .sheets { padding-top: 0; }
 
             .label {
-                height: {{ $label_size === '50x30' ? '30mm' : '25mm' }};
+                height: 30mm;
                 overflow: hidden;
             }
             .label .img-barcode { height: 9.5mm; padding: 0; }
@@ -122,14 +119,12 @@
 <body onload="setTimeout(function () { window.print(); }, 350);">
 
     <div class="no-print">
-        <span class="hint">Pilih kertas {{ $label_size === '50x30' ? '50 × 30 mm' : '50 × 25 mm' }}, skala 100%, margin Tanpa.</span>
+        <span class="hint">Pilih kertas 40 × 30 mm, skala 100%, margin Tanpa.</span>
         <span class="hint">Barcode cetak ±{{ sprintf('%g', $readoutWmm) }} × {{ sprintf('%g', $readoutHmm) }} mm ({{ $barcodePct }}%) ·</span>
         <a href="{{ request()->fullUrlWithQuery(['barcode_pct' => 100]) }}" class="{{ $barcodePct === 100 ? 'active-size' : '' }}">100%</a>
         <a href="{{ request()->fullUrlWithQuery(['barcode_pct' => 75]) }}" class="{{ $barcodePct === 75 ? 'active-size' : '' }}">75%</a>
         <span class="hint">Tips scan: klik Unduh PNG untuk gambar barcode yang pasti terbaca; untuk screenshot, perbesar halaman (Ctrl +) dulu. PNG hanya untuk uji scan, bukan untuk dicetak.</span>
-        <span>Ukuran:</span>
-        <a href="{{ request()->fullUrlWithQuery(['label_size' => '50x25']) }}" class="{{ $label_size === '50x25' ? 'active-size' : '' }}">50 × 25</a>
-        <a href="{{ request()->fullUrlWithQuery(['label_size' => '50x30']) }}" class="{{ $label_size === '50x30' ? 'active-size' : '' }}">50 × 30</a>
+        <span class="active-size" style="padding: 7px 16px; border-radius: 8px;">Ukuran: 40 × 30 mm</span>
         <button onclick="window.print();">Cetak</button>
         <button class="ghost" onclick="window.close();">Tutup</button>
     </div>
