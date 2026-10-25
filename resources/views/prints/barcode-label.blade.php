@@ -80,11 +80,16 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-start;
-            gap: 0.3mm;
+            gap: 0.2mm;
             page-break-inside: avoid;
-            page-break-after: always;
+            break-inside: avoid;
             text-align: center;
-            padding: 1mm;
+            padding: 0.3mm;
+            overflow: hidden;
+        }
+        .label:not(:last-child) {
+            page-break-after: always;
+            break-after: page;
         }
         .label .brand { font-size: 2.0mm; font-weight: bold; color: #059669; text-transform: uppercase; letter-spacing: .3mm; line-height: 1.1; }
         .label .name { font-size: 2.4mm; font-weight: bold; line-height: 1.2; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
