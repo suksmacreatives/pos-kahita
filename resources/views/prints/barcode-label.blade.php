@@ -84,7 +84,7 @@
             page-break-inside: avoid;
             break-inside: avoid;
             text-align: center;
-            padding: 0.3mm;
+            padding: 2.0mm 0.3mm 0.3mm;
             overflow: hidden;
         }
         .label:not(:last-child) {
