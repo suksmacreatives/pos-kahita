@@ -62,6 +62,10 @@ export default function ReturGudangTable({ selectedOutlet, onCancelRetur, returL
       diterima_gudang: {
         bg: 'bg-emerald-50 text-emerald-700 border-emerald-200',
         label: 'Diterima Gudang'
+      },
+      dibatalkan: {
+        bg: 'bg-rose-50 text-rose-700 border-rose-200',
+        label: 'Dibatalkan'
       }
     };
     const cfg = map[status] || map.diajukan;
@@ -103,6 +107,7 @@ export default function ReturGudangTable({ selectedOutlet, onCancelRetur, returL
               { value: 'diajukan', label: 'Diajukan' },
               { value: 'diproses', label: 'Diproses' },
               { value: 'diterima_gudang', label: 'Diterima Gudang' },
+              { value: 'dibatalkan', label: 'Dibatalkan' },
             ]}
             placeholder="Semua Status"
             className="w-40"

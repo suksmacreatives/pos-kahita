@@ -75,9 +75,7 @@ export default function FormOpnameModal({ open, onClose, onSubmit, warehouseProd
         nama: r.nama_produk,
         ukuran: v.ukuran,
         warna: v.warna,
-        qty_sistem: v.stok,
         qty_aktual: v.aktual,
-        selisih: v.selisih,
       }))
     );
     onSubmit({

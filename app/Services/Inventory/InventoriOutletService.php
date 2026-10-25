@@ -12,6 +12,7 @@ use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InventoriOutletService
 {
@@ -240,22 +241,55 @@ class InventoriOutletService
 
                 if ($delta !== 0) {
                     $variant = $item->productVariant;
-                    if ($variant) {
-                        $resolvedVid = $variant->id;
-                        $outletStock = OutletStock::where([
+
+                    if (! $variant) {
+                        $resolved = ProductVariant::where('product_id', $item->product_id)
+                            ->when(! empty($item->ukuran), fn ($q) => $q->where('size', $item->ukuran))
+                            ->when(empty($item->ukuran), fn ($q) => $q->where(fn ($w) => $w->whereNull('size')->orWhere('size', '')))
+                            ->when(! empty($item->warna), fn ($q) => $q->where('color', $item->warna))
+                            ->when(empty($item->warna), fn ($q) => $q->where(fn ($w) => $w->whereNull('color')->orWhere('color', '')))
+                            ->withTrashed()
+                            ->first();
+
+                        if ($resolved) {
+                            $item->update(['product_variant_id' => $resolved->id]);
+                            $variant = $resolved;
+                        }
+                    }
+
+                    if (! $variant) {
+                        // Varian hilang harus menggagalkan konfirmasi, bukan dilewati:
+                        // kalau diteruskan, qty_terima sudah tercatat tapi stok outlet
+                        // tidak bertambah sama sekali.
+                        Log::error('Konfirmasi terima DO gagal: varian tidak ditemukan', [
+                            'distribution_order_id' => $do->id,
+                            'distribution_order_item_id' => $item->id,
+                            'product_id' => $item->product_id,
+                            'nama' => $item->nama,
+                            'ukuran' => $item->ukuran,
+                            'warna' => $item->warna,
+                            'qty_terima' => $qtyTerima,
+                        ]);
+
+throw new InsufficientStockException(
+                        "Varian {$item->nama} tidak ditemukan, penerimaan dibatalkan agar stok outlet tetap sinkron. Hubungi admin untuk memperbaiki data produk."
+                    );
+                    }
+
+                    $resolvedVid = $variant->id;
+                    $outletStock = OutletStock::where([
+                        'outlet_id' => $outletId,
+                        'product_variant_id' => $resolvedVid,
+                    ])->first();
+
+                    if ($outletStock) {
+                        $outletStock->increment('stock', $delta);
+                    } elseif ($delta > 0) {
+                        OutletStock::create([
                             'outlet_id' => $outletId,
                             'product_variant_id' => $resolvedVid,
-                        ])->first();
-
-                        if ($outletStock) {
-                            $outletStock->increment('stock', $delta);
-                        } elseif ($delta > 0) {
-                            OutletStock::create([
-                                'outlet_id' => $outletId,
-                                'product_variant_id' => $resolvedVid,
-                                'stock' => $delta,
-                            ]);
-                        }
+                            'stock' => $delta,
+                        ]);
                     }
 
                     $product = $item->product;

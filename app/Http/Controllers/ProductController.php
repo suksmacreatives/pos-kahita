@@ -157,13 +157,13 @@ class ProductController extends Controller
             'qty' => 'nullable|integer|min:1|max:100',
             'mode' => 'nullable|in:per_produk,per_varian',
             'include_price' => 'nullable|in:0,1,true,false',
-            'label_size' => 'nullable|in:50x25,50x30',
+            'label_size' => 'nullable|in:40x30',
         ]);
 
         $qty = (int) ($validated['qty'] ?? 1);
         $mode = $validated['mode'] ?? 'per_produk';
         $includePrice = filter_var($validated['include_price'] ?? true, FILTER_VALIDATE_BOOLEAN);
-        $labelSize = $validated['label_size'] ?? '50x25';
+        $labelSize = $validated['label_size'] ?? '40x30';
 
         // withTrashed: label produk terarsip masih boleh dicetak ulang.
         $products = Product::withTrashed()->with(['variants' => fn ($q) => $q->withTrashed()])

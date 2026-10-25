@@ -82,7 +82,8 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
+            gap: 0.3mm;
             page-break-inside: avoid;
             page-break-after: always;
             text-align: center;
@@ -91,7 +92,7 @@
         .label .brand { font-size: 2.0mm; font-weight: bold; color: #059669; text-transform: uppercase; letter-spacing: .3mm; line-height: 1.1; }
         .label .name { font-size: 2.4mm; font-weight: bold; line-height: 1.2; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .label .variant { font-size: 2.1mm; color: #555; font-weight: bold; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .label .img-barcode { width: 100%; line-height: 0; display: block; padding: 2mm 0; }
+        .label .img-barcode { width: 100%; line-height: 0; display: flex; justify-content: center; align-items: center; padding: 0.4mm 0; margin: 0.2mm 0; }
         .label .barcode-wrap { position: relative; width: {{ sprintf('%g', $readoutWmm) }}mm; height: {{ sprintf('%g', $readoutHmm) }}mm; margin: 0 auto; }
         .label .barcode-bar { position: absolute; inset: 0; }
         @media screen {
@@ -141,14 +142,12 @@
                 $vParts = [];
                 if ($vColor !== '') { $vParts[] = 'Warna: '.$vColor; }
                 if ($vSize !== '') { $vParts[] = 'Size: '.$vSize; }
-                $vSku = trim((string) ($label['sku_display'] ?? ''));
-                if ($vSku !== '' && $vSku !== (string) $label['code']) { $vParts[] = 'SKU: '.$vSku; }
             @endphp
             <div class="label">
                 <div class="brand">Kahita Busana</div>
                 <div class="name">{{ $label['name'] }}</div>
                 @if ($vParts)
-                    <div class="variant">{{ implode(' · ', $vParts) }}</div>
+                    <div class="variant">{{ implode(' | ', $vParts) }}</div>
                 @endif
                 <div class="img-barcode">{!! $renderSvgWithMm((string) $label['code'])[0] !!}</div>
                 {{-- Teks humans WAJIB sama dengan kode yang di-encode bars, kalau tidak
