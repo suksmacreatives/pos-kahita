@@ -23,9 +23,17 @@
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
         <env name="CACHE_STORE" value="array"/>
-        <env name="DB_CONNECTION" value="sqlite"/>
-        <env name="DB_DATABASE" value=":memory:"/>
-        <env name="DB_URL" value=""/>
+        <!--
+            DB_* sengaja tidak didefinisikan di sini.
+
+            Sebagian migrasi proyek ini memakai DDL MySQL mentah
+            (ALTER TABLE ... MODIFY ... ENUM) yang tidak bisa diparse sqlite,
+            dan scope outlet produk bergantung pada type-strictness
+            JSON_CONTAINS yang berbeda antara MySQL dan sqlite.
+
+            Konfigurasi database test diambil dari .env.testing
+            (lihat .env.testing.example).
+        -->
         <env name="MAIL_MAILER" value="array"/>
         <env name="QUEUE_CONNECTION" value="sync"/>
         <env name="SESSION_DRIVER" value="array"/>

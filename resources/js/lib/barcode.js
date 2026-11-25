@@ -3,7 +3,7 @@ export function printBarcodeLabels({
   qty = 1,
   mode = 'per_produk',
   includePrice = true,
-  labelSize = '50x25',
+  labelSize = '40x30',
 }) {
   const query = new URLSearchParams();
   productIds.forEach((id) => query.append('product_ids[]', id));

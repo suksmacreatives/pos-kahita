@@ -5,12 +5,18 @@ const FilterContext = createContext();
 
 // Provider Component
 export function FilterProvider({ children, initialOutlet = null }) {
-  const [outlet, setOutletState] = useState(initialOutlet || 'all');
+  // Disimpan sebagai string agar tipe konsisten dengan nilai yang dikirim
+  // OutletDropdownFilter (String(o.id)). Sebelumnya nilai dari auth.user
+  // berupa angka, sehingga perbandingan `outlet === optValue` di dropdown
+  // selalu gagal dan labelnya jatuh ke "Semua Outlet".
+  const [outlet, setOutletState] = useState(
+    initialOutlet !== null && initialOutlet !== undefined ? String(initialOutlet) : 'all'
+  );
   const [period, setPeriod] = useState('monthly');
 
   const setOutlet = useCallback((val) => {
     if (initialOutlet) return;
-    setOutletState(val);
+    setOutletState(val === null || val === undefined ? 'all' : String(val));
   }, [initialOutlet]);
 
   return (

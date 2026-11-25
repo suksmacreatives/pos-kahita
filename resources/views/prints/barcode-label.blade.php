@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="id">
 @php
-    // Skala ukuran barcode cetak (persen dari 44mm × 9mm), bisa dioverride via ?barcode_pct=
+    // Skala ukuran barcode cetak (persen dari 40mm × 30mm), bisa dioverride via ?barcode_pct=
     $barcodePct = max(40, min(100, (int) request()->query('barcode_pct', 100)));
 
     $barcode = app('DNS1D');
@@ -9,10 +9,7 @@
     $barcodeQuiet = 10;
 
     /*
-     * Render barcode sebagai bar DIV murni (bukan SVG) dengan posisi PERSE?
-     * terhadap kontainer. Dengan begitu barcode selalu simetris terpusat dan
-     * muat persis di dalam label 50mm pada ukuran print (mm) maupun layar (px)
-     * tanpa risiko terpotong karena eksentrisitas rendering SVG browser.
+     * Render barcode sebagai bar DIV murni (bukan SVG)
      */
     $renderSvgWithMm = function ($code) use ($barcode, $barcodePrintablePx, $barcodeQuiet) {
         $len = strlen((string) $code);
@@ -48,7 +45,7 @@
     $sample = isset($labels[0]) ? $renderSvgWithMm((string) $labels[0]['code']) : [[], 0, 0];
     $pxW = $sample[1] ?: 290;
     $pxH = $sample[2] ?: 68;
-    $scale = min((44 * ($barcodePct / 100)) / ($pxW * $mmPerPx), (9 * ($barcodePct / 100)) / ($pxH * $mmPerPx));
+    $scale = min((38 * ($barcodePct / 100)) / ($pxW * $mmPerPx), (9 * ($barcodePct / 100)) / ($pxH * $mmPerPx));
     $readoutWmm = $pxW * $mmPerPx * $scale;
     $readoutHmm = $pxH * $mmPerPx * $scale;
 @endphp
@@ -56,7 +53,7 @@
     <meta charset="utf-8">
     <title>{{ $title ?? 'Label Barcode' }}</title>
     <style>
-        @page { size: 50mm {{ $label_size === '50x30' ? '30mm' : '25mm' }}; margin: 0; }
+        @page { size: 40mm 30mm; margin: 0; }
         * { box-sizing: border-box; }
         html, body { margin: 0; padding: 0; }
         body { font-family: Arial, Helvetica, sans-serif; color: #111; }
@@ -82,16 +79,22 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-start;
+            gap: 0.2mm;
             page-break-inside: avoid;
-            page-break-after: always;
+            break-inside: avoid;
             text-align: center;
-            padding: 1mm;
+            padding: 2.0mm 0.3mm 0.3mm;
+            overflow: hidden;
+        }
+        .label:not(:last-child) {
+            page-break-after: always;
+            break-after: page;
         }
         .label .brand { font-size: 2.0mm; font-weight: bold; color: #059669; text-transform: uppercase; letter-spacing: .3mm; line-height: 1.1; }
         .label .name { font-size: 2.4mm; font-weight: bold; line-height: 1.2; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .label .variant { font-size: 2.1mm; color: #555; font-weight: bold; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .label .img-barcode { width: 100%; line-height: 0; display: block; padding: 2mm 0; }
+        .label .img-barcode { width: 100%; line-height: 0; display: flex; justify-content: center; align-items: center; padding: 0.4mm 0; margin: 0.2mm 0; }
         .label .barcode-wrap { position: relative; width: {{ sprintf('%g', $readoutWmm) }}mm; height: {{ sprintf('%g', $readoutHmm) }}mm; margin: 0 auto; }
         .label .barcode-bar { position: absolute; inset: 0; }
         @media screen {
@@ -109,7 +112,7 @@
             .sheets { padding-top: 0; }
 
             .label {
-                height: {{ $label_size === '50x30' ? '30mm' : '25mm' }};
+                height: 30mm;
                 overflow: hidden;
             }
             .label .img-barcode { height: 9.5mm; padding: 0; }
@@ -121,14 +124,12 @@
 <body onload="setTimeout(function () { window.print(); }, 350);">
 
     <div class="no-print">
-        <span class="hint">Pilih kertas {{ $label_size === '50x30' ? '50 × 30 mm' : '50 × 25 mm' }}, skala 100%, margin Tanpa.</span>
+        <span class="hint">Pilih kertas 40 × 30 mm, skala 100%, margin Tanpa.</span>
         <span class="hint">Barcode cetak ±{{ sprintf('%g', $readoutWmm) }} × {{ sprintf('%g', $readoutHmm) }} mm ({{ $barcodePct }}%) ·</span>
         <a href="{{ request()->fullUrlWithQuery(['barcode_pct' => 100]) }}" class="{{ $barcodePct === 100 ? 'active-size' : '' }}">100%</a>
         <a href="{{ request()->fullUrlWithQuery(['barcode_pct' => 75]) }}" class="{{ $barcodePct === 75 ? 'active-size' : '' }}">75%</a>
         <span class="hint">Tips scan: klik Unduh PNG untuk gambar barcode yang pasti terbaca; untuk screenshot, perbesar halaman (Ctrl +) dulu. PNG hanya untuk uji scan, bukan untuk dicetak.</span>
-        <span>Ukuran:</span>
-        <a href="{{ request()->fullUrlWithQuery(['label_size' => '50x25']) }}" class="{{ $label_size === '50x25' ? 'active-size' : '' }}">50 × 25</a>
-        <a href="{{ request()->fullUrlWithQuery(['label_size' => '50x30']) }}" class="{{ $label_size === '50x30' ? 'active-size' : '' }}">50 × 30</a>
+        <span class="active-size" style="padding: 7px 16px; border-radius: 8px;">Ukuran: 40 × 30 mm</span>
         <button onclick="window.print();">Cetak</button>
         <button class="ghost" onclick="window.close();">Tutup</button>
     </div>
@@ -141,14 +142,12 @@
                 $vParts = [];
                 if ($vColor !== '') { $vParts[] = 'Warna: '.$vColor; }
                 if ($vSize !== '') { $vParts[] = 'Size: '.$vSize; }
-                $vSku = trim((string) ($label['sku_display'] ?? ''));
-                if ($vSku !== '' && $vSku !== (string) $label['code']) { $vParts[] = 'SKU: '.$vSku; }
             @endphp
             <div class="label">
                 <div class="brand">Kahita Busana</div>
                 <div class="name">{{ $label['name'] }}</div>
                 @if ($vParts)
-                    <div class="variant">{{ implode(' · ', $vParts) }}</div>
+                    <div class="variant">{{ implode(' | ', $vParts) }}</div>
                 @endif
                 <div class="img-barcode">{!! $renderSvgWithMm((string) $label['code'])[0] !!}</div>
                 {{-- Teks humans WAJIB sama dengan kode yang di-encode bars, kalau tidak

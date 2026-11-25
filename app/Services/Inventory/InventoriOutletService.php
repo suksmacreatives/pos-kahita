@@ -8,9 +8,11 @@ use App\Models\DistributionOrderItem;
 use App\Models\Outlet;
 use App\Models\OutletStock;
 use App\Models\Product;
+use App\Models\ProductVariant;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InventoriOutletService
 {
@@ -26,7 +28,7 @@ class InventoriOutletService
 
         $result = [];
         foreach ($outlets as $outlet) {
-            $products = Product::whereJsonContains('outlet_ids', (string) $outlet->id)
+            $products = Product::tersediaDiOutlet($outlet->id)
                 ->with(['variants', 'category'])
                 ->get();
 
@@ -35,7 +37,7 @@ class InventoriOutletService
                 ->keyBy('product_variant_id');
 
             $result[$outlet->slug] = $products->map(function ($p) use ($stokPerVariant) {
-                $variants = $p->variants->map(function ($v) use ($stokPerVariant) {
+                $variants = $p->variants->map(function ($v) use ($stokPerVariant, $p) {
                     $stok = $stokPerVariant->get($v->id);
 
                     return [
@@ -44,10 +46,12 @@ class InventoriOutletService
                         'warna' => $v->color ?? '',
                         'stok' => (int) ($stok?->stock ?? 0),
                         'sku' => $v->sku,
+                        'harga_beli' => ProductVariant::hppEfektif($v->cost_price, $p->cost_price),
                     ];
                 });
 
                 $totalStok = $variants->sum('stok');
+                $nilaiStok = $variants->sum(fn ($v) => $v['stok'] * $v['harga_beli']);
                 $stokMinimum = 10;
 
                 return [
@@ -56,6 +60,7 @@ class InventoriOutletService
                     'nama_produk' => $p->name,
                     'kategori' => $p->category?->name ?? '',
                     'harga_beli' => (int) $p->cost_price,
+                    'nilai_stok' => $nilaiStok,
                     'warna_hex' => $this->getFirstVariantColor($p->variants),
                     'foto_color' => $this->getFirstVariantColor($p->variants),
                     'varian' => $variants->toArray(),
@@ -77,7 +82,7 @@ class InventoriOutletService
 
         $result = [];
         foreach ($outlets as $outlet) {
-            $products = Product::whereJsonContains('outlet_ids', (string) $outlet->id)
+            $products = Product::tersediaDiOutlet($outlet->id)
                 ->with('variants')
                 ->get();
 
@@ -93,12 +98,15 @@ class InventoriOutletService
 
             foreach ($products as $p) {
                 $stok = 0;
+                $nilai = 0;
                 foreach ($p->variants as $v) {
                     $os = $stokPerVariant->get($v->id);
-                    $stok += (int) ($os?->stock ?? 0);
+                    $stokVarian = (int) ($os?->stock ?? 0);
+                    $stok += $stokVarian;
+                    $nilai += $stokVarian * ProductVariant::hppEfektif($v->cost_price, $p->cost_price);
                 }
                 $totalStok += $stok;
-                $nilaiStok += $stok * (int) $p->cost_price;
+                $nilaiStok += $nilai;
 
                 if ($stok <= 0) {
                     $habis++;
@@ -233,21 +241,55 @@ class InventoriOutletService
 
                 if ($delta !== 0) {
                     $variant = $item->productVariant;
-                    if ($variant) {
-                        $outletStock = OutletStock::where([
-                            'outlet_id' => $outletId,
-                            'product_variant_id' => $variant->id,
-                        ])->first();
 
-                        if ($outletStock) {
-                            $outletStock->increment('stock', $delta);
-                        } elseif ($delta > 0) {
-                            OutletStock::create([
-                                'outlet_id' => $outletId,
-                                'product_variant_id' => $variant->id,
-                                'stock' => $delta,
-                            ]);
+                    if (! $variant) {
+                        $resolved = ProductVariant::where('product_id', $item->product_id)
+                            ->when(! empty($item->ukuran), fn ($q) => $q->where('size', $item->ukuran))
+                            ->when(empty($item->ukuran), fn ($q) => $q->where(fn ($w) => $w->whereNull('size')->orWhere('size', '')))
+                            ->when(! empty($item->warna), fn ($q) => $q->where('color', $item->warna))
+                            ->when(empty($item->warna), fn ($q) => $q->where(fn ($w) => $w->whereNull('color')->orWhere('color', '')))
+                            ->withTrashed()
+                            ->first();
+
+                        if ($resolved) {
+                            $item->update(['product_variant_id' => $resolved->id]);
+                            $variant = $resolved;
                         }
+                    }
+
+                    if (! $variant) {
+                        // Varian hilang harus menggagalkan konfirmasi, bukan dilewati:
+                        // kalau diteruskan, qty_terima sudah tercatat tapi stok outlet
+                        // tidak bertambah sama sekali.
+                        Log::error('Konfirmasi terima DO gagal: varian tidak ditemukan', [
+                            'distribution_order_id' => $do->id,
+                            'distribution_order_item_id' => $item->id,
+                            'product_id' => $item->product_id,
+                            'nama' => $item->nama,
+                            'ukuran' => $item->ukuran,
+                            'warna' => $item->warna,
+                            'qty_terima' => $qtyTerima,
+                        ]);
+
+throw new InsufficientStockException(
+                        "Varian {$item->nama} tidak ditemukan, penerimaan dibatalkan agar stok outlet tetap sinkron. Hubungi admin untuk memperbaiki data produk."
+                    );
+                    }
+
+                    $resolvedVid = $variant->id;
+                    $outletStock = OutletStock::where([
+                        'outlet_id' => $outletId,
+                        'product_variant_id' => $resolvedVid,
+                    ])->first();
+
+                    if ($outletStock) {
+                        $outletStock->increment('stock', $delta);
+                    } elseif ($delta > 0) {
+                        OutletStock::create([
+                            'outlet_id' => $outletId,
+                            'product_variant_id' => $resolvedVid,
+                            'stock' => $delta,
+                        ]);
                     }
 
                     $product = $item->product;
@@ -257,6 +299,13 @@ class InventoriOutletService
                             $ids[] = (string) $outletId;
                             $product->update(['outlet_ids' => $ids]);
                         }
+
+                        // Pivot outlet_product harus menyusul.
+                        // Halaman admin membaca pivot, sementara POS dan
+                        // inventory membaca outlet_ids. Kalau pivot tidak
+                        // di-sync, produk tetap bisa dijual di outlet ini
+                        // tetapi hilang dari daftar produk milik outlet tersebut.
+                        $product->outlets()->syncWithoutDetaching([$outletId]);
                     }
 
                     StockMovement::create([

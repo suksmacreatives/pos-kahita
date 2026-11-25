@@ -601,7 +601,7 @@
         @php
             $nilai = 0;
             $varian = \App\Models\ProductVariant::whereHas('product', fn($q) => $q->where('name', $ds['nama_produk']))->first();
-            if ($varian) $nilai = $varian->stock * ($varian->cost_price ?? 0);
+            if ($varian) $nilai = $varian->stock * \App\Models\ProductVariant::hppEfektif($varian->cost_price, $varian->product?->cost_price);
         @endphp
         <tr class="highlight-warning">
             <td class="center">{{ $i + 1 }}</td>

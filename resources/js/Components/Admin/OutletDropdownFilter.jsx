@@ -15,7 +15,11 @@ export default function OutletDropdownFilter() {
     ...outlets.map(o => ({ value: String(o.id), label: o.name })),
   ];
 
-  const currentOption = options.find(opt => opt.value === outlet) || options[0];
+  // Bandingkan sebagai string. Nilai dari context bisa berupa number
+  // (dari auth.user) maupun string (dari option di bawah), dan `===` tidak
+  // akan cocok antar keduanya sehingga option terpilih tidak pernah ditandai.
+  const currentOutlet = outlet === null || outlet === undefined ? 'all' : String(outlet);
+  const currentOption = options.find(opt => opt.value === currentOutlet) || options[0];
 
   // Close dropdown on click outside
   useEffect(() => {
@@ -49,7 +53,7 @@ export default function OutletDropdownFilter() {
           role="listbox"
         >
           {options.map((opt) => {
-            const isSelected = opt.value === outlet;
+            const isSelected = opt.value === currentOutlet;
             return (
               <li
                 key={opt.value}

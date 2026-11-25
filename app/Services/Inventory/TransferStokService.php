@@ -6,6 +6,7 @@ use App\Models\Outlet;
 use App\Models\OutletStock;
 use App\Models\OutletTransfer;
 use App\Models\OutletTransferItem;
+use App\Models\Product;
 use App\Models\StockMovement;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
@@ -75,12 +76,43 @@ class TransferStokService
             $totalQty = 0;
             $errors = [];
 
+            $productIds = collect($items)
+                ->pluck('product_id')
+                ->filter()
+                ->map(fn ($id) => (int) $id)
+                ->unique()
+                ->values();
+
+            $produkTersediaIds = Product::whereIn('id', $productIds)
+                ->whereJsonContains('outlet_ids', (string) $tujuanId)
+                ->pluck('id')
+                ->map(fn ($id) => (int) $id)
+                ->all();
+
             foreach ($items as $idx => $item) {
                 $variantId = $item['product_variant_id'];
                 $qty = (int) $item['qty'];
+                $productId = (int) ($item['product_id'] ?? 0);
+
+                if (! in_array($productId, $produkTersediaIds, true)) {
+                    $errors[] = "Barang {$item['nama']} belum tersedia di outlet tujuan {$tujuan->name}. "
+                        .'Centang outlet tersebut di menu Produk terlebih dahulu.';
+                }
+
+                if (empty($variantId)) {
+                    $resolvedVariant = \App\Models\ProductVariant::where('product_id', $item['product_id'] ?? null)
+                        ->when(!empty($item['ukuran']), fn ($q) => $q->where('size', $item['ukuran']))
+                        ->when(empty($item['ukuran']), fn ($q) => $q->whereNull('size'))
+                        ->when(!empty($item['warna']), fn ($q) => $q->where('color', $item['warna']))
+                        ->first();
+
+                    if ($resolvedVariant) {
+                        $variantId = $resolvedVariant->id;
+                    }
+                }
 
                 $outletStock = OutletStock::where('outlet_id', $asalId)
-                    ->where('product_variant_id', $variantId)
+                    ->when(!empty($variantId), fn ($q) => $q->where('product_variant_id', $variantId))
                     ->first();
 
                 $stokTersedia = (int) ($outletStock?->stock ?? 0);
@@ -126,12 +158,14 @@ class TransferStokService
                     'qty' => $qty,
                 ]);
 
-                OutletStock::where('outlet_id', $asalId)
-                    ->where('product_variant_id', $variantId)
-                    ->decrement('stock', $qty);
+                if (!empty($variantId)) {
+                    OutletStock::where('outlet_id', $asalId)
+                        ->where('product_variant_id', $variantId)
+                        ->decrement('stock', $qty);
+                }
 
                 StockMovement::create([
-                    'product_variant_id' => $variantId,
+                    'product_variant_id' => $variantId ?: null,
                     'outlet_id' => $asalId,
                     'type' => 'transfer_keluar',
                     'reference_type' => 'outlet_transfer',
@@ -159,9 +193,38 @@ class TransferStokService
                 $variantId = $item->product_variant_id;
                 $qty = (int) $item->qty;
 
+                $resolvedVariantId = $variantId;
+
+                if (empty($resolvedVariantId)) {
+                    $resolvedVariant = \App\Models\ProductVariant::where('product_id', $item->product_id)
+                        ->when(!empty($item->ukuran), fn ($q) => $q->where('size', $item->ukuran))
+                        ->when(empty($item->ukuran), fn ($q) => $q->whereNull('size'))
+                        ->when(!empty($item->warna), fn ($q) => $q->where('color', $item->warna))
+                        ->first();
+
+                    if ($resolvedVariant) {
+                        $resolvedVariantId = $resolvedVariant->id;
+                    }
+                }
+
+                if (empty($resolvedVariantId)) {
+                    \Illuminate\Support\Facades\Log::warning(
+                        'Transfer konfirmasi: variant_id tidak ditemukan',
+                        [
+                            'outlet_transfer_item_id' => $item->id,
+                            'outlet_transfer_id' => $transfer->id,
+                            'product_id' => $item->product_id,
+                            'nama' => $item->nama,
+                            'ukuran' => $item->ukuran,
+                            'warna' => $item->warna,
+                        ]
+                    );
+                    continue;
+                }
+
                 $outletStock = OutletStock::where([
                     'outlet_id' => $transfer->outlet_tujuan_id,
-                    'product_variant_id' => $variantId,
+                    'product_variant_id' => $resolvedVariantId,
                 ])->first();
 
                 if ($outletStock) {
@@ -169,13 +232,13 @@ class TransferStokService
                 } else {
                     OutletStock::create([
                         'outlet_id' => $transfer->outlet_tujuan_id,
-                        'product_variant_id' => $variantId,
+                        'product_variant_id' => $resolvedVariantId,
                         'stock' => $qty,
                     ]);
                 }
 
                 StockMovement::create([
-                    'product_variant_id' => $variantId,
+                    'product_variant_id' => $resolvedVariantId,
                     'outlet_id' => $transfer->outlet_tujuan_id,
                     'type' => 'transfer_masuk',
                     'reference_type' => 'outlet_transfer',
@@ -205,17 +268,31 @@ class TransferStokService
             }
 
             foreach ($transfer->items as $item) {
+                $variantIdCancel = $item->product_variant_id;
+
+                if (empty($variantIdCancel)) {
+                    $resolvedVariant = \App\Models\ProductVariant::where('product_id', $item->product_id)
+                        ->when(!empty($item->ukuran), fn ($q) => $q->where('size', $item->ukuran))
+                        ->when(empty($item->ukuran), fn ($q) => $q->whereNull('size'))
+                        ->when(!empty($item->warna), fn ($q) => $q->where('color', $item->warna))
+                        ->first();
+
+                    if ($resolvedVariant) {
+                        $variantIdCancel = $resolvedVariant->id;
+                    }
+                }
+
                 $outletStock = OutletStock::where([
                     'outlet_id' => $transfer->outlet_asal_id,
-                    'product_variant_id' => $item->product_variant_id,
+                    'product_variant_id' => $variantIdCancel,
                 ])->first();
 
                 if ($outletStock) {
                     $outletStock->increment('stock', $item->qty);
-                } else {
+                } elseif (!empty($variantIdCancel)) {
                     OutletStock::create([
                         'outlet_id' => $transfer->outlet_asal_id,
-                        'product_variant_id' => $item->product_variant_id,
+                        'product_variant_id' => $variantIdCancel,
                         'stock' => $item->qty,
                     ]);
                 }
@@ -231,9 +308,18 @@ class TransferStokService
         $errors = [];
 
         foreach ($items as $item) {
-            $stok = OutletStock::where('outlet_id', $outletId)
-                ->where('product_variant_id', $item['product_variant_id'])
-                ->value('stock') ?? 0;
+                $vid = $item['product_variant_id'] ?? null;
+                if (empty($vid)) {
+                    $resolved = \App\Models\ProductVariant::where('product_id', $item['product_id'] ?? null)
+                        ->when(!empty($item['ukuran']), fn ($q) => $q->where('size', $item['ukuran']))
+                        ->when(empty($item['ukuran']), fn ($q) => $q->whereNull('size'))
+                        ->when(!empty($item['warna']), fn ($q) => $q->where('color', $item['warna']))
+                        ->first();
+                    $vid = $resolved?->id;
+                }
+                $stok = OutletStock::where('outlet_id', $outletId)
+                    ->when($vid, fn ($q) => $q->where('product_variant_id', $vid))
+                    ->value('stock') ?? 0;
 
             if ($stok < $item['qty']) {
                 $valid = false;

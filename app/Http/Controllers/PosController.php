@@ -2,27 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\InsufficientStockException;
+use App\Http\Requests\Inventory\Outlet\KonfirmasiTerimaRequest;
+use App\Models\Attendance;
+use App\Models\CashRegisterShift;
+use App\Models\CashTransaction;
+use App\Models\DistributionOrder;
+use App\Models\OnlineShop;
+use App\Models\Outlet;
+use App\Models\OutletStock;
 use App\Models\Product;
 use App\Models\ProductVariant;
-use App\Models\OutletStock;
-use App\Models\CashRegisterShift;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use App\Models\Attendance;
-use App\Models\DistributionOrder;
-use App\Models\Outlet;
 use App\Models\Promo;
 use App\Services\Inventory\InventoriOutletService;
-use App\Http\Requests\Inventory\Outlet\KonfirmasiTerimaRequest;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 
 class PosController extends Controller
 {
     public function __construct(
         protected InventoriOutletService $inventoriOutlet
-    ) {
-    }
+    ) {}
 
     public function index()
     {
@@ -35,11 +38,11 @@ class PosController extends Controller
             ->first();
 
         if ($activeShift) {
-            $activeShift->total_pemasukan = \App\Models\CashTransaction::where('shift_id', $activeShift->id)
+            $activeShift->total_pemasukan = CashTransaction::where('shift_id', $activeShift->id)
                 ->where('transaction_type', 'IN')
                 ->sum('amount');
 
-            $activeShift->pengeluaran_umum = \App\Models\CashTransaction::where('shift_id', $activeShift->id)
+            $activeShift->pengeluaran_umum = CashTransaction::where('shift_id', $activeShift->id)
                 ->where('transaction_type', 'OUT')
                 ->sum('amount');
         }
@@ -68,7 +71,7 @@ class PosController extends Controller
         $inventoryProducts = $this->scopeOutlet(
             Product::with([
                 'category',
-                'variants'
+                'variants',
             ]),
             $outletId
         )
@@ -119,18 +122,18 @@ class PosController extends Controller
                 ];
             });
 
-                        $outletList = Outlet::all()->map(fn ($o) => [
-                'id' => $o->id,
-                'slug' => $o->slug,
-                'nama' => $o->name,
-                'warna' => 'emerald',
-                'hexColor' => '#10B981',
-            ]);
+        $outletList = Outlet::all()->map(fn ($o) => [
+            'id' => $o->id,
+            'slug' => $o->slug,
+            'nama' => $o->name,
+            'warna' => 'emerald',
+            'hexColor' => '#10B981',
+        ]);
 
-            $onlineShopList = \App\Models\OnlineShop::all()->map(fn ($s) => [
-                'id' => $s->id,
-                'nama' => $s->nama,
-            ]);
+        $onlineShopList = OnlineShop::all()->map(fn ($s) => [
+            'id' => $s->id,
+            'nama' => $s->nama,
+        ]);
 
         return Inertia::render('Pos/Index', [
             'is_shift_open_db' => $activeShift ? true : false,
@@ -161,11 +164,12 @@ class PosController extends Controller
             );
 
             return redirect()->back()->with('success', 'Penerimaan barang berhasil dikonfirmasi.');
-        } catch (\App\Exceptions\InsufficientStockException $e) {
+        } catch (InsufficientStockException $e) {
             return redirect()->back()->withErrors(['stok' => $e->getMessage()]);
         } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('POS konfirmasi terima error: ' . $e->getMessage());
-            return redirect()->back()->with('error', 'Gagal mengkonfirmasi penerimaan: ' . $e->getMessage());
+            Log::error('POS konfirmasi terima error: '.$e->getMessage());
+
+            return redirect()->back()->with('error', 'Gagal mengkonfirmasi penerimaan: '.$e->getMessage());
         }
     }
 
@@ -221,13 +225,13 @@ class PosController extends Controller
      * PASTIKAN scope ini identik dengan filter di index(), karena seluruh
      * label barcode dicetak tanpa filter outlet. Tanpa scope yang sama,
      * barcode yang sah bisa jadi "tidak ditemukan" di kasir.
+     *
+     * Definisinya ada di Product::scopeTersediaDiOutlet supaya POS, inventory
+     * outlet, dan laporan memakai definisi yang sama.
      */
     protected function scopeOutlet($query, $outletId)
     {
-        return $query->where(function ($q) use ($outletId) {
-            $q->where('outlet_id', $outletId)
-                ->orWhereJsonContains('outlet_ids', (string) $outletId);
-        });
+        return $query->tersediaDiOutlet($outletId);
     }
 
     /**

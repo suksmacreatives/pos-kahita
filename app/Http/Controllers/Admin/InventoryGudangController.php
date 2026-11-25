@@ -23,6 +23,7 @@ use App\Services\Inventory\ReturGudangService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 
 class InventoryGudangController extends Controller
@@ -40,32 +41,10 @@ class InventoryGudangController extends Controller
     {
         $products = Product::with(['variants', 'category'])->orderBy('created_at', 'desc')->get();
 
-        $warehouseProducts = $products->map(function ($p) {
-            $totalStok = $p->variants->sum('stock');
-            $stokMinimum = 10;
-
-            return [
-                'id' => $p->id,
-                'kode_produk' => $p->sku,
-                'nama_produk' => $p->name,
-                'kategori' => $p->category?->name ?? '',
-                'harga_beli' => (int) $p->cost_price,
-                'warna_hex' => $this->getFirstVariantColor($p->variants),
-                'varian' => $p->variants->map(fn ($v) => [
-                    'ukuran' => $v->size,
-                    'warna' => $v->color ?? '',
-                    'warna_hex' => $this->mapNamaWarnaKeHex($v->color ?? ''),
-                    'stok' => (int) $v->stock,
-                    'sku' => $v->sku,
-                ])->toArray(),
-                'total_stok' => $totalStok,
-                'stok_minimum' => $stokMinimum,
-                'status' => $this->getStokStatus($totalStok, $stokMinimum),
-            ];
-        });
+        $warehouseProducts = $products->map(fn ($p) => $this->mapProdukGudang($p));
 
         $totalStokAll = $warehouseProducts->sum('total_stok');
-        $nilaiStok = $warehouseProducts->sum(fn ($p) => $p['total_stok'] * $p['harga_beli']);
+        $nilaiStok = $warehouseProducts->sum('nilai_stok');
         $menipis = $warehouseProducts->where('status', 'menipis')->count();
         $habis = $warehouseProducts->where('status', 'habis')->count();
 
@@ -279,30 +258,7 @@ class InventoryGudangController extends Controller
     {
         $products = Product::with(['variants', 'category'])->orderBy('created_at', 'desc')->get();
 
-        $warehouseProducts = $products->map(function ($p) {
-            $totalStok = $p->variants->sum('stock');
-            $stokMinimum = 10;
-
-            return [
-                'id' => $p->id,
-                'kode_produk' => $p->sku,
-                'nama_produk' => $p->name,
-                'kategori' => $p->category?->name ?? '',
-                'harga_beli' => (int) $p->cost_price,
-                'warna_hex' => $this->getFirstVariantColor($p->variants),
-                'varian' => $p->variants->map(fn ($v) => [
-                    'id' => $v->id,
-                    'ukuran' => $v->size,
-                    'warna' => $v->color ?? '',
-                    'warna_hex' => $this->mapNamaWarnaKeHex($v->color ?? ''),
-                    'stok' => (int) $v->stock,
-                    'sku' => $v->sku,
-                ])->toArray(),
-                'total_stok' => $totalStok,
-                'stok_minimum' => $stokMinimum,
-                'status' => $this->getStokStatus($totalStok, $stokMinimum),
-            ];
-        });
+        $warehouseProducts = $products->map(fn ($p) => $this->mapProdukGudang($p));
 
         $distribusiOnline = DistributionOrder::with([
             'outlet',
@@ -381,7 +337,8 @@ class InventoryGudangController extends Controller
 
             $totalQty = collect($validated['items'])->sum('qty_pesan');
             $totalNilai = collect($validated['items'])->sum(fn ($i) => $i['qty_pesan'] * $i['harga_beli']);
-            $nomorPo = 'PO-'.now()->format('Ymd').'-'.str_pad(PurchaseOrder::max('id') + 1, 3, '0', STR_PAD_LEFT);
+            $lastId = (int) PurchaseOrder::lockForUpdate()->max('id');
+            $nomorPo = 'PO-'.now()->format('Ymd').'-'.str_pad($lastId + 1, 3, '0', STR_PAD_LEFT);
 
             $po = PurchaseOrder::create([
                 'nomor_po' => $nomorPo,
@@ -394,14 +351,20 @@ class InventoryGudangController extends Controller
             ]);
 
             foreach ($validated['items'] as $i => $item) {
-                $variant = $this->findVariant($item['produk_id'], $item['ukuran'], $item['warna'] ?? null);
+                $variant = $this->findVariant($item['produk_id'], $item['ukuran'] ?? null, $item['warna'] ?? null);
+
+                if (! $variant) {
+                    throw ValidationException::withMessages([
+                        "items.$i" => "Varian tidak ditemukan untuk produk '{$item['nama']}' (ukuran: ".($item['ukuran'] ?? '-').", warna: ".($item['warna'] ?? '-').')',
+                    ]);
+                }
 
                 PurchaseOrderItem::create([
                     'purchase_order_id' => $po->id,
                     'product_id' => $item['produk_id'],
-                    'product_variant_id' => $variant?->id,
+                    'product_variant_id' => $variant->id,
                     'nama' => $item['nama'],
-                    'ukuran' => $item['ukuran'],
+                    'ukuran' => $item['ukuran'] ?? null,
                     'warna' => $item['warna'] ?? null,
                     'qty_pesan' => $item['qty_pesan'],
                     'qty_terima' => 0,
@@ -409,20 +372,13 @@ class InventoryGudangController extends Controller
                 ]);
             }
 
-            $pertama = $validated['items'][0];
-            $variantPertama = $this->findVariant($pertama['produk_id'], $pertama['ukuran'], $pertama['warna'] ?? null);
-
-            StockMovement::create([
-                'product_variant_id' => $variantPertama?->id,
-                'type' => 'penerimaan',
-                'qty' => $totalQty,
-                'note' => 'Penerimaan dari: '.($validated['supplier_nama'] ?? ''),
-                'user_id' => Auth::id(),
-            ]);
-
             DB::commit();
 
             return redirect()->back()->with('success', 'Penerimaan barang berhasil disimpan');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -432,36 +388,56 @@ class InventoryGudangController extends Controller
 
     public function tandaiTerimaPenerimaan(PurchaseOrder $purchaseOrder)
     {
-        if ($purchaseOrder->status === 'lengkap') {
-            return redirect()->back()->with('error', 'PO ini sudah diterima sebelumnya');
-        }
-
         DB::beginTransaction();
         try {
-            $purchaseOrder->update([
+            // Kunci baris PO: dua request paralel (double submit / dua tab)
+            // tidak boleh sama-sama membaca status lama dan menambah stok dua kali.
+            $po = PurchaseOrder::whereKey($purchaseOrder->id)->lockForUpdate()->firstOrFail();
+
+            if ($po->status === 'lengkap') {
+                DB::rollBack();
+
+                return redirect()->back()->with('error', 'PO ini sudah diterima sebelumnya');
+            }
+
+            $po->update([
                 'tanggal_terima' => now()->format('Y-m-d'),
                 'status' => 'lengkap',
             ]);
 
-            foreach ($purchaseOrder->items as $item) {
+            foreach ($po->items as $item) {
+                // Idempotensi: terapkan hanya selisih dari qty yang belum pernah diterima.
+                $delta = $item->qty_pesan - (int) $item->qty_terima;
                 $item->update(['qty_terima' => $item->qty_pesan]);
 
-                if ($item->productVariant) {
-                    $item->productVariant->increment('stock', $item->qty_pesan);
+                if ($delta === 0) {
+                    continue;
                 }
-            }
 
-            StockMovement::create([
-                'product_variant_id' => null,
-                'type' => 'penerimaan',
-                'qty' => $purchaseOrder->total_qty,
-                'note' => 'Penerimaan PO: '.$purchaseOrder->nomor_po,
-                'user_id' => Auth::id(),
-            ]);
+                if (! $item->productVariant) {
+                    throw ValidationException::withMessages([
+                        'items' => "Varian produk '{$item->nama}' tidak ditemukan, stok tidak dapat ditambah. Perbaiki data PO ini melalui Stock Opname.",
+                    ]);
+                }
+
+                $item->productVariant->increment('stock', $delta);
+
+                StockMovement::create([
+                    'product_variant_id' => $item->product_variant_id,
+                    'type' => 'penerimaan',
+                    'qty' => $delta,
+                    'note' => 'Penerimaan PO: '.$po->nomor_po,
+                    'user_id' => Auth::id(),
+                ]);
+            }
 
             DB::commit();
 
             return redirect()->back()->with('success', 'Barang berhasil diterima');
+        } catch (ValidationException $e) {
+            DB::rollBack();
+
+            throw $e;
         } catch (\Exception $e) {
             DB::rollBack();
 
@@ -527,9 +503,21 @@ class InventoryGudangController extends Controller
             ]);
 
             foreach ($validated['items'] as $item) {
-                $variant = $this->findVariant($item['produk_id'], $item['ukuran'], $item['warna'] ?? null);
+                $variant = $this->findVariant($item['produk_id'], $item['ukuran'] ?? null, $item['warna'] ?? null);
 
-                if ($variant && $validated['status'] === 'dikirim') {
+                if (! $variant) {
+                    DB::rollBack();
+                    $label = $item['ukuran'] ?? '-';
+                    if (! empty($item['warna'])) {
+                        $label = $item['warna'].' / '.$label;
+                    }
+
+                    return back()->withErrors([
+                        'error' => 'Varian '.$item['nama'].' ('.$label.') tidak ditemukan. Distribution Order dibatalkan.',
+                    ]);
+                }
+
+                if ($validated['status'] === 'dikirim') {
                     if ($variant->stock < $item['qty']) {
                         DB::rollBack();
                         $label = $item['ukuran'];
@@ -545,9 +533,9 @@ class InventoryGudangController extends Controller
                 DistributionOrderItem::create([
                     'distribution_order_id' => $do->id,
                     'product_id' => $item['produk_id'],
-                    'product_variant_id' => $variant?->id,
+                    'product_variant_id' => $variant->id,
                     'nama' => $item['nama'],
-                    'ukuran' => $item['ukuran'],
+                    'ukuran' => $item['ukuran'] ?? null,
                     'warna' => $item['warna'] ?? null,
                     'qty' => $item['qty'],
                 ]);
@@ -587,19 +575,25 @@ class InventoryGudangController extends Controller
             ]);
 
             foreach ($distributionOrder->items as $item) {
-                if ($item->productVariant) {
-                    if ($item->productVariant->stock < $item->qty) {
-                        DB::rollBack();
-                        $label = $item->ukuran;
-                        if (! empty($item->warna)) {
-                            $label = $item->warna.' / '.$label;
-                        }
+                if (! $item->productVariant) {
+                    DB::rollBack();
 
-                        return redirect()->back()->with('error',
-                            'Stok '.$item->nama.' ('.$label.') tidak mencukupi!');
-                    }
-                    $item->productVariant->decrement('stock', $item->qty);
+                    return redirect()->back()->with('error',
+                        'Varian '.$item->nama.' tidak ditemukan, stok tidak dapat dikurangi.');
                 }
+
+                if ($item->productVariant->stock < $item->qty) {
+                    DB::rollBack();
+                    $label = $item->ukuran;
+                    if (! empty($item->warna)) {
+                        $label = $item->warna.' / '.$label;
+                    }
+
+                    return redirect()->back()->with('error',
+                        'Stok '.$item->nama.' ('.$label.') tidak mencukupi!');
+                }
+
+                $item->productVariant->decrement('stock', $item->qty);
             }
 
             StockMovement::create([
@@ -667,31 +661,51 @@ class InventoryGudangController extends Controller
             ]);
 
             foreach ($validated['items'] as $item) {
-                $variant = $this->findVariant($item['produk_id'], $item['ukuran'], $item['warna'] ?? null);
+                $variant = $this->findVariant($item['produk_id'], $item['ukuran'] ?? null, $item['warna'] ?? null);
 
-                $returItem = SupplierReturnItem::create([
+                if (! $variant) {
+                    DB::rollBack();
+                    $label = $item['ukuran'] ?? '-';
+                    if (! empty($item['warna'])) {
+                        $label = $item['warna'].' / '.$label;
+                    }
+
+                    return redirect()->back()->with('error',
+                        'Varian '.$item['nama'].' ('.$label.') tidak ditemukan. Retur dibatalkan.');
+                }
+
+                if ($variant->stock < $item['qty']) {
+                    DB::rollBack();
+                    $label = $item['ukuran'] ?? '-';
+                    if (! empty($item['warna'])) {
+                        $label = $item['warna'].' / '.$label;
+                    }
+
+                    return redirect()->back()->with('error',
+                        'Stok '.$item['nama'].' ('.$label.') tidak cukup untuk diretur! Tersedia: '.$variant->stock);
+                }
+
+                SupplierReturnItem::create([
                     'supplier_return_id' => $retur->id,
                     'product_id' => $item['produk_id'],
-                    'product_variant_id' => $variant?->id,
+                    'product_variant_id' => $variant->id,
                     'nama' => $item['nama'],
-                    'ukuran' => $item['ukuran'],
+                    'ukuran' => $item['ukuran'] ?? null,
                     'warna' => $item['warna'] ?? null,
                     'qty' => $item['qty'],
                 ]);
 
-                if ($variant) {
-                    $variant->decrement('stock', $item['qty']);
+                $variant->decrement('stock', $item['qty']);
 
-                    StockMovement::create([
-                        'product_variant_id' => $variant->id,
-                        'type' => 'retur_supplier',
-                        'reference_type' => 'supplier_return',
-                        'reference_id' => $retur->id,
-                        'qty' => -(int) $item['qty'],
-                        'note' => "Retur ke supplier: {$validated['supplier_nama']} - {$item['nama']}",
-                        'user_id' => Auth::id(),
-                    ]);
-                }
+                StockMovement::create([
+                    'product_variant_id' => $variant->id,
+                    'type' => 'retur_supplier',
+                    'reference_type' => 'supplier_return',
+                    'reference_id' => $retur->id,
+                    'qty' => -(int) $item['qty'],
+                    'note' => "Retur ke supplier: {$validated['supplier_nama']} - {$item['nama']}",
+                    'user_id' => Auth::id(),
+                ]);
             }
 
             DB::commit();
@@ -706,12 +720,14 @@ class InventoryGudangController extends Controller
 
     public function terimaReturOutlet(OutletReturn $outletReturn)
     {
+        // Validasi status di luar transaksi: kalau return di dalam blok try,
+        // transaksi dibiarkan menggantung tanpa commit maupun rollback.
+        if ($outletReturn->status !== 'diajukan') {
+            return redirect()->back()->with('error', 'Hanya retur dengan status diajukan yang bisa diterima');
+        }
+
         DB::beginTransaction();
         try {
-            if ($outletReturn->status !== 'diajukan') {
-                return redirect()->back()->with('error', 'Hanya retur dengan status diajukan yang bisa diterima');
-            }
-
             foreach ($outletReturn->items as $item) {
                 if ($item->productVariant) {
                     $item->productVariant->increment('stock', $item->qty);
@@ -859,16 +875,42 @@ class InventoryGudangController extends Controller
             'items.*.nama' => 'required|string',
             'items.*.ukuran' => 'nullable|string',
             'items.*.warna' => 'nullable|string',
-            'items.*.qty_sistem' => 'required|integer|min:0',
             'items.*.qty_aktual' => 'required|integer|min:0',
-            'items.*.selisih' => 'required|integer',
         ]);
 
         DB::beginTransaction();
         try {
-            $totalItem = count($validated['items']);
-            $totalSelisihPlus = collect($validated['items'])->where('selisih', '>', 0)->sum('selisih');
-            $totalSelisihMinus = abs(collect($validated['items'])->where('selisih', '<', 0)->sum('selisih'));
+            $items = collect();
+
+            foreach ($validated['items'] as $item) {
+                $variant = $this->findVariant($item['produk_id'], $item['ukuran'] ?? null, $item['warna'] ?? null);
+
+                if (! $variant) {
+                    DB::rollBack();
+                    $label = $item['ukuran'] ?? '-';
+                    if (! empty($item['warna'])) {
+                        $label = $item['warna'].' / '.$label;
+                    }
+
+                    return redirect()->back()->with('error',
+                        'Varian '.$item['nama'].' ('.$label.') tidak ditemukan. Stock opname dibatalkan.');
+                }
+
+                // Stok sistem harus dibaca dari database, bukan dari angka yang
+                // dikirim browser, supaya selisih (dan isi kolom stok) selalu
+                // mencerminkan kondisi gudang saat opname disimpan.
+                $items->push([
+                    'item' => $item,
+                    'variant' => $variant,
+                    'stok_sistem' => (int) $variant->stock,
+                    'stok_fisik' => (int) $item['qty_aktual'],
+                    'selisih' => (int) $item['qty_aktual'] - (int) $variant->stock,
+                ]);
+            }
+
+            $totalItem = $items->count();
+            $totalSelisihPlus = $items->where('selisih', '>', 0)->sum('selisih');
+            $totalSelisihMinus = abs($items->where('selisih', '<', 0)->sum('selisih'));
             $nomorOpname = 'OPG-'.now()->format('Ymd').'-'.str_pad(StockOpname::max('id') + 1, 3, '0', STR_PAD_LEFT);
 
             $opname = StockOpname::create([
@@ -882,24 +924,25 @@ class InventoryGudangController extends Controller
                 'status' => 'selesai',
             ]);
 
-            foreach ($validated['items'] as $item) {
-                $variant = $this->findVariant($item['produk_id'], $item['ukuran'], $item['warna'] ?? null);
+            foreach ($items as $row) {
+                $item = $row['item'];
+                $variant = $row['variant'];
 
                 StockOpnameItem::create([
                     'stock_opname_id' => $opname->id,
                     'product_id' => $item['produk_id'],
-                    'product_variant_id' => $variant?->id,
+                    'product_variant_id' => $variant->id,
                     'nama' => $item['nama'],
-                    'ukuran' => $item['ukuran'],
+                    'ukuran' => $item['ukuran'] ?? null,
                     'warna' => $item['warna'] ?? null,
-                    'stok_sistem' => $item['qty_sistem'],
-                    'stok_fisik' => $item['qty_aktual'],
-                    'selisih' => $item['selisih'],
+                    'stok_sistem' => $row['stok_sistem'],
+                    'stok_fisik' => $row['stok_fisik'],
+                    'selisih' => $row['selisih'],
                     'keterangan' => $item['keterangan'] ?? null,
                 ]);
 
-                if ($variant && $item['selisih'] != 0) {
-                    $variant->increment('stock', $item['selisih']);
+                if ($row['selisih'] != 0) {
+                    $variant->increment('stock', $row['selisih']);
                 }
             }
 
@@ -965,16 +1008,53 @@ class InventoryGudangController extends Controller
         return response()->json($this->buildMutasiChartData());
     }
 
+    private function mapProdukGudang(Product $p): array
+    {
+        $stokMinimum = 10;
+
+        $varian = $p->variants->map(fn ($v) => [
+            'id' => $v->id,
+            'ukuran' => $v->size,
+            'warna' => $v->color ?? '',
+            'warna_hex' => $this->mapNamaWarnaKeHex($v->color ?? ''),
+            'stok' => (int) $v->stock,
+            'sku' => $v->sku,
+            'harga_beli' => ProductVariant::hppEfektif($v->cost_price, $p->cost_price),
+        ])->toArray();
+
+        $totalStok = array_sum(array_column($varian, 'stok'));
+        $nilaiStok = 0;
+        foreach ($varian as $v) {
+            $nilaiStok += $v['stok'] * $v['harga_beli'];
+        }
+
+        return [
+            'id' => $p->id,
+            'kode_produk' => $p->sku,
+            'nama_produk' => $p->name,
+            'kategori' => $p->category?->name ?? '',
+            'harga_beli' => (int) $p->cost_price,
+            'nilai_stok' => $nilaiStok,
+            'warna_hex' => $this->getFirstVariantColor($p->variants),
+            'varian' => $varian,
+            'total_stok' => $totalStok,
+            'stok_minimum' => $stokMinimum,
+            'status' => $this->getStokStatus($totalStok, $stokMinimum),
+        ];
+    }
+
     private function findVariant($productId, $ukuran, $warna)
     {
         $query = ProductVariant::where('product_id', $productId);
 
         if (! empty($warna)) {
             $query->where('color', $warna);
+        } else {
+            $query->where(fn ($q) => $q->whereNull('color')->orWhere('color', ''));
         }
 
         if (empty($ukuran)) {
-            $query->whereNull('size');
+            $query->where(fn ($q) => $q->whereNull('size')->orWhere('size', ''));
         } else {
             $query->where('size', $ukuran);
         }
