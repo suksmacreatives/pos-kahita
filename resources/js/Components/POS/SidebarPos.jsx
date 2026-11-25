@@ -45,6 +45,7 @@ export default function SidebarPos({
         { id: 'pengaturan-nota', label: 'Nota Kasir' },
         { id: 'pengaturan-printer', label: 'Printer' },
         { id: 'pengaturan-toko', label: 'Tentang Toko/Outlet' },
+        { id: 'pengaturan-amount', label: 'Setting Amount' },
     ];
     const subMenuInventory = [
     {

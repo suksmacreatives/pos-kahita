@@ -18,6 +18,7 @@ import PengaturanNotaView from '@/Components/POS/Views/PengaturanNotaView';
 import PengaturanPrinterView from '@/Components/POS/Views/PengaturanPrinterView';
 import PengaturanTokoView from '@/Components/POS/Views/PengaturanTokoView';
 import PrintShiftReport from '@/Components/POS/Views/printShiftReport';
+import PengaturanAmountView from '@/Components/POS/Views/PengaturanAmountView';
 
 export default function Index({
     auth,
@@ -930,28 +931,25 @@ const handleProsesBayarFinal = async () => {
                         {activeMenu === 'pengaturan-printer' && (<PengaturanPrinterView />)}
                         {activeMenu === 'pengaturan-toko' && (<PengaturanTokoView />)}
                         {shiftReport && (
-    <PrintShiftReport
-        data={shiftReport}
-        formatRupiah={formatRupiah}
-        onFinished={async () => {
-
-            setShiftReport(null);
-
-            await fetch(route('pos.logout-after-print'), {
-                method: "POST",
-                headers: {
-                    "X-CSRF-TOKEN": document
-                        .querySelector('meta[name="csrf-token"]')
-                        ?.content,
-                    "Accept": "application/json",
-                },
-            });
-
-            window.location.href = "/login";
-
-        }}
-    />
-)}
+                                        <PrintShiftReport
+                                            data={shiftReport}
+                                            formatRupiah={formatRupiah}
+                                            onFinished={async () => {
+                                                setShiftReport(null);
+                                                await fetch(route('pos.logout-after-print'), {
+                                                    method: "POST",
+                                                    headers: {
+                                                        "X-CSRF-TOKEN": document
+                                                            .querySelector('meta[name="csrf-token"]')
+                                                            ?.content,
+                                                        "Accept": "application/json",
+                                                    },
+                                                });
+                                                window.location.href = "/login";
+                                            }}
+                                        />
+                                    )}
+                        {activeMenu === 'pengaturan-amount' && (<PengaturanAmountView formatRupiah={formatRupiah} />)}
                     </div>
                 </div>
             </div>

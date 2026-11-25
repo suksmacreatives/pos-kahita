@@ -532,7 +532,84 @@ const categoryFilteredProducts = React.useMemo(() => {
             selectedCategory.toLowerCase()
     );
 }, [filteredProducts, selectedCategory]);
+    // --- STATE POPUP PEMBAYARAN ---
+const [paymentCategory, setPaymentCategory] = useState(
+    selectedPayment === 'Tunai' ? 'TUNAI' : 'NON_TUNAI'
+);
+const [selectedAccount, setSelectedAccount] = useState('');
 
+const paymentSettings = React.useMemo(() => {
+    const defaultConfig = {
+        cashPresets: [10000, 20000, 50000, 100000],
+        accountsByMethod: {
+            Transfer: [
+                'BCA - 1234567890 a/n Kahita Busana',
+                'Mandiri - 0987654321 a/n Kahita Busana',
+            ],
+            Debit: ['EDC BCA', 'EDC Mandiri'],
+            QRIS: ['QRIS Statis Toko'],
+        },
+    };
+
+    try {
+        const raw = localStorage.getItem('pos_payment_settings');
+        if (!raw) return defaultConfig;
+        const parsed = JSON.parse(raw);
+
+        return {
+            cashPresets:
+                Array.isArray(parsed.cashPresets) && parsed.cashPresets.length > 0
+                    ? parsed.cashPresets.map((n) => Number(n)).filter((n) => n > 0)
+                    : defaultConfig.cashPresets,
+            accountsByMethod: {
+                ...defaultConfig.accountsByMethod,
+                ...(parsed.accountsByMethod || {}),
+            },
+        };
+    } catch {
+        return defaultConfig;
+    }
+}, [isCheckoutView]);
+
+useEffect(() => {
+    if (!isCheckoutView) return;
+    if (selectedPayment === 'Tunai') {
+        setPaymentCategory('TUNAI');
+    } else {
+        setPaymentCategory('NON_TUNAI');
+        const listAcc = paymentSettings.accountsByMethod[selectedPayment] || [];
+        if (listAcc.length > 0 && !listAcc.includes(selectedAccount)) {
+            setSelectedAccount(listAcc[0]);
+        }
+    }
+}, [isCheckoutView, selectedPayment, paymentSettings]);
+
+const formatRibuanInput = (val) => {
+    if (val === '' || val === null || val === undefined) return '';
+    const digits = String(val).replace(/\D/g, '');
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+};
+
+const handleSelectCategory = (category) => {
+    setPaymentCategory(category);
+    if (category === 'TUNAI') {
+        setSelectedPayment('Tunai');
+        setSelectedAccount('');
+    } else {
+        const nextMethod = ['QRIS', 'Transfer', 'Debit'].includes(selectedPayment)
+            ? selectedPayment
+            : 'QRIS';
+        setSelectedPayment(nextMethod);
+        const listAcc = paymentSettings.accountsByMethod[nextMethod] || [];
+        setSelectedAccount(listAcc[0] || '');
+    }
+};
+
+const handleSelectNonCashMethod = (method) => {
+    setSelectedPayment(method);
+    const listAcc = paymentSettings.accountsByMethod[method] || [];
+    setSelectedAccount(listAcc[0] || '');
+};
 
     return (
         <div className="flex-1 flex h-full overflow-hidden w-full bg-[#f4f6f9]">
@@ -961,237 +1038,189 @@ const categoryFilteredProducts = React.useMemo(() => {
             {/* =========================================================================
                 AREA KANAN: BOX PEMBAYARAN UTAMA
                ========================================================================= */}
-            <div className="w-96 bg-white border-l border-gray-200 h-full flex flex-col flex-shrink-0 shadow-xl z-10">
-                {!isCheckoutView ? (
-                    <>
-                        {/* BOX TOMBOL TOGGLE DAFTAR BELANJA */}
-                        <div className="p-3 border-b border-gray-200 bg-gray-50 flex flex-col flex-shrink-0">
-                            <button
-                                type="button"
-                                onClick={() =>
-                                    setLeftContentView(
-                                        leftContentView === 'grid'
-                                            ? 'saved_list'
-                                            : 'grid'
-                                    )
-                                }
-                                className={`w-full border p-2.5 rounded-l flex items-center justify-between text-xs font-bold transition shadow-sm ${
-                                    leftContentView === 'saved_list' 
-                                        ? 'border-[#009664] bg-emerald-50 text-[#009664]' 
-                                        : 'bg-white border-gray-200 hover:border-[#009664] text-gray-700'
-                                }`}
-                            >
-                                <div className="flex items-center space-x-2">
-                                    <span>📋 Daftar Belanja</span>
-                                    <span className="text-[11px] font-black">
-                                        Lihat Antrean
-                                    </span>
-                                </div>
-                                <span className="bg-amber-500 text-white font-black px-2.5 py-0.5 rounded-full text-[10px]">
-                                    {savedBills.length}
+            {/* =========================================================================
+    AREA KANAN: LIST KERANJANG BELANJA & TOMBOL LANJUTKAN PEMBAYARAN
+   ========================================================================= */}
+<div className="w-96 bg-white border-l border-gray-200 h-full flex flex-col flex-shrink-0 shadow-xl z-10">
+    {/* BOX TOMBOL TOGGLE DAFTAR BELANJA */}
+    <div className="p-3 border-b border-gray-200 bg-gray-50 flex flex-col flex-shrink-0">
+        <button
+            type="button"
+            onClick={() =>
+                setLeftContentView(
+                    leftContentView === 'grid'
+                        ? 'saved_list'
+                        : 'grid'
+                )
+            }
+            className={`w-full border p-2.5 rounded-l flex items-center justify-between text-xs font-bold transition shadow-sm ${
+                leftContentView === 'saved_list'
+                    ? 'border-[#009664] bg-emerald-50 text-[#009664]'
+                    : 'bg-white border-gray-200 hover:border-[#009664] text-gray-700'
+            }`}
+        >
+            <div className="flex items-center space-x-2">
+                <span>📋 Daftar Belanja</span>
+                <span className="text-[11px] font-black">
+                    Lihat Antrean
+                </span>
+            </div>
+            <span className="bg-amber-500 text-white font-black px-2.5 py-0.5 rounded-full text-[10px]">
+                {savedBills.length}
+            </span>
+        </button>
+    </div>
+
+    {/* Input Nama Pelanggan */}
+    <div className="p-4 border-b border-gray-100 flex-shrink-0 bg-gray-50/30">
+        <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">
+            Nama Pelanggan
+        </label>
+        <input
+            type="text"
+            placeholder="Umum / Tulis nama pelanggan..."
+            value={customerName}
+            onChange={(e) => setCustomerName(e.target.value)}
+            className="w-full bg-white border border-gray-200 px-3 py-2 rounded-l text-xs font-bold focus:outline-none focus:border-[#009664]"
+        />
+    </div>
+
+    {/* Keranjang Belanja Aktif */}
+    <div className="flex-1 overflow-y-auto p-4 space-y-3">
+        {cart && cart.length > 0 ? (
+            cart.map((item, index) => (
+                <div
+                    key={item.cart_id || index}
+                    className="flex justify-between items-center text-xs border-b border-gray-100 pb-3"
+                >
+                    <div className="flex-1">
+                        <p className="font-bold">{item.name || item.customName}</p>
+
+                        <div className="flex gap-1 mt-1">
+                            {item.varianWarna && (
+                                <span className="bg-gray-100 px-1 rounded">
+                                    {item.varianWarna}
                                 </span>
-                            </button>
+                            )}
+
+                            {item.varianUkuran &&
+                                item.varianUkuran !== 'null' &&
+                                item.varianUkuran !== 'NULL' &&
+                                item.varianUkuran !== '-' && (
+                                    <span className="bg-emerald-50 px-1 rounded">
+                                        Size: {item.varianUkuran}
+                                    </span>
+                                )}
                         </div>
+                    </div>
 
-                        {/* Input Nama Pelanggan */}
-                        <div className="p-4 border-b border-gray-100 flex-shrink-0 bg-gray-50/30">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-1">Nama Pelanggan</label>
-                            <input 
-                                type="text"
-                                placeholder="Umum / Tulis nama pelanggan..."
-                                value={customerName}
-                                onChange={(e) => setCustomerName(e.target.value)}
-                                className="w-full bg-white border border-gray-200 px-3 py-2 rounded-l text-xs font-bold focus:outline-none focus:border-[#009664]"
-                            />
-                        </div>
+                    <div className="text-right mr-3">
+                        <p className="font-bold">
+                            {formatRupiah(item.price * item.quantity)}
+                        </p>
 
-                        {/* Keranjang Belanja Aktif */}
-<div className="flex-1 overflow-y-auto p-4 space-y-3">    
-    {cart && cart.length > 0 ? (
-        cart.map((item, index) => (
-            
-            <div
-    key={item.cart_id || index}
-    className="flex justify-between items-center text-xs border-b border-gray-100 pb-3"
->
-    <div className="flex-1">
-        <p className="font-bold">{item.name || item.customName}</p>
+                        <p className="text-[10px] text-gray-400">
+                            Qty: {item.quantity}
+                        </p>
+                    </div>
 
-        <div className="flex gap-1 mt-1">
-            {item.varianWarna && (
-                <span className="bg-gray-100 px-1 rounded">
-                    {item.varianWarna}
-                </span>
-            )}
-
-            {item.varianUkuran &&
-            item.varianUkuran !== 'null' &&
-            item.varianUkuran !== 'NULL' &&
-            item.varianUkuran !== '-' && (
-                <span className="bg-emerald-50 px-1 rounded">
-                    Size: {item.varianUkuran}
-                </span>
-            )}
-        </div>
+                    <button
+                        type="button"
+                        onClick={() => handleRemoveCartItem(item.cart_id)}
+                        className="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-500 font-bold flex items-center justify-center transition"
+                    >
+                        ✕
+                    </button>
+                </div>
+            ))
+        ) : (
+            <div className="h-full flex flex-col items-center justify-center text-gray-400 text-xs">
+                <span>🛒 Keranjang kosong</span>
+            </div>
+        )}
     </div>
 
-    <div className="text-right mr-3">
-        <p className="font-bold">
-            {formatRupiah(item.price * item.quantity)}
-        </p>
+    {/* PANEL ACTIONS */}
+    <div className="border-t border-gray-100 p-4 bg-white flex-shrink-0 space-y-3">
+        {selectedPromo && (
+            <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs">
+                <div className="flex justify-between items-start">
+                    <div>
+                        <div className="font-bold text-emerald-700">
+                            Promo Aktif
+                        </div>
+                        <div className="mt-1">
+                            {selectedPromo.nama_promo}
+                        </div>
+                    </div>
 
-        <p className="text-[10px] text-gray-400">
-            Qty: {item.quantity}
-        </p>
-    </div>
-
-    <button
-    type="button"
-    onClick={() => handleRemoveCartItem(item.cart_id)}
-    className="w-7 h-7 rounded-full bg-red-50 hover:bg-red-100 text-red-500 font-bold flex items-center justify-center transition"
->
-    ✕
-</button>
-</div>
-        ))
-    ) : (
-        <div className="h-full flex flex-col items-center justify-center text-gray-400 text-xs">
-            <span>🛒 Keranjang kosong</span>
-        </div>
-    )}
-</div>
-
-                        {/* PANEL ACTIONS */}
-                        <div className="border-t border-gray-100 p-4 bg-white flex-shrink-0 space-y-3">
-                            {selectedPromo && (
-    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3 text-xs">
-
-        <div className="flex justify-between items-start">
-
-            <div>
-                <div className="font-bold text-emerald-700">
-                    Promo Aktif
+                    <button
+                        type="button"
+                        onClick={() => setSelectedPromo(null)}
+                        className="w-6 h-6 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold"
+                        title="Batalkan Promo"
+                    >
+                        ✕
+                    </button>
                 </div>
 
-                <div className="mt-1">
-                    {selectedPromo.nama_promo}
+                <div className="flex justify-between items-center text-xs text-red-500 font-bold mt-2">
+                    <span>Potongan Promo</span>
+                    <span>- {formatRupiah(nilaiDiskon)}</span>
                 </div>
             </div>
+        )}
+
+        <div className="flex justify-between items-center text-xs">
+            <span className="font-bold text-gray-400 uppercase">Total Tagihan</span>
+            <span className="text-base font-black text-gray-800">
+                {formatRupiah(totalSetelahDiskon)}
+            </span>
+        </div>
+
+        <div className="grid grid-cols-3 gap-2">
+            <button
+                type="button"
+                onClick={() => setCart([])}
+                disabled={cart.length === 0}
+                className="flex flex-col items-center justify-center p-2 rounded-l border border-red-100 bg-red-50/30 text-red-500 hover:bg-red-50 transition disabled:opacity-40"
+            >
+                <span className="text-sm">🗑️</span>
+                <span className="text-[9px] font-bold mt-0.5">Clear</span>
+            </button>
 
             <button
                 type="button"
-                onClick={() => setSelectedPromo(null)}
-                className="w-6 h-6 rounded-full bg-red-100 text-red-600 hover:bg-red-200 flex items-center justify-center font-bold"
-                title="Batalkan Promo"
+                onClick={() => setShowPromoModal(true)}
+                className="flex flex-col items-center justify-center p-2 rounded-l border border-amber-100 bg-amber-50/30 text-amber-600 hover:bg-amber-50 transition"
             >
-                ✕
+                <span className="text-sm">🎟️</span>
+                <span className="text-[9px] font-bold mt-0.5">
+                    Promo
+                </span>
             </button>
 
+            <button
+                type="button"
+                onClick={handleSimpanBillAction}
+                disabled={cart.length === 0}
+                className="flex flex-col items-center justify-center p-2 rounded-l border border-blue-100 bg-blue-50/30 text-blue-600 hover:bg-blue-50 transition disabled:opacity-40"
+            >
+                <span className="text-sm">💾</span>
+                <span className="text-[9px] font-bold mt-0.5">Simpan Bill</span>
+            </button>
         </div>
 
-        <div className="flex justify-between items-center text-xs text-red-500 font-bold mt-2">
-            <span>Potongan Promo</span>
-            <span>- {formatRupiah(nilaiDiskon)}</span>
-        </div>
-
+        <button
+            type="button"
+            disabled={cart.length === 0}
+            onClick={() => setIsCheckoutView(true)}
+            className="w-full bg-[#009664] disabled:bg-gray-300 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-md uppercase tracking-wide"
+        >
+            Lanjutkan Pembayaran
+        </button>
     </div>
-)}
-                            <div className="flex justify-between items-center text-xs">
-                                <span className="font-bold text-gray-400 uppercase">Total Tagihan</span>
-                                <span className="text-base font-black text-gray-800">{formatRupiah(totalSetelahDiskon)}</span>
-                            </div>
-
-                            <div className="grid grid-cols-3 gap-2">
-                                <button type="button" onClick={() => setCart([])} disabled={cart.length === 0} className="flex flex-col items-center justify-center p-2 rounded-l border border-red-100 bg-red-50/30 text-red-500 hover:bg-red-50 transition disabled:opacity-40">
-                                    <span className="text-sm">🗑️</span>
-                                    <span className="text-[9px] font-bold mt-0.5">Clear</span>
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => setShowPromoModal(true)}
-                                    className="flex flex-col items-center justify-center p-2 rounded-l border border-amber-100 bg-amber-50/30 text-amber-600 hover:bg-amber-50 transition"
-                                >
-                                    <span className="text-sm">🎟️</span>
-                                    <span className="text-[9px] font-bold mt-0.5">
-                                        Promo
-                                    </span>
-                                </button>
-                                <button type="button" onClick={handleSimpanBillAction} disabled={cart.length === 0} className="flex flex-col items-center justify-center p-2 rounded-l border border-blue-100 bg-blue-50/30 text-blue-600 hover:bg-blue-50 transition disabled:opacity-40">
-                                    <span className="text-sm">💾</span>
-                                    <span className="text-[9px] font-bold mt-0.5">Simpan Bill</span>
-                                </button>
-                            </div>
-
-                            <button disabled={cart.length === 0} onClick={() => setIsCheckoutView(true)} className="w-full bg-[#009664] disabled:bg-gray-300 hover:bg-emerald-700 text-white font-bold py-3 rounded-xl text-xs transition shadow-md uppercase tracking-wide">
-                                Lanjutkan Pembayaran
-                            </button>
-                        </div>
-                    </>
-                ) : (
-                    /* VIEW PROSES CHECKOUT TRANSAKSI */
-                    <>
-                        <div className="p-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                            <span className="text-xs font-black text-gray-800 uppercase">Metode Pembayaran</span>
-                            <button onClick={() => setIsCheckoutView(false)} className="text-[11px] font-bold text-gray-400 hover:text-gray-600">Kembali</button>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                            <div className="grid grid-cols-2 gap-2">
-                                {['Tunai', 'QRIS', 'Debit', 'Transfer'].map((method) => (
-                                    <button
-                                        key={method}
-                                        type="button"
-                                        onClick={() => setSelectedPayment(method)}
-                                        className={`p-2.5 text-xs font-bold rounded-l border text-center transition ${selectedPayment === method ? 'border-[#009664] bg-emerald-50 text-[#009664]' : 'border-gray-200 hover:bg-gray-50 text-gray-600'}`}
-                                    >
-                                        {method === 'Tunai' ? '💵 ' : method === 'QRIS' ? '📱 ' : '💳 '}{method}
-                                    </button>
-                                ))}
-                            </div>
-                            {selectedPayment === 'Tunai' && (
-                                <div className="space-y-1.5">
-                                    <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block">Uang yang Diterima</label>
-                                    <input 
-                                        type="text" 
-                                        placeholder="Jumlah uang..." 
-                                        value={
-                                            inputUangDiterima 
-                                                ? String(inputUangDiterima).replace(/\B(?=(\d{3})+(?!\d))/g, ".") 
-                                                : ""
-                                        } 
-                                        onChange={(e) => {
-                                            let rawValue = e.target.value.replace(/\D/g, "");
-                                            setInputUangDiterima(rawValue);
-                                        }} 
-                                        className="w-full bg-gray-50 border border-gray-200 px-3 py-2.5 rounded-lg text-xs font-black focus:outline-none focus:bg-white focus:border-[#009664]"
-                                    />
-                                </div>
-                            )}
-                            <div className="bg-gray-50 p-3 rounded-xl space-y-2 border border-gray-100 text-[11px] font-bold">
-                                <div className="flex justify-between text-gray-500">
-    <span>Subtotal:</span>
-    <span>{formatRupiah(subtotal)}</span>
 </div>
-
-{selectedPromo && (
-    <div className="flex justify-between text-red-500">
-        <span>Diskon:</span>
-        <span>- {formatRupiah(nilaiDiskon)}</span>
-    </div>
-)}
-
-<div className="flex justify-between font-black text-[#009664]">
-    <span>Total Bayar:</span>
-    <span>{formatRupiah(totalSetelahDiskon)}</span>
-</div>
-                                <div className="flex justify-between text-emerald-600"><span>Kembalian:</span><span>{formatRupiah(uangKembalian)}</span></div>
-                            </div>
-                        </div>
-                        <div className="p-4 border-t border-gray-100 bg-gray-50/60 flex-shrink-0">
-                            <button onClick={handleProsesBayarFinal} className="w-full bg-[#009664] hover:bg-emerald-700 text-white font-bold py-2.5 rounded-l text-xs transition shadow-md">Selesaikan Transaksi</button>
-                        </div>
-                    </>
-                )}
-            </div>
 
             {/* =========================================================================
                 POP-UP MODAL MULTI-VARIASI (+ ANGKA -)rounded-l
@@ -1402,6 +1431,259 @@ const categoryFilteredProducts = React.useMemo(() => {
         </div>
     </div>
     
+)}
+{/* =========================================================================
+    POPUP MODAL METODE PEMBAYARAN (TUNAI & NON TUNAI)
+   ========================================================================= */}
+{isCheckoutView && (
+    <div className="fixed inset-0 z-[110] flex items-center justify-center bg-black/50 backdrop-blur-[1px] p-3 md:p-6">
+        <div className="bg-white w-full max-w-5xl h-[88vh] max-h-[760px] rounded-2xl shadow-2xl border border-gray-100 flex flex-col overflow-hidden">
+
+            {/* HEADER POPUP */}
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between bg-white flex-shrink-0">
+                <div>
+                    <h2 className="text-base font-black text-gray-800 uppercase tracking-wide">
+                        Metode Pembayaran
+                    </h2>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                        {outlet_name ? `${outlet_name} • ` : ''}
+                        {customerName?.trim() || 'Pelanggan Umum'}
+                    </p>
+                </div>
+
+                <button
+                    type="button"
+                    onClick={() => setIsCheckoutView(false)}
+                    className="px-3.5 py-2 rounded-lg text-xs font-bold text-gray-600 bg-gray-100 hover:bg-gray-200 transition"
+                >
+                    ← Kembali
+                </button>
+            </div>
+
+            {/* ISI POPUP 2 KOLOM */}
+            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden">
+
+                {/* KOLOM KIRI: TUNAI / NON TUNAI */}
+                <div className="lg:col-span-7 p-6 overflow-y-auto space-y-6 border-b lg:border-b-0 lg:border-r border-gray-100">
+
+                    {/* 2 MENU UTAMA: TUNAI & NON TUNAI */}
+                    <div className="grid grid-cols-2 gap-3 bg-gray-100 p-1.5 rounded-xl">
+                        <button
+                            type="button"
+                            onClick={() => handleSelectCategory('TUNAI')}
+                            className={`py-3 px-4 rounded-lg text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 ${
+                                paymentCategory === 'TUNAI'
+                                    ? 'bg-[#009664] text-white shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                        >
+                            <span>💵</span>
+                            <span>Tunai</span>
+                        </button>
+
+                        <button
+                            type="button"
+                            onClick={() => handleSelectCategory('NON_TUNAI')}
+                            className={`py-3 px-4 rounded-lg text-xs font-black uppercase tracking-wider transition flex items-center justify-center gap-2 ${
+                                paymentCategory === 'NON_TUNAI'
+                                    ? 'bg-[#009664] text-white shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-800'
+                            }`}
+                        >
+                            <span>💳</span>
+                            <span>Non Tunai</span>
+                        </button>
+                    </div>
+
+                    {/* MODE TUNAI */}
+                    {paymentCategory === 'TUNAI' && (
+                        <div className="space-y-5">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                                    Uang yang Diterima (Input Manual)
+                                </label>
+                                <input
+                                    type="text"
+                                    inputMode="numeric"
+                                    placeholder="Masukkan jumlah uang..."
+                                    value={formatRibuanInput(inputUangDiterima)}
+                                    onChange={(e) => {
+                                        const rawValue = e.target.value.replace(/\D/g, '');
+                                        setInputUangDiterima(rawValue);
+                                    }}
+                                    className="w-full bg-gray-50 border border-gray-200 px-4 py-3.5 rounded-xl text-base font-black text-gray-800 focus:outline-none focus:bg-white focus:border-[#009664]"
+                                />
+                            </div>
+
+                            <div className="space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                                        Pilihan Nominal Cepat (Amount)
+                                    </label>
+                                    <span className="text-[10px] text-gray-400">
+                                        Bisa diatur di Pengaturan → Setting Amount
+                                    </span>
+                                </div>
+
+                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                                    <button
+                                        type="button"
+                                        onClick={() =>
+                                            setInputUangDiterima(String(totalSetelahDiskon || 0))
+                                        }
+                                        className="py-3 px-3 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100 text-[#009664] text-xs font-black transition"
+                                    >
+                                        Uang Pas ({formatRupiah(totalSetelahDiskon)})
+                                    </button>
+
+                                    {paymentSettings.cashPresets.map((nominal) => {
+                                        const isActive =
+                                            Number(inputUangDiterima || 0) === Number(nominal);
+                                        return (
+                                            <button
+                                                key={nominal}
+                                                type="button"
+                                                onClick={() =>
+                                                    setInputUangDiterima(String(nominal))
+                                                }
+                                                className={`py-3 px-3 rounded-xl border text-xs font-extrabold transition ${
+                                                    isActive
+                                                        ? 'border-[#009664] bg-emerald-50 text-[#009664]'
+                                                        : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700'
+                                                }`}
+                                            >
+                                                {formatRupiah(nominal)}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* MODE NON TUNAI */}
+                    {paymentCategory === 'NON_TUNAI' && (
+                        <div className="space-y-5">
+                            <div className="space-y-2">
+                                <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                                    Pilih Metode Non Tunai
+                                </label>
+                                <div className="grid grid-cols-3 gap-3">
+                                    {['QRIS', 'Transfer', 'Debit'].map((method) => {
+                                        const active = selectedPayment === method;
+                                        return (
+                                            <button
+                                                key={method}
+                                                type="button"
+                                                onClick={() => handleSelectNonCashMethod(method)}
+                                                className={`p-3.5 text-xs font-black rounded-xl border text-center transition ${
+                                                    active
+                                                        ? 'border-[#009664] bg-emerald-50 text-[#009664]'
+                                                        : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-600'
+                                                }`}
+                                            >
+                                                <div className="text-base mb-1">
+                                                    {method === 'QRIS'
+                                                        ? '📱'
+                                                        : method === 'Transfer'
+                                                        ? '🏦'
+                                                        : '💳'}
+                                                </div>
+                                                <div>{method}</div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+
+                            {(selectedPayment === 'Transfer' || selectedPayment === 'Debit') && (
+                                <div className="space-y-2.5 pt-1">
+                                    <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wider block">
+                                        Pilih Jenis Rekening ({selectedPayment})
+                                    </label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                                        {(paymentSettings.accountsByMethod[selectedPayment] || []).map(
+                                            (acc) => {
+                                                const isSelectedAcc = selectedAccount === acc;
+                                                return (
+                                                    <button
+                                                        key={acc}
+                                                        type="button"
+                                                        onClick={() => setSelectedAccount(acc)}
+                                                        className={`p-3 rounded-xl border text-left text-xs font-bold transition ${
+                                                            isSelectedAcc
+                                                                ? 'border-[#009664] bg-emerald-50 text-[#009664]'
+                                                                : 'border-gray-200 bg-white hover:bg-gray-50 text-gray-700'
+                                                        }`}
+                                                    >
+                                                        {acc}
+                                                    </button>
+                                                );
+                                            }
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
+
+                {/* KOLOM KANAN: RINGKASAN & TOMBOL SELESAIKAN */}
+                <div className="lg:col-span-5 p-6 bg-gray-50/70 flex flex-col justify-between">
+                    <div className="space-y-4">
+                        <h3 className="text-xs font-black text-gray-800 uppercase tracking-wider">
+                            Ringkasan Pembayaran
+                        </h3>
+
+                        <div className="bg-white p-4 rounded-2xl border border-gray-100 space-y-3 text-xs font-bold">
+                            <div className="flex justify-between text-gray-500">
+                                <span>Metode Terpilih:</span>
+                                <span className="text-gray-800 font-black text-right">
+                                    {selectedPayment}
+                                    {selectedAccount ? ` (${selectedAccount})` : ''}
+                                </span>
+                            </div>
+
+                            <div className="flex justify-between text-gray-500">
+                                <span>Subtotal:</span>
+                                <span>{formatRupiah(subtotal)}</span>
+                            </div>
+
+                            {selectedPromo && (
+                                <div className="flex justify-between text-red-500">
+                                    <span>Diskon:</span>
+                                    <span>- {formatRupiah(nilaiDiskon)}</span>
+                                </div>
+                            )}
+
+                            <div className="pt-2 border-t border-dashed border-gray-200 flex justify-between text-sm font-black text-[#009664]">
+                                <span>Total Bayar:</span>
+                                <span>{formatRupiah(totalSetelahDiskon)}</span>
+                            </div>
+
+                            {paymentCategory === 'TUNAI' && (
+                                <div className="pt-2 border-t border-gray-100 flex justify-between text-sm font-black text-emerald-600">
+                                    <span>Kembalian:</span>
+                                    <span>{formatRupiah(uangKembalian)}</span>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+
+                    <div className="pt-4">
+                        <button
+                            type="button"
+                            onClick={handleProsesBayarFinal}
+                            className="w-full bg-[#009664] hover:bg-emerald-700 text-white font-black py-3.5 rounded-xl text-xs uppercase tracking-wider transition shadow-md"
+                        >
+                            Selesaikan Transaksi
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </div>
 )}
 <BarcodeScannerModal
             open={isBarcodeScannerOpen}
