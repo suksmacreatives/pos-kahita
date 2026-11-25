@@ -8,112 +8,88 @@ export default function RingkasanPenjualan({ salesHistory = [], outlets = [], fo
     const [selectedOutlet, setSelectedOutlet] = useState('all');
     const [chartMode, setChartMode] = useState('hari'); // hari | minggu | bulan
 
-    const today = new Date().toISOString().split('T')[0];
+    const toYMD = (dateObj) => {
+        const year = dateObj.getFullYear();
+        const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+        const day = String(dateObj.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    };
 
-const [rangeTanggal, setRangeTanggal] = useState({
-    start: today,
-    end: today
-});
-useEffect(() => {
-    const today = new Date();
+    const parseLocalYMD = (dateStr) => {
+        const [year, month, day] = String(dateStr).split('-').map(Number);
+        return new Date(year, (month || 1) - 1, day || 1);
+    };
 
-    if (periodeMakro === 'hari') {
-        const tgl = today.toISOString().split('T')[0];
+    const [rangeTanggal, setRangeTanggal] = useState(() => {
+        const hariIni = toYMD(new Date());
+        return { start: hariIni, end: hariIni };
+    });
 
-        setRangeTanggal({
-            start: tgl,
-            end: tgl
-        });
-    }
+    useEffect(() => {
+        const today = new Date();
 
-    if (periodeMakro === 'bulan') {
-        const awal = new Date(
-            today.getFullYear(),
-            today.getMonth(),
-            1
-        );
+        if (periodeMakro === 'hari') {
+            const hariIni = toYMD(today);
+            setRangeTanggal({ start: hariIni, end: hariIni });
+        } else if (periodeMakro === 'bulan') {
+            const awal = new Date(today.getFullYear(), today.getMonth(), 1);
+            setRangeTanggal({ start: toYMD(awal), end: toYMD(today) });
+        } else if (periodeMakro === 'tahun') {
+            const awal = new Date(today.getFullYear(), 0, 1);
+            setRangeTanggal({ start: toYMD(awal), end: toYMD(today) });
+        }
 
-        setRangeTanggal({
-            start: awal.toISOString().split('T')[0],
-            end: today.toISOString().split('T')[0]
-        });
-    }
+        setModeTanggal(null);
+    }, [periodeMakro]);
 
-    if (periodeMakro === 'tahun') {
-        const awal = new Date(
-            today.getFullYear(),
-            0,
-            1
-        );
-
-        setRangeTanggal({
-            start: awal.toISOString().split('T')[0],
-            end: today.toISOString().split('T')[0]
-        });
-    }
-}, [periodeMakro]);
-    
-    const [isPilihanPertama, setIsPilihanPertama] = useState(true);
-    const hiddenDateInputRef = useRef(null);
+    const [modeTanggal, setModeTanggal] = useState(null); // 'start' | 'end'
+    const startDateInputRef = useRef(null);
+    const endDateInputRef = useRef(null);
 
     const formatLabelTanggal = (dateString) => {
         if (!dateString) return '';
-        try {
-            const opsi = { day: 'numeric', month: 'short', year: 'numeric' };
-            return new Date(dateString).toLocaleDateString('id-ID', opsi);
-        } catch (e) {
-            return dateString;
+        const opsi = { day: 'numeric', month: 'short', year: 'numeric' };
+        return parseLocalYMD(dateString).toLocaleDateString('id-ID', opsi);
+    };
+
+    const bukaPickerTanggal = (mode) => {
+        setModeTanggal(mode);
+        const ref = mode === 'start' ? startDateInputRef : endDateInputRef;
+        if (ref.current) {
+            ref.current.showPicker();
         }
     };
 
-    const pemicuKalenderKlik = () => {
-        if (hiddenDateInputRef.current) {
-            hiddenDateInputRef.current.showPicker();
-        }
-    };
-
-    const handleKalenderInput = (e) => {
+    const handleTanggalMulai = (e) => {
         const tanggalTerpilih = e.target.value;
         if (!tanggalTerpilih) return;
+        setRangeTanggal((prev) => {
+            const end = prev.end < tanggalTerpilih ? tanggalTerpilih : prev.end;
+            return { start: tanggalTerpilih, end };
+        });
+        setModeTanggal(null);
+    };
 
-        if (isPilihanPertama) {
-            setRangeTanggal({ start: tanggalTerpilih, end: tanggalTerpilih });
-            setIsPilihanPertama(false);
-        } else {
-            const tglAwal = new Date(rangeTanggal.start);
-            const tglAkhir = new Date(tanggalTerpilih);
-            
-            const selisihWaktu = tglAkhir.getTime() - tglAwal.getTime();
-            const selisihHari = Math.ceil(selisihWaktu / (1000 * 3600 * 24));
-
-            if (selisihHari < 0) {
-                alert('Tanggal akhir tidak boleh mendahului tanggal awal. Silakan pilih ulang.');
-                setIsPilihanPertama(true);
-                return;
-            }
-
-            if (selisihHari > 31) {
-                alert('Batas maksimal rentang filter detail adalah 31 hari!');
-                setIsPilihanPertama(true);
-                return;
-            }
-
-            setRangeTanggal(prev => ({ ...prev, end: tanggalTerpilih }));
-            setIsPilihanPertama(true);
-        }
+    const handleTanggalAkhir = (e) => {
+        const tanggalTerpilih = e.target.value;
+        if (!tanggalTerpilih) return;
+        setRangeTanggal((prev) => {
+            const start = prev.start > tanggalTerpilih ? tanggalTerpilih : prev.start;
+            return { start, end: tanggalTerpilih };
+        });
+        setModeTanggal(null);
     };
 
     const geserTanggal = (jumlahHari) => {
-        const tglAwal = new Date(rangeTanggal.start);
-        const tglAkhir = new Date(rangeTanggal.end);
-        
+        const tglAwal = parseLocalYMD(rangeTanggal.start);
+        const tglAkhir = parseLocalYMD(rangeTanggal.end);
+
         tglAwal.setDate(tglAwal.getDate() + jumlahHari);
         tglAkhir.setDate(tglAkhir.getDate() + jumlahHari);
 
-        const formatKeString = (d) => d.toISOString().split('T')[0];
         setRangeTanggal({
-            start: formatKeString(tglAwal),
-            end: formatKeString(tglAkhir)
+            start: toYMD(tglAwal),
+            end: toYMD(tglAkhir)
         });
     };
 
@@ -303,30 +279,52 @@ console.log("Data Pertama:", salesHistory[0]);
 
                     {/* Filter Tengah: Date Range Picker Interaktif */}
                     <div className="flex items-center bg-white border border-slate-200 rounded-l overflow-hidden h-[33px] min-w-[300px] flex-1 relative">
-                        <button 
+                        <button
                             type="button"
                             onClick={() => geserTanggal(-1)}
                             className="px-3 text-sm text-slate-500 hover:bg-slate-50 transition border-r border-slate-200 h-full"
                         >
                             &lt;
                         </button>
-                        
+
                         <button
                             type="button"
-                            onClick={pemicuKalenderKlik}
-                            className="px-4 text-sm text-slate-700 hover:bg-slate-50/50 transition h-full flex-1"
+                            onClick={() => bukaPickerTanggal('start')}
+                            className={`px-3 text-sm transition h-full flex-1 ${modeTanggal === 'start' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50/50'}`}
+                            title="Pilih tanggal awal"
                         >
-                            {formatLabelTanggal(rangeTanggal.start)} - {formatLabelTanggal(rangeTanggal.end)}
+                            Dari: {formatLabelTanggal(rangeTanggal.start)}
                         </button>
-                        
-                        <input 
+
+                        <span className="px-1 text-slate-300 text-sm">-</span>
+
+                        <button
+                            type="button"
+                            onClick={() => bukaPickerTanggal('end')}
+                            className={`px-3 text-sm transition h-full flex-1 ${modeTanggal === 'end' ? 'bg-emerald-50 text-emerald-700' : 'text-slate-700 hover:bg-slate-50/50'}`}
+                            title="Pilih tanggal akhir"
+                        >
+                            Sampai: {formatLabelTanggal(rangeTanggal.end)}
+                        </button>
+
+                        <input
                             type="date"
-                            ref={hiddenDateInputRef}
-                            onChange={handleKalenderInput}
+                            ref={startDateInputRef}
+                            value={rangeTanggal.start}
+                            max={rangeTanggal.end}
+                            onChange={handleTanggalMulai}
+                            className="absolute opacity-0 pointer-events-none w-0 h-0"
+                        />
+                        <input
+                            type="date"
+                            ref={endDateInputRef}
+                            value={rangeTanggal.end}
+                            min={rangeTanggal.start}
+                            onChange={handleTanggalAkhir}
                             className="absolute opacity-0 pointer-events-none w-0 h-0"
                         />
 
-                        <button 
+                        <button
                             type="button"
                             onClick={() => geserTanggal(1)}
                             className="px-3 text-sm text-slate-500 hover:bg-slate-50 transition border-l border-slate-200 h-full"
